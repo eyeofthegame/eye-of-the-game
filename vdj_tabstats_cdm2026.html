@@ -2804,60 +2804,6 @@ function renderDetailList(goals){
     if(a.matchId!==b.matchId) return a.matchId-b.matchId;
     return (parseInt(a.minute)||0)-(parseInt(b.minute)||0);
   });
-
-  // Helper: running score including this goal (dom-ext)
-  function scoreAt(g){
-    const matchGoals = allGoals.filter(x=>x.matchId===g.matchId);
-    let dom=0, ext=0;
-    for(const x of matchGoals){
-      if(x.team===g.match.dom) dom++; else ext++;
-      // Stop once we've reached this goal (match by minute+buteur+team)
-      if(x.minute===g.minute && x.buteur===g.buteur && x.team===g.team) break;
-    }
-    return {after: dom+'-'+ext};
-  }
-
-  // Helper: final score for a match
-  function finalScore(matchId, match){
-    const matchGoals = allGoals.filter(x=>x.matchId===matchId);
-    let dom=0, ext=0;
-    matchGoals.forEach(x=>{ if(x.team===match.dom) dom++; else ext++; });
-    return dom+'-'+ext;
-  }
-
-  let html = '';
-  goals.forEach(g=>{
-    const sc = scoreAt(g);
-    const fs = finalScore(g.matchId, g.match);
-    const cscLabel = isCsc(g) ? ' <span style="color:#cc4400;font-size:.8em;font-weight:normal">(csc)</span>' : '';
-    html += `<div class="goal-detail">
-      <div class="gd-header">${tf(g.match.dom)} — ${tf(g.match.ext)} ${g.match.id?'(M'+g.match.id+')':''} — ${g.match.date} &nbsp;<span style="font-weight:normal;font-size:.85em;color:#555">(${_lang==='en'?'final score: ':'score final : '}${fs})</span></div>
-      <div style="margin-bottom:6px">${g.minute||'?'}' <b>${tmLink(g.buteur||'?')}</b>${cscLabel}${g.assist&&!g.noAssist?' ('+tmLink(g.assist)+')':''} &nbsp;<span style="background:#003399;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:.95em">${sc.after}</span></div>
-      <div style="margin-bottom:8px">
-        ${(g.goalSteps&&g.goalSteps.length>0) ? buildGoalStepsSchema(g.goalSteps, _lang==='en'?'🗺 Goal Diagram':'🗺 Schéma du but') : buildMiniPitchWithArrow(g.assistX, g.assistY, g.pitchX, g.pitchY, (_lang==='en'?'🎯 Goal Diagram':'🎯 Schéma du but'), g.triggerX, g.triggerY, g.pressX, g.pressY, g.curve1||0, g.curve2||0)}
-      </div>
-      ${g.lien ? `<div style="margin-bottom:8px"><button onclick="openVideoModal('${g.lien}')" style="display:inline-block;padding:6px 14px;background:#cc0000;color:white;border-radius:6px;border:none;cursor:pointer;font-weight:bold;font-size:.85em">${_lang==='en'?'▶ Watch Video':'▶ Voir la vidéo'}</button></div>` : ''}
-      <div class="gd-vdj">`;
-    ['tactique1','origine1','actions','tactique2','tactique2b','tactique3'].forEach(k=>{
-      const t = k==='tactique2b'?VDJ.tactique2:VDJ[k];
-      const v = g[k];
-      const name = t&&t[v] ? t[v].nom : '—';
-      const bg = t&&t[v] ? t[v].c1 : 'ffffff';
-      const fg = t&&t[v] ? t[v].c2 : '000000';
-      html += `<span class="label">${VDJ_LABELS[k]||k}</span><span class="val" style="background:#${bg};color:#${fg};padding:1px 4px;border-radius:2px">${name}</span>`;
-    });
-    html += `</div></div>`;
-  });
-  document.getElementById('detail-content').innerHTML = html;
-}
-
-function renderDetailList(goals){
-  // Pre-compute all goals sorted for score tracking
-  const allGoals = getAllGoals();
-  allGoals.sort((a,b)=>{
-    if(a.matchId!==b.matchId) return a.matchId-b.matchId;
-    return (parseInt(a.minute)||0)-(parseInt(b.minute)||0);
-  });
   function scoreAt(g){
     const matchGoals = allGoals.filter(x=>x.matchId===g.matchId);
     let dom=0, ext=0;
