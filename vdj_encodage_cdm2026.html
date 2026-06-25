@@ -207,6 +207,7 @@ nav.sidebar h3, nav.sidebar h4, nav.sidebar .section-title {
 <div style="margin-bottom:.8em;display:flex;gap:4px">
   <button onclick="exportData()" style="flex:1;padding:5px;font-size:.72em;background:#1a6b3a;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Exporter toutes les données vers un fichier JSON">⬇ Export</button>
   <button onclick="importData()" style="flex:1;padding:5px;font-size:.72em;background:#1a3a6b;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Importer des données">⬆ Import</button>
+  <button onclick="backupData()" style="flex:1;padding:5px;font-size:.72em;background:#6b3a1a;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Sauvegarder les données en JSON pour publication">💾 Backup</button>
 </div>
 <div style="margin-bottom:.8em">
 <select id="comp-select" onchange="switchComp(this.value)" style="width:100%;font-size:.75em;padding:3px 5px;border:1.5px solid var(--accent);border-radius:4px;background:#faf6f0;color:var(--accent);font-weight:bold;cursor:pointer">
@@ -4415,6 +4416,20 @@ function doImport(){
   } catch(err) {
     alert('❌ Erreur : ' + err.message + '\nVérifie que tu as bien collé les données complètes.');
   }
+}
+
+function backupData(){
+  try {
+    const raw = localStorage.getItem('vdj_cdm2026') || '{}';
+    const parsed = JSON.parse(raw);
+    const blob = new Blob([JSON.stringify(parsed, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'vdj_cdm2026_backup.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    alert('✅ Backup téléchargé.\n\nDéplace ce fichier vers :\nDropbox/EYE OF THE GAME/VDJ2020.../Claude_VDJ/FICHIERS_JSON/\n\nPuis double-clique sur publier_vdj.command');
+  } catch(e) { alert('Erreur: '+e.message); }
 }
 
 // ── URLs MANQUANTES ───────────────────────────────────────────────────────────
