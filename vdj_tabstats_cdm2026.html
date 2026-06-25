@@ -2819,14 +2819,7 @@ function renderDetailList(goals){
     matchGoals.forEach(x=>{ if(x.team===g.match.dom) dom++; else ext++; });
     return dom+'-'+ext;
   }
-  // Rubrique name from detail-title (strip count in parens)
-  const titleEl = document.getElementById('detail-title');
-  const rubriqueName = titleEl ? titleEl.textContent.replace(/\s*\(\d+[^)]*\)\s*$/, '').trim() : '';
-  let html = '';
-  if(rubriqueName){
-    html += `<div style="font-size:.8em;font-weight:700;color:var(--accent);margin-bottom:6px;padding-bottom:5px;border-bottom:1px solid #e0d8cc">${rubriqueName}</div>`;
-  }
-  html += `<div style="font-size:.75em;color:var(--muted);margin-bottom:8px">${goals.length} ${_lang==='en'?(goals.length>1?'goals':'goal'):(goals.length>1?'buts':'but')}</div>`;
+  let html = `<div style="font-size:.75em;color:var(--muted);margin-bottom:8px">${goals.length} ${_lang==='en'?(goals.length>1?'goals':'goal'):(goals.length>1?'buts':'but')}</div>`;
   goals.forEach((g, i)=>{
     const csc = isCsc(g) ? ' <span style="color:#cc4400;font-size:.8em">(csc)</span>' : '';
     const sc = scoreAt(g);
