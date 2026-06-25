@@ -7296,7 +7296,7 @@ function ytWatchUrl(url){
 function ytEmbedUrl(url){
   const p = ytParseUrl(url);
   if(!p) return null;
-  return `https://www.youtube.com/embed/${p.id}?start=${p.start}&autoplay=1&rel=0`;
+  return `https://www.youtube.com/embed/${p.id}?start=${p.start}&autoplay=1&rel=0&enablejsapi=1&origin=${encodeURIComponent(location.origin)}`;
 }
 
 function openVideoModal(rawUrl){
@@ -7380,11 +7380,6 @@ function openVideoModal(rawUrl){
     // Auto-open popup if YouTube blocks after 3.5s
     clearTimeout(modal._blockTimer);
     modal._ytPlaying = false;
-    modal._blockTimer = setTimeout(()=>{
-      if(!modal._ytPlaying && modal.style.display !== 'none'){
-        _openPopup();
-      }
-    }, 3500);
     window.removeEventListener('message', _ytMessageHandler);
     window.addEventListener('message', _ytMessageHandler);
   } else {
