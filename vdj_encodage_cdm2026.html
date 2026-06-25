@@ -205,7 +205,7 @@ nav.sidebar h3, nav.sidebar h4, nav.sidebar .section-title {
 <div style="font-size:.7em;color:var(--muted)" id="comp-label">Coupe du Monde 2026</div>
 </div>
 <div style="margin-bottom:.8em;display:flex;gap:4px">
-  <button onclick="exportData()" style="flex:1;padding:5px;font-size:.72em;background:#1a6b3a;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Exporter toutes les données vers un fichier JSON">⬇ Export</button>
+  <button onclick="backupSilent()" style="flex:1;padding:5px;font-size:.72em;background:#1a6b3a;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Télécharger le fichier de sauvegarde JSON">⬇ Sauvegarder</button>
   <button onclick="importData()" style="flex:1;padding:5px;font-size:.72em;background:#1a3a6b;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Importer des données">⬆ Import</button>
   <button onclick="backupData()" style="flex:1;padding:5px;font-size:.72em;background:#6b3a1a;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Sauvegarder les données en JSON pour publication">💾 Backup</button>
 </div>
@@ -4429,6 +4429,25 @@ function backupData(){
     a.click();
     URL.revokeObjectURL(a.href);
     alert('✅ Backup téléchargé.\n\nDéplace ce fichier vers :\nDropbox/EYE OF THE GAME/VDJ2020.../Claude_VDJ/FICHIERS_JSON/\n\nPuis double-clique sur publier_vdj.command');
+  } catch(e) { alert('Erreur: '+e.message); }
+}
+
+function backupSilent(){
+  try {
+    const raw = localStorage.getItem('vdj_cdm2026') || '{}';
+    const parsed = JSON.parse(raw);
+    const blob = new Blob([JSON.stringify(parsed, null, 2)], {type:'application/json'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = 'vdj_cdm2026_backup.json';
+    a.click();
+    URL.revokeObjectURL(a.href);
+    // Show brief toast
+    const t = document.createElement('div');
+    t.textContent = '✅ Fichier sauvegardé — double-clique sur publier_vdj.command';
+    t.style.cssText = 'position:fixed;bottom:24px;left:50%;transform:translateX(-50%);background:#1a6b3a;color:#fff;padding:10px 20px;border-radius:8px;font-size:.85em;z-index:99999;box-shadow:0 4px 12px rgba(0,0,0,.3)';
+    document.body.appendChild(t);
+    setTimeout(()=>t.remove(), 4000);
   } catch(e) { alert('Erreur: '+e.message); }
 }
 
