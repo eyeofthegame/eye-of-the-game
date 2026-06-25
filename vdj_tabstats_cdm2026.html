@@ -2790,6 +2790,14 @@ function renderDetailGoals(goals){
     document.getElementById('detail-content').innerHTML = '<div class="no-data">'+(_lang==='en'?'No goals':'Aucun but')+'</div>';
     return;
   }
+  // Show compact list; clicking a row expands single goal
+  _detailGoalsCache = goals;
+  renderDetailList(goals);
+}
+
+let _detailGoalsCache = [];
+
+function renderDetailList(goals){
   // Pre-compute all goals sorted for score tracking
   const allGoals = getAllGoals();
   allGoals.sort((a,b)=>{
@@ -2840,6 +2848,88 @@ function renderDetailGoals(goals){
     });
     html += `</div></div>`;
   });
+  document.getElementById('detail-content').innerHTML = html;
+}
+
+function renderDetailList(goals){
+  // Pre-compute all goals sorted for score tracking
+  const allGoals = getAllGoals();
+  allGoals.sort((a,b)=>{
+    if(a.matchId!==b.matchId) return a.matchId-b.matchId;
+    return (parseInt(a.minute)||0)-(parseInt(b.minute)||0);
+  });
+  function scoreAt(g){
+    const matchGoals = allGoals.filter(x=>x.matchId===g.matchId);
+    let dom=0, ext=0;
+    for(const x of matchGoals){
+      if(x.team===g.match.dom) dom++; else ext++;
+      if(x.minute===g.minute && x.buteur===g.buteur && x.team===g.team) break;
+    }
+    return dom+'-'+ext;
+  }
+  let html = `<div style="font-size:.75em;color:var(--muted);margin-bottom:8px">${goals.length} ${_lang==='en'?(goals.length>1?'goals':'goal'):(goals.length>1?'buts':'but')}</div>`;
+  goals.forEach((g, i)=>{
+    const csc = isCsc(g) ? ' <span style="color:#cc4400">(csc)</span>' : '';
+    const sc = scoreAt(g);
+    const videoBtn = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 7px;font-size:.75em;cursor:pointer;margin-left:6px">▶</button>` : '';
+    const flag = getFlag ? getFlag(g.team) : '';
+    const oppFlag = getFlag ? getFlag(g.opponent) : '';
+    html += `<div onclick="renderSingleGoal(${i})" style="cursor:pointer;padding:6px 8px;border-radius:5px;margin-bottom:4px;background:#f5f2ec;border:1px solid #e0d8cc;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-weight:700;min-width:28px;color:var(--accent)">${g.minute||'?'}'</span>
+      <span style="flex:1;font-weight:600">${g.buteur||'?'}${csc}${g.assist&&!g.noAssist?' <span style="color:#555;font-weight:normal;font-size:.9em">→ '+g.assist+'</span>':''}</span>
+      <span style="color:#777;font-size:.85em">${flag}${g.match.dom} — ${oppFlag}${g.match.ext}</span>
+      <span style="background:#003399;color:#fff;padding:1px 6px;border-radius:3px;font-size:.85em;font-weight:bold">${sc}</span>
+      ${videoBtn}
+    </div>`;
+  });
+  document.getElementById('detail-content').innerHTML = html;
+}
+
+function renderSingleGoal(idx){
+  const goals = [_detailGoalsCache[idx]];
+  // Add back button
+  const allGoals = getAllGoals();
+  allGoals.sort((a,b)=>{
+    if(a.matchId!==b.matchId) return a.matchId-b.matchId;
+    return (parseInt(a.minute)||0)-(parseInt(b.minute)||0);
+  });
+  function scoreAt(g){
+    const matchGoals = allGoals.filter(x=>x.matchId===g.matchId);
+    let dom=0, ext=0;
+    for(const x of matchGoals){
+      if(x.team===g.match.dom) dom++; else ext++;
+      if(x.minute===g.minute && x.buteur===g.buteur && x.team===g.team) break;
+    }
+    return {after: dom+'-'+ext};
+  }
+  function finalScore(matchId, match){
+    const matchGoals = allGoals.filter(x=>x.matchId===matchId);
+    let dom=0, ext=0;
+    matchGoals.forEach(x=>{ if(x.team===match.dom) dom++; else ext++; });
+    return dom+'-'+ext;
+  }
+  const g = _detailGoalsCache[idx];
+  const sc = scoreAt(g);
+  const fs = finalScore(g.matchId, g.match);
+  const cscLabel = isCsc(g) ? ' <span style="color:#cc4400;font-size:.8em;font-weight:normal">(csc)</span>' : '';
+  let html = `<button onclick="renderDetailList(_detailGoalsCache)" style="margin-bottom:10px;padding:4px 12px;border:1px solid #ccc;border-radius:4px;background:#f5f5f5;cursor:pointer;font-size:.8em">← ${_lang==='en'?'Back to list':'Retour à la liste'}</button>`;
+  html += `<div class="goal-detail">
+    <div class="gd-header">${tf(g.match.dom)} — ${tf(g.match.ext)} ${g.match.id?'(M'+g.match.id+')':''} — ${g.match.date} &nbsp;<span style="font-weight:normal;font-size:.85em;color:#555">(${_lang==='en'?'final score: ':'score final : '}${fs})</span></div>
+    <div style="margin-bottom:6px">${g.minute||'?'}' <b>${tmLink(g.buteur||'?')}</b>${cscLabel}${g.assist&&!g.noAssist?' ('+tmLink(g.assist)+')':''} &nbsp;<span style="background:#003399;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:.95em">${sc.after}</span></div>
+    <div style="margin-bottom:8px">
+      ${(g.goalSteps&&g.goalSteps.length>0) ? buildGoalStepsSchema(g.goalSteps, _lang==='en'?'🗺 Goal Diagram':'🗺 Schéma du but') : buildMiniPitchWithArrow(g.assistX, g.assistY, g.pitchX, g.pitchY, (_lang==='en'?'🎯 Goal Diagram':'🎯 Schéma du but'), g.triggerX, g.triggerY, g.pressX, g.pressY, g.curve1||0, g.curve2||0)}
+    </div>
+    ${g.lien ? `<div style="margin-bottom:8px"><button onclick="openVideoModal('${g.lien}')" style="display:inline-block;padding:6px 14px;background:#cc0000;color:white;border-radius:6px;border:none;cursor:pointer;font-weight:bold;font-size:.85em">${_lang==='en'?'▶ Watch Video':'▶ Voir la vidéo'}</button></div>` : ''}
+    <div class="gd-vdj">`;
+  ['tactique1','origine1','actions','tactique2','tactique2b','tactique3'].forEach(k=>{
+    const t = k==='tactique2b'?VDJ.tactique2:VDJ[k];
+    const v = g[k];
+    const name = t&&t[v] ? t[v].nom : '—';
+    const bg = t&&t[v] ? t[v].c1 : 'ffffff';
+    const fg = t&&t[v] ? t[v].c2 : '000000';
+    html += `<span class="label">${VDJ_LABELS[k]||k}</span><span class="val" style="background:#${bg};color:#${fg};padding:1px 4px;border-radius:2px">${name}</span>`;
+  });
+  html += `</div></div>`;
   document.getElementById('detail-content').innerHTML = html;
 }
 
