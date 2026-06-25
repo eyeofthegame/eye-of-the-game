@@ -2815,15 +2815,19 @@ function renderDetailList(goals){
   }
   let html = `<div style="font-size:.75em;color:var(--muted);margin-bottom:8px">${goals.length} ${_lang==='en'?(goals.length>1?'goals':'goal'):(goals.length>1?'buts':'but')}</div>`;
   goals.forEach((g, i)=>{
-    const csc = isCsc(g) ? ' <span style="color:#cc4400">(csc)</span>' : '';
+    const csc = isCsc(g) ? ' <span style="color:#cc4400;font-size:.8em">(csc)</span>' : '';
     const sc = scoreAt(g);
-    const videoBtn = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 7px;font-size:.75em;cursor:pointer;margin-left:6px">▶</button>` : '';
-    html += `<div onclick="renderSingleGoal(${i})" style="cursor:pointer;padding:6px 8px;border-radius:5px;margin-bottom:4px;background:#f5f2ec;border:1px solid #e0d8cc;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-weight:700;min-width:28px;color:var(--accent)">${g.minute||'?'}'</span>
-      <span style="flex:1;font-weight:600">${g.buteur||'?'}${csc}${g.assist&&!g.noAssist?' <span style="color:#555;font-weight:normal;font-size:.9em">→ '+g.assist+'</span>':''}</span>
-      <span style="color:#777;font-size:.85em">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext}</span>
-      <span style="background:#003399;color:#fff;padding:1px 6px;border-radius:3px;font-size:.85em;font-weight:bold">${sc}</span>
-      ${videoBtn}
+    const videoBtn = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer;flex-shrink:0">▶</button>` : '';
+    const assist = g.assist&&!g.noAssist ? `<div style="font-size:.8em;color:#666;margin-top:1px">→ ${g.assist}</div>` : '';
+    html += `<div onclick="renderSingleGoal(${i})" style="cursor:pointer;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc;display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:8px">
+      <span style="font-weight:800;color:var(--accent);font-size:.95em">${g.minute||'?'}'</span>
+      <div>
+        <div style="font-weight:700;font-size:.9em">${g.buteur||'?'}${csc}</div>
+        ${assist}
+        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext}</div>
+      </div>
+      <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
+      ${videoBtn||'<span></span>'}
     </div>`;
   });
   document.getElementById('detail-content').innerHTML = html;
