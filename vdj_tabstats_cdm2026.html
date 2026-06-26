@@ -6818,7 +6818,7 @@ function renderFicheMatch(){
 
   // ── Top scorer/assister per team ──────────────────────────────────────────
   // ── Timing des buts (distribution par période) ────────────────────────────
-  function timingBar(goals, flagTeam, teamName){
+  function timingBar(goals, flagTeam, teamName, isConc=false){
     const buckets = [
       {label:'0–15', min:0,  max:15},
       {label:'16–30',min:16, max:30},
@@ -6843,10 +6843,13 @@ function renderFicheMatch(){
     // First goal tendency
     const firstHalf  = counts[0]+counts[1]+counts[2];
     const secondHalf = counts[3]+counts[4]+counts[5];
+    const verb = isConc ? (_lang==='en'?'Concedes':'Encaisse') : (_lang==='en'?'Scores':'Marque');
+    const verbFr1 = isConc ? 'Encaisse plutôt en' : 'Marque plutôt en';
+    const verbEn1 = isConc ? 'Concedes more in the' : 'Scores more in the';
     const tendency = firstHalf > secondHalf
-      ? (_lang==='en'?`⏱ Scores more in the <strong>1st half</strong> (${firstHalf} goals)`:`⏱ Marque plutôt en <strong>1ère mi-temps</strong> (${firstHalf} buts)`)
+      ? (_lang==='en'?`⏱ ${verbEn1} <strong>1st half</strong> (${firstHalf} goals)`:`⏱ ${verbFr1} <strong>1ère mi-temps</strong> (${firstHalf} buts)`)
       : secondHalf > firstHalf
-      ? (_lang==='en'?`⏱ Scores more in the <strong>2nd half</strong> (${secondHalf} goals)`:`⏱ Marque plutôt en <strong>2ème mi-temps</strong> (${secondHalf} buts)`)
+      ? (_lang==='en'?`⏱ ${verbEn1} <strong>2nd half</strong> (${secondHalf} goals)`:`⏱ ${verbFr1} <strong>2ème mi-temps</strong> (${secondHalf} buts)`)
       : (_lang==='en'?`⏱ Balanced distribution between both halves`:`⏱ Répartition équilibrée entre les deux mi-temps`);
 
     let bars = `<div style="display:flex;gap:4px;align-items:flex-end;height:60px;margin-bottom:4px">`;
@@ -6876,7 +6879,7 @@ function renderFicheMatch(){
     if(total > 0 && early/total >= 0.25)
       alerts += `<div style="font-size:.73em;color:#e67e22;margin-top:4px">${_lang==='en'?'⚠️ Dangerous in early stages ('+Math.round(early/total*100)+'% of goals 0–15\')':'⚠️ Dangereux en début de match ('+Math.round(early/total*100)+'% des buts 0–15\')'}</div>`;
     if(total > 0 && late/total >= 0.25)
-      alerts += `<div style="font-size:.73em;color:#c0392b;margin-top:4px">${_lang==='en'?'⚠️ Late finisher — '+Math.round(late/total*100)+'% of goals after 76\'':'⚠️ Finisseur tardif — '+Math.round(late/total*100)+'% des buts après la 76\''}</div>`;
+      alerts += `<div style="font-size:.73em;color:#c0392b;margin-top:4px">${isConc ? (_lang==='en'?'⚠️ Concedes late — '+Math.round(late/total*100)+'% after 76\'':'⚠️ Encaisse en fin de match — '+Math.round(late/total*100)+'% après la 76\'') : (_lang==='en'?'⚠️ Late finisher — '+Math.round(late/total*100)+'% of goals after 76\'':'⚠️ Finisseur tardif — '+Math.round(late/total*100)+'% des buts après la 76\'')}</div>`;
     bars += alerts;
 
     return bars;
@@ -7259,7 +7262,7 @@ function renderFicheMatch(){
       ${timingBar(goalsD, flagD, domTeam)}
       <div style="border-top:1px dashed var(--border);margin:10px 0"></div>
       <div style="font-size:.72em;font-weight:700;color:#e74c3c;margin-bottom:4px">${_lang==='en'?'🛡 Concedes':'🛡 Encaisse'}</div>
-      ${timingBar(concD, flagD, domTeam)}
+      ${timingBar(concD, flagD, domTeam, true)}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px 16px">
       <div class="section-title" style="margin-bottom:10px">⏱ Timing — ${flagE} ${_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam}</div>
@@ -7267,7 +7270,7 @@ function renderFicheMatch(){
       ${timingBar(goalsE, flagE, extTeam)}
       <div style="border-top:1px dashed var(--border);margin:10px 0"></div>
       <div style="font-size:.72em;font-weight:700;color:#e74c3c;margin-bottom:4px">${_lang==='en'?'🛡 Concedes':'🛡 Encaisse'}</div>
-      ${timingBar(concE, flagE, extTeam)}
+      ${timingBar(concE, flagE, extTeam, true)}
     </div>
   </div>
 
