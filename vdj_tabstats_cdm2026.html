@@ -4228,7 +4228,7 @@ function renderEvolution(){
     const sc = data[d.m.id]?.score;
     const scStr = sc ? (typeof sc==='object' ? sc.dom+'-'+sc.ext : sc) : '—';
     const tip = abbr + ' | ' + d.m.date + ' | ' + scStr;
-    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85"><title>${tip}</title></rect>`;
+    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85" title="${tip}"/>`;
     if(d.total>0) barsG1 += `<text x="${x+barW/2}" y="${by-3}" text-anchor="middle" font-size="9" fill="var(--accent)" font-weight="bold">${d.total}</text>`;
   });
 
