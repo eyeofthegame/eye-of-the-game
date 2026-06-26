@@ -4224,11 +4224,11 @@ function renderEvolution(){
     const x = barPad + i*(barW+barPad);
     const bh = d.total > 0 ? Math.round((d.total/maxGoals)*(G1H-28)) : 0;
     const by = G1H - 18 - bh;
-    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85"/>`;
+    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85"><title>${abbr} | ${d.m.date} | Score: ${data[d.m.id]?.score ? (typeof data[d.m.id].score==='object'?data[d.m.id].score.dom+'-'+data[d.m.id].score.ext:data[d.m.id].score) : '—'}</title></rect>`;
     if(d.total>0) barsG1 += `<text x="${x+barW/2}" y="${by-3}" text-anchor="middle" font-size="9" fill="var(--accent)" font-weight="bold">${d.total}</text>`;
     // Match label (abbreviated)
     const abbr = `${(_lang==='en'?(TEAM_NAME_EN[d.m.dom]||d.m.dom):d.m.dom).slice(0,3).toUpperCase()}-${(_lang==='en'?(TEAM_NAME_EN[d.m.ext]||d.m.ext):d.m.ext).slice(0,3).toUpperCase()}`;
-    labelsG1 += `<text transform="rotate(-90,${x+barW/2},${G1H-22})" x="${x+barW/2}" y="${G1H-22}" text-anchor="start" font-size="7" fill="var(--muted)">${abbr}</text>`;
+    // label removed — shown in tooltip on hover
   });
 
   // Y axis ticks
