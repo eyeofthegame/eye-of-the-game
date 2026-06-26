@@ -3973,25 +3973,10 @@ function lsSaveKey(){
 }
 
 
-// ── CORS PROXY (toujours actif — api-sports.io bloque les appels browser) ──
+// ── PROXY VIA CLOUDFLARE WORKER ──────────────────────────────────────────────
 async function lsFetch(url, opts){
-  const proxies = [
-    ['corsproxy.io', 'https://corsproxy.io/?' + encodeURIComponent(url)],
-    ['allorigins', 'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)],
-    ['cors.sh', 'https://cors.sh/' + url]
-  ];
-  for(const [name, proxy] of proxies){
-    try {
-      const proxyOpts = name === 'cors.sh' ? {...opts, headers:{...(opts.headers||{}),'x-cors-api-key':'temp_...'}} : opts;
-      const r = await fetch(proxy, proxyOpts);
-      lsLog('📡 '+name+': HTTP '+r.status);
-      return r; // let caller handle status
-    } catch(e){
-      lsLog('❌ '+name+' failed: '+e.message);
-    }
-  }
-  lsLog('❌ Tous les proxies ont échoué');
-  throw new Error('Failed to fetch via all proxies');
+  const worker = 'https://spring-smoke-d136.pushkulu-6a2.workers.dev/?url=' + encodeURIComponent(url);
+  return fetch(worker, opts);
 }
 
 async function lsSearchFixtures(){
