@@ -596,8 +596,8 @@ main { background: var(--bg) !important; }
 <div style="margin-top:1.2em;padding-top:.8em;border-top:1px solid rgba(255,255,255,.15);font-size:.75em">
   <div id="sb-sync-label" style="color:var(--sidebar-section);font-weight:bold;margin-bottom:.3em">Sync fichier</div>
   <div id="flink-status" style="color:var(--sidebar-text);margin-bottom:.4em">Non connecté</div>
-  <button id="sb-btn-link" onclick="flinkConnect()" style="font-size:.72em;padding:3px 8px;margin-bottom:2px;width:100%;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:3px;cursor:pointer">Lier JSON…</button>
-  <button id="sb-btn-unlink" onclick="flinkUnlink()" style="font-size:.72em;padding:3px 8px;width:100%;background:rgba(255,255,255,.1);color:#fff;border:1px solid rgba(255,255,255,.3);border-radius:3px;cursor:pointer">Délier</button>
+  <button id="sb-btn-link" onclick="flinkConnect()" style="display:none">Lier JSON…</button>
+  <button id="sb-btn-unlink" onclick="flinkUnlink()" style="display:none">Délier</button>
 </div>
 <div class="sidebar-footer">
   <span id="live-badge" style="font-size:.72em;font-weight:bold;letter-spacing:.06em;color:var(--muted);transition:all .4s;padding:2px 7px;border-radius:10px">○ live</span><br><br>
