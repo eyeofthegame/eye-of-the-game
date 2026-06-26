@@ -7289,25 +7289,31 @@ function renderFicheMatch(){
 function printFicheMatch(){
   const el = document.getElementById('view-ficheMatch');
   if(!el) return;
-  // Hide everything except fiche match, then print
-  const allViews = document.querySelectorAll('main > div');
-  const sidebar = document.querySelector('nav.sidebar');
-  const header = document.querySelector('header');
-  allViews.forEach(d => d.setAttribute('data-print-hidden', d.style.display));
-  allViews.forEach(d => d.style.display = 'none');
-  el.style.display = 'block';
-  el.querySelectorAll('button').forEach(b => b.style.display = 'none');
-  if(sidebar) sidebar.style.display = 'none';
-  if(header) header.style.display = 'none';
-  window.print();
-  // Restore
-  allViews.forEach(d => {
-    d.style.display = d.getAttribute('data-print-hidden') || 'none';
-    d.removeAttribute('data-print-hidden');
-  });
-  el.querySelectorAll('button').forEach(b => b.style.display = '');
-  if(sidebar) sidebar.style.display = '';
-  if(header) header.style.display = '';
+  // Get current styles
+  const styleSheets = Array.from(document.styleSheets).map(ss => {
+    try { return Array.from(ss.cssRules).map(r=>r.cssText).join('\n'); } catch(e){ return ''; }
+  }).join('\n');
+  // Clone content, hide buttons
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('button, select').forEach(e => e.remove());
+  const html = `<!DOCTYPE html><html><head><meta charset="utf-8">
+  <title>Fiche Match Commentateur</title>
+  <style>
+    ${styleSheets}
+    body { background: #fff !important; margin: 20px; font-family: Georgia, serif; }
+    nav, header, footer { display: none !important; }
+  </style>
+  </head><body>${clone.innerHTML}</body></html>`;
+  const blob = new Blob([html], {type: 'text/html'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.target = '_blank';
+  a.rel = 'noopener';
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
 }
 
 // ══════════════════════════════════════════════════════════
