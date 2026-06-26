@@ -1842,18 +1842,13 @@ function renderHome(){
     if(data[k].score) matchesWithScore++;
     if(data[k].validated) matchesEncoded++;
     if(data[k].score){
-      const m = MATCHES.find(x=>x.id===k);
-      if(m){
-        const sc = data[k].score;
-        const parts = sc.split('-');
-        if(parts.length===2){
-          const d=parseInt(parts[0]), e=parseInt(parts[1]);
-          if(!isNaN(d)&&!isNaN(e)){
-            if(d>e) homeWins++;
-            else if(d===e) draws++;
-            else awayWins++;
-          }
-        }
+      const sc = data[k].score;
+      const d = typeof sc==='object' ? sc.dom : parseInt((sc+'').split('-')[0]);
+      const e = typeof sc==='object' ? sc.ext : parseInt((sc+'').split('-')[1]);
+      if(!isNaN(d)&&!isNaN(e)){
+        if(d>e) homeWins++;
+        else if(d===e) draws++;
+        else awayWins++;
       }
     }
   });
