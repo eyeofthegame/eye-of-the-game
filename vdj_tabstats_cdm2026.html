@@ -6274,145 +6274,136 @@ function renderSankey(){
 
   if(!goals.length){ html+=`<div style="color:var(--muted);text-align:center;padding:40px">${_lang==='en'?'No data encoded':'Aucune donnée encodée'}</div></div>`; el.innerHTML=html; return; }
 
-  // Définition des couches
+  const total = goals.length || 1;
+
+  // Couleurs style
+  const TAC1_C = {1:'#27ae60',2:'#2980b9',4:'#f39c12',3:'#8e44ad',5:'#c0392b',6:'#e74c3c'};
+  const O2_C   = {4:'#16a085',3:'#34495e',2:'#d35400'};
+  const hx = c => '#'+c;
+
+  // Actions : top 10 par fréquence
+  const actCnt = {};
+  goals.forEach(g=>{ if(g.actions!=null) actCnt[g.actions]=(actCnt[g.actions]||0)+1; });
+  const topActs = Object.entries(actCnt).sort((a,b)=>b[1]-a[1]).slice(0,10).map(([v])=>Number(v));
+
   const layers = [
     {
-      key:'tactique1', label:'Style',
-      nodes:[
-        {val:1,label:VDJ.tactique1[1].nom,color:'#27ae60'},
-        {val:2,label:VDJ.tactique1[2].nom,color:'#2980b9'},
-        {val:4,label:VDJ.tactique1[4].nom,color:'#f39c12'},
-        {val:3,label:VDJ.tactique1[3].nom,color:'#8e44ad'},
-        {val:5,label:'PA',color:'#c0392b'},
-        {val:6,label:'Penalty',color:'#e74c3c'},
-      ]
+      key:'tactique1', label:_lang==='en'?'Style':'Style',
+      nodes:[1,2,4,3,5,6].filter(v=>goals.some(g=>g.tactique1===v))
+        .map(v=>({val:v, label:VDJ.tactique1[v].nom, color:TAC1_C[v]||'#888'}))
     },
     {
-      key:'origine2', label:'Direction',
-      nodes:[
-        {val:4,label:_lang==='en'?'Left':'Gauche',color:'#16a085'},
-        {val:2,label:_lang==='en'?'Center':'Axe',color:'#2c3e50'},
-        {val:3,label:_lang==='en'?'Right':'Droite',color:'#d35400'},
-      ]
+      key:'origine2', label:_lang==='en'?'Laterality':'Latéralité',
+      nodes:[4,3,2].filter(v=>goals.some(g=>g.origine2===v))
+        .map(v=>({val:v, label:VDJ.origine2[v].nom, color:O2_C[v]||'#888'}))
     },
     {
-      key:'tactique3', label:'Nature',
-      nodes:[
-        {val:1,label:_lang==='en'?'Game plan':'Plan de jeu',color:'#27ae60'},
-        {val:2,label:VDJ.tactique3[2].nom,color:'#f39c12'},
-        {val:4,label:_lang==='en'?'Prov. error':'Erreur prov.',color:'#c0392b'},
-      ]
+      key:'origine1', label:_lang==='en'?'Origin':'Origine',
+      nodes:[2,6,8,1,5,4,3,10,7,9].filter(v=>goals.some(g=>g.origine1===v))
+        .map(v=>({val:v, label:VDJ.origine1[v].nom, color:hx(VDJ.origine1[v].c1)}))
+    },
+    {
+      key:'actions', label:_lang==='en'?'Action':'Action',
+      nodes:topActs.filter(v=>VDJ.actions[v])
+        .map(v=>({val:v, label:VDJ.actions[v].nom, color:hx(VDJ.actions[v].c1)}))
     }
   ];
 
-  // Construire les flux (source couche i → dest couche i+1)
-  function buildFlows(goals, l1, l2){
-    const flows = {};
-    goals.forEach(g=>{
-      const k1 = g[l1.key], k2 = g[l2.key];
-      if(k1==null||k2==null) return;
-      const key = `${k1}__${k2}`;
-      flows[key] = (flows[key]||0)+1;
-    });
-    return flows;
-  }
+  // SVG layout
+  const W=980, H=540, PAD_T=32, PAD_B=24;
+  const availH = H - PAD_T - PAD_B;
+  const nL = layers.length;
+  const colW = 118;
+  const colGap = Math.round((W - nL*colW) / (nL-1));
+  const colX = i => i*(colW+colGap);
+  const GAP = 8, MIN_H = 14;
 
-  // Compter les goals par nœud
-  function nodeCounts(goals, layer){
-    const cnt = {};
-    layer.nodes.forEach(n=>{ cnt[n.val] = goals.filter(g=>g[layer.key]==n.val).length; });
+  function nodeCounts(layer){
+    const cnt={};
+    layer.nodes.forEach(n=>{ cnt[n.val]=goals.filter(g=>g[layer.key]===n.val).length; });
     return cnt;
   }
+  const lCounts = layers.map(l=>nodeCounts(l));
 
-  // SVG dimensions
-  const W = 700, H = 400;
-  const nLayers = layers.length;
-  const colW = 120;
-  const colGap = (W - nLayers*colW) / (nLayers - 1);
-  const colX = i => i*(colW+colGap);
-  const nodeH = 30, nodeGap = 10;
-  const total = goals.length || 1;
-
-  // Calculer positions y de chaque nœud dans chaque couche
-  function getNodePositions(layer){
-    const counts = nodeCounts(goals, layer);
-    const activeNodes = layer.nodes.filter(n=>counts[n.val]>0);
-    const totalH = activeNodes.length*(nodeH+nodeGap) - nodeGap;
-    let startY = (H - totalH)/2;
-    const positions = {};
-    activeNodes.forEach(n=>{
-      positions[n.val] = startY;
-      startY += nodeH + nodeGap;
-    });
-    return positions;
+  function getLayout(layer, counts){
+    const active = layer.nodes.filter(n=>(counts[n.val]||0)>0);
+    if(!active.length) return {positions:{}, heights:{}};
+    const spaceNodes = availH - (active.length-1)*GAP;
+    const heights={};
+    active.forEach(n=>{ heights[n.val]=Math.max(MIN_H, Math.round((counts[n.val]/total)*spaceNodes)); });
+    // Rescale if overflow
+    const sumH = active.reduce((s,n)=>s+heights[n.val],0);
+    if(sumH>spaceNodes){ const sc=spaceNodes/sumH; active.forEach(n=>{ heights[n.val]=Math.max(MIN_H,Math.round(heights[n.val]*sc)); }); }
+    const usedH = active.reduce((s,n)=>s+heights[n.val],0)+(active.length-1)*GAP;
+    let y = PAD_T + (availH-usedH)/2;
+    const positions={};
+    active.forEach(n=>{ positions[n.val]=y; y+=heights[n.val]+GAP; });
+    return {positions, heights};
   }
+  const lLayouts = layers.map((l,i)=>getLayout(l,lCounts[i]));
 
-  const layerPositions = layers.map(l=>getNodePositions(l));
-  const layerCounts = layers.map(l=>nodeCounts(goals,l));
+  let svg='';
 
-  let svgContent = '';
-
-  // Dessiner les flux entre couches
-  for(let li=0; li<nLayers-1; li++){
-    const l1 = layers[li], l2 = layers[li+1];
-    const flows = buildFlows(goals, l1, l2);
-    const x1 = colX(li)+colW, x2 = colX(li+1);
-    const cx = (x1+x2)/2;
-
-    // Pour chaque nœud source, tracker l'offset vertical courant
-    const srcOffset = {};
-    const dstOffset = {};
-
-    Object.entries(flows).forEach(([key, cnt])=>{
-      const [s,d] = key.split('__').map(Number);
-      if(!layerPositions[li][s]||!layerPositions[li+1][d]) return;
-      const srcCount = layerCounts[li][s]||1;
-      const dstCount = layerCounts[li+1][d]||1;
-      const srcHeight = nodeH * (cnt/srcCount);
-      const dstHeight = nodeH * (cnt/dstCount);
-      if(!srcOffset[s]) srcOffset[s]=0;
-      if(!dstOffset[d]) dstOffset[d]=0;
-      const y1t = layerPositions[li][s] + srcOffset[s];
-      const y1b = y1t + srcHeight;
-      const y2t = layerPositions[li+1][d] + dstOffset[d];
-      const y2b = y2t + dstHeight;
-      srcOffset[s] += srcHeight;
-      dstOffset[d] += dstHeight;
-      // Couleur = source node
-      const srcNode = l1.nodes.find(n=>n.val===s);
-      const color = srcNode ? srcNode.color : '#aaa';
-      svgContent += `<path d="M${x1},${y1t} C${cx},${y1t} ${cx},${y2t} ${x2},${y2t} L${x2},${y2b} C${cx},${y2b} ${cx},${y1b} ${x1},${y1b} Z" fill="${color}" opacity="0.35"/>`;
+  // Flux
+  for(let li=0;li<nL-1;li++){
+    const l1=layers[li], l2=layers[li+1];
+    const x1=colX(li)+colW, x2=colX(li+1), cx=(x1+x2)/2;
+    const lay1=lLayouts[li], lay2=lLayouts[li+1];
+    const flows={};
+    goals.forEach(g=>{
+      const k1=g[l1.key], k2=g[l2.key];
+      if(k1==null||k2==null||!lay1.positions[k1]||!lay2.positions[k2]) return;
+      const k=`${k1}__${k2}`; flows[k]=(flows[k]||0)+1;
+    });
+    const srcOff={}, dstOff={};
+    Object.entries(flows).sort((a,b)=>{
+      const si=l1.nodes.findIndex(n=>n.val===Number(a[0].split('__')[0]));
+      const sj=l1.nodes.findIndex(n=>n.val===Number(b[0].split('__')[0]));
+      return si-sj;
+    }).forEach(([key,cnt])=>{
+      const [s,d]=key.split('__').map(Number);
+      const sH=lay1.heights[s]||0, dH=lay2.heights[d]||0;
+      const sC=lCounts[li][s]||1, dC=lCounts[li+1][d]||1;
+      const fS=sH*(cnt/sC), fD=dH*(cnt/dC);
+      if(!srcOff[s]) srcOff[s]=0;
+      if(!dstOff[d]) dstOff[d]=0;
+      const y1t=lay1.positions[s]+srcOff[s], y1b=y1t+fS;
+      const y2t=lay2.positions[d]+dstOff[d], y2b=y2t+fD;
+      srcOff[s]+=fS; dstOff[d]+=fD;
+      const col=(l1.nodes.find(n=>n.val===s)||{color:'#aaa'}).color;
+      svg+=`<path d="M${x1},${y1t} C${cx},${y1t} ${cx},${y2t} ${x2},${y2t} L${x2},${y2b} C${cx},${y2b} ${cx},${y1b} ${x1},${y1b} Z" fill="${col}" opacity="0.28"/>`;
     });
   }
 
-  // Dessiner les nœuds et labels
-  layers.forEach((layer, li)=>{
-    const x = colX(li);
-    const counts = layerCounts[li];
+  // Noeuds + labels
+  layers.forEach((layer,li)=>{
+    const x=colX(li), counts=lCounts[li], layout=lLayouts[li];
     layer.nodes.forEach(n=>{
-      const cnt = counts[n.val]||0;
-      if(!cnt) return;
-      const y = layerPositions[li][n.val];
-      const pct = Math.round(cnt/total*100);
-      svgContent += `<rect x="${x}" y="${y}" width="${colW}" height="${nodeH}" rx="4" fill="${n.color}" opacity="0.9"/>`;
-      svgContent += `<text x="${x+colW/2}" y="${y+nodeH/2}" text-anchor="middle" dominant-baseline="middle" fill="#fff" font-size="11" font-weight="700">${n.label}</text>`;
-      svgContent += `<text x="${x+colW/2}" y="${y+nodeH+10}" text-anchor="middle" fill="${n.color}" font-size="10">${cnt} — ${pct}%</text>`;
+      const cnt=counts[n.val]||0; if(!cnt) return;
+      const y=layout.positions[n.val], h=layout.heights[n.val];
+      const pct=Math.round(cnt/total*100);
+      const isLight=['#ffff44','#ffcc88','#ccffff','#ffffff','#ffffcc','#cccc44','#88cc88'].includes(n.color);
+      const tc=isLight?'#222':'#fff';
+      const lbl=n.label.length>15?n.label.slice(0,14)+'…':n.label;
+      svg+=`<rect x="${x}" y="${y}" width="${colW}" height="${h}" rx="4" fill="${n.color}" opacity="0.93"/>`;
+      if(h>=16) svg+=`<text x="${x+colW/2}" y="${y+h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tc}" font-size="10" font-weight="700">${lbl}</text>`;
+      svg+=`<text x="${x+colW/2}" y="${y+h+12}" text-anchor="middle" fill="${n.color==='#ffffff'?'#888':n.color}" font-size="9.5">${cnt} — ${pct}%</text>`;
     });
-    // Titre couche
-    svgContent += `<text x="${x+colW/2}" y="18" text-anchor="middle" fill="var(--muted,#888)" font-size="11" font-weight="700">${layer.label.toUpperCase()}</text>`;
+    svg+=`<text x="${x+colW/2}" y="${PAD_T-10}" text-anchor="middle" fill="var(--muted,#888)" font-size="11" font-weight="700" letter-spacing="0.5">${layer.label.toUpperCase()}</text>`;
   });
 
-  html += `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:20px;overflow-x:auto">
-    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:700px;height:auto;display:block;margin:0 auto">
-      ${svgContent}
+  html+=`<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:20px;overflow-x:auto">
+    <svg viewBox="0 0 ${W} ${H}" style="width:100%;max-width:980px;height:auto;display:block;margin:0 auto">
+      ${svg}
     </svg>
   </div>
   <div style="margin-top:12px;font-size:.78em;color:var(--muted);text-align:center">
-    Lecture : chaque flux montre comment les buts passent du style de jeu → direction d'attaque → nature du but
+    ${_lang==='en'?'Flow: style of play → lateral direction → origin → type of shot':'Lecture : style de jeu → latéralité → origine du but → action de tir'}
   </div>
   </div>`;
-  el.innerHTML = html;
+  el.innerHTML=html;
 }
+
 
 // ══════════════════════════════════════════════════════════════════════════════
 // 📉 ÉVOLUTION PAR PHASE DE TOURNOI
