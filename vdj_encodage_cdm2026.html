@@ -2338,7 +2338,7 @@ function renderGoalForms(scrollToIdx){
     html += `<div class="goal-card" id="goal-${i}">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <span style="display:flex;align-items:center;gap:8px">
-          <span style="font-weight:bold;font-size:1.05em">But ${i+1} — <span class="team-badge" style="background:#${getTeamColor(g.team)};color:#fff">${g.team}</span></span>
+          <span style="font-weight:bold;font-size:1.05em">But ${i+1} — <button onclick="toggleGoalTeam(${i})" class="team-badge" style="background:#${getTeamColor(g.team)};color:#fff;border:none;cursor:pointer;border-radius:3px" title="Cliquer pour changer d'équipe">⇄ ${g.team}</button></span>
           <button onclick="deleteGoal(${i})" style="font-size:.72em;padding:2px 8px;border:1px solid #c00;background:#fff0f0;color:#c00;border-radius:4px;cursor:pointer" title="Supprimer ce but">🗑 Suppr.</button>
         </span>
         <label style="font-size:.85em;display:flex;align-items:center;gap:6px">
@@ -3144,6 +3144,16 @@ function directDeleteGoal(idx){
   md.goals.splice(idx,1);
   saveData();
   directRefresh();
+}
+
+function toggleGoalTeam(idx){
+  const m = MATCHES.find(x=>x.id===currentMatchId);
+  if(!m) return;
+  const md = getMatchData(currentMatchId);
+  const g = md.goals[idx];
+  g.team = (g.team === m.dom) ? m.ext : m.dom;
+  saveData();
+  renderGoalForms(idx);
 }
 
 function deleteGoal(idx){
