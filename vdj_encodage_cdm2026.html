@@ -3973,14 +3973,10 @@ function lsSaveKey(){
 }
 
 
-// ── CORS PROXY pour file:// ────────────────────────────────────────────────
+// ── CORS PROXY (toujours actif — api-sports.io bloque les appels browser) ──
 function lsFetch(url, opts){
-  // Si ouvert via file://, passer par un proxy CORS
-  if(location.protocol === 'file:'){
-    const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-    return fetch(proxy, opts);
-  }
-  return fetch(url, opts);
+  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
+  return fetch(proxy, opts);
 }
 
 async function lsSearchFixtures(){
