@@ -1837,11 +1837,27 @@ function renderHome(){
   loadData();
   const goals = getAllGoals();
   const teams = getTeams();
-  let matchesWithScore=0, matchesEncoded=0;
+  let matchesWithScore=0, matchesEncoded=0, homeWins=0, draws=0, awayWins=0;
   Object.keys(data).forEach(k=>{
     if(data[k].score) matchesWithScore++;
     if(data[k].validated) matchesEncoded++;
+    if(data[k].score){
+      const m = MATCHES.find(x=>x.id===k);
+      if(m){
+        const sc = data[k].score;
+        const parts = sc.split('-');
+        if(parts.length===2){
+          const d=parseInt(parts[0]), e=parseInt(parts[1]);
+          if(!isNaN(d)&&!isNaN(e)){
+            if(d>e) homeWins++;
+            else if(d===e) draws++;
+            else awayWins++;
+          }
+        }
+      }
+    }
   });
+  const totalMatches = homeWins+draws+awayWins;
 
   const nPleinJeu = goals.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
   const nPA = goals.filter(g=>g.tactique1===5).length;
@@ -1862,6 +1878,11 @@ function renderHome(){
     <div class="stat-card"><div class="num" style="color:#aa8800">${nPA}</div><div class="lbl">${_lang==='en'?'Set piece goals':'Buts sur phase arrêtée'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPA,total)}</div></div>
     <div class="stat-card"><div class="num" style="color:#cc0000">${nPen}</div><div class="lbl">${_lang==='en'?'Penalty goals':'Buts sur penalty'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPen,total)}</div></div>
     <div class="stat-card" onclick="showView('presszones')" style="cursor:pointer" title="${_lang==='en'?'See recovery zones':'Voir les zones de récupération'}"><div class="num" style="color:#e65100">${nRecup}</div><div class="lbl">🟠 ${_lang==='en'?'Goals with recovery zone':'Buts avec zone de récup.'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nRecup,total)} ${_lang==='en'?'encoded':'encodés'}</div></div>
+  </div>
+  <div class="stats-summary" style="margin-top:10px">
+    <div class="stat-card"><div class="num" style="color:#1a7a1a">${homeWins}</div><div class="lbl">${_lang==='en'?'Home wins':'Victoires \u00e0 domicile'}</div><div style="font-size:.85em;color:var(--muted)">${pct(homeWins,totalMatches)}</div></div>
+    <div class="stat-card"><div class="num" style="color:#777">${draws}</div><div class="lbl">${_lang==='en'?'Draws':'Partages'}</div><div style="font-size:.85em;color:var(--muted)">${pct(draws,totalMatches)}</div></div>
+    <div class="stat-card"><div class="num" style="color:#cc6600">${awayWins}</div><div class="lbl">${_lang==='en'?'Away wins':'Victoires en d\u00e9placement'}</div><div style="font-size:.85em;color:var(--muted)">${pct(awayWins,totalMatches)}</div></div>
   </div>`;
 
   if(goals.length===0){
