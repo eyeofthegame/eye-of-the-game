@@ -1863,7 +1863,7 @@ function renderHome(){
   const nPleinJeu = goals.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
   const nPA = goals.filter(g=>g.tactique1===5).length;
   const nPen = goals.filter(g=>g.tactique1===6).length;
-  const nRecup = goals.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.length > 0))).length;
+  const nRecup = goals.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1)))).length;
   const total = goals.length;
   const pct = (n,t) => t>0 ? Math.round(n/t*100)+'%' : '—';
 
@@ -3957,7 +3957,7 @@ function renderPressZones(){
     [1,2,3,4,5,6].filter(k=>VDJ.tactique1[k]).map(k=>`<option value="${k}"${pzTac1==k?' selected':''}>${VDJ.tactique1[k].nom}</option>`).join('');
 
   // Filter goals that have pressX/pressY
-  let goals = allGoals.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.length > 0)));
+  let goals = allGoals.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1))));
   if(pzTeam) goals = goals.filter(g => g.team === pzTeam);
   if(pzTac1) goals = goals.filter(g => String(g.tactique1) === String(pzTac1));
 
@@ -4010,8 +4010,9 @@ function renderPressZones(){
   const CELL = 0.06;
   const cells = {};
   goals.forEach(g=>{
-    const _px = g.pressX != null ? g.pressX : (g.goalSteps && g.goalSteps.length > 0 ? g.goalSteps[0].x : null);
-    const _py = g.pressY != null ? g.pressY : (g.goalSteps && g.goalSteps.length > 0 ? g.goalSteps[0].y : null);
+    const _recupStep = g.goalSteps ? g.goalSteps.find(s=>s.type===1) : null;
+    const _px = g.pressX != null ? g.pressX : (_recupStep ? _recupStep.x : null);
+    const _py = g.pressY != null ? g.pressY : (_recupStep ? _recupStep.y : null);
     if(_px == null || _py == null) return;
     const cx = Math.floor(_px / CELL);
     const cy = Math.floor(_py / CELL);
