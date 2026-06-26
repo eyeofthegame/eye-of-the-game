@@ -4224,11 +4224,12 @@ function renderEvolution(){
     const x = barPad + i*(barW+barPad);
     const bh = d.total > 0 ? Math.round((d.total/maxGoals)*(G1H-28)) : 0;
     const by = G1H - 18 - bh;
-    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85"><title>${abbr} | ${d.m.date} | Score: ${data[d.m.id]?.score ? (typeof data[d.m.id].score==='object'?data[d.m.id].score.dom+'-'+data[d.m.id].score.ext:data[d.m.id].score) : '—'}</title></rect>`;
-    if(d.total>0) barsG1 += `<text x="${x+barW/2}" y="${by-3}" text-anchor="middle" font-size="9" fill="var(--accent)" font-weight="bold">${d.total}</text>`;
-    // Match label (abbreviated)
     const abbr = `${(_lang==='en'?(TEAM_NAME_EN[d.m.dom]||d.m.dom):d.m.dom).slice(0,3).toUpperCase()}-${(_lang==='en'?(TEAM_NAME_EN[d.m.ext]||d.m.ext):d.m.ext).slice(0,3).toUpperCase()}`;
-    // label removed — shown in tooltip on hover
+    const sc = data[d.m.id]?.score;
+    const scStr = sc ? (typeof sc==='object' ? sc.dom+'-'+sc.ext : sc) : '—';
+    const tip = abbr + ' | ' + d.m.date + ' | ' + scStr;
+    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85"><title>${tip}</title></rect>`;
+    if(d.total>0) barsG1 += `<text x="${x+barW/2}" y="${by-3}" text-anchor="middle" font-size="9" fill="var(--accent)" font-weight="bold">${d.total}</text>`;
   });
 
   // Y axis ticks
