@@ -4122,8 +4122,14 @@ function renderPressZones(){
 }
 
 // ── ÉVOLUTION MATCH PAR MATCH ──────────────────────────────────────────
-let evolTeam = '', evolDir = 'both';
+let evolTeam = '', evolDir = 'both', evolTacFilter = new Set();
 
+function toggleEvolTac(k){
+  if(evolTacFilter.has(k)) evolTacFilter.delete(k);
+  else evolTacFilter.add(k);
+  if(evolTacFilter.size===tac1Order.length) evolTacFilter=new Set();
+  renderEvolution();
+}
 function showEvolTip(e, txt){
   let tip = document.getElementById('evol-tooltip');
   if(!tip){ tip=document.createElement('div'); tip.id='evol-tooltip';
@@ -4262,23 +4268,30 @@ function renderEvolution(){
   matchData.forEach((d,i)=>{
     const x = barPad + i*(barW+barPad);
     if(d.total===0) return;
+    const visKeys = tac1Order.filter(k => evolTacFilter.size===0 || evolTacFilter.has(k));
+    const visTotal = visKeys.reduce((s,k)=>s+(d.byTac[k]||0), 0);
+    if(visTotal===0) return;
     let yOff = G2H - 14;
-    tac1Order.forEach(k=>{
+    visKeys.forEach(k=>{
       const cnt = d.byTac[k];
       if(!cnt) return;
-      const segH = Math.round((cnt/d.total)*(G2H-14));
+      const segH = Math.round((cnt/visTotal)*(G2H-14));
       yOff -= segH;
       barsG2 += `<rect x="${x}" y="${yOff}" width="${barW}" height="${segH}" fill="${tac1Colors[k]||'#ccc'}" rx="1"/>`;
     });
   });
 
-  // Legend tactique1
+  // Legend tactique1 — clickable filter
+  const resetBtn = `<button onclick="evolTacFilter=new Set();renderEvolution()" style="font-size:.7em;padding:2px 8px;margin-left:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--muted)">✕ Tout afficher</button>`;
   tac1Order.forEach(k=>{
     if(!VDJ.tactique1[k]) return;
-    legsG2 += `<span style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:.72em">
+    const active = evolTacFilter.size===0 || evolTacFilter.has(k);
+    const opacity = active ? '1' : '0.3';
+    legsG2 += `<span onclick="toggleEvolTac(${k})" style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:.72em;cursor:pointer;opacity:${opacity};user-select:none">
       <span style="display:inline-block;width:10px;height:10px;background:${tac1Colors[k]};border:1px solid #ccc;border-radius:2px"></span>
       ${VDJ.tactique1[k].nom}</span>`;
   });
+  legsG2 += evolTacFilter.size > 0 ? resetBtn : '';
 
   const svg2 = `<svg viewBox="0 0 ${totalW} ${G2H}" width="100%" style="display:block;max-width:100%">
     ${barsG2}${labelsG1}
