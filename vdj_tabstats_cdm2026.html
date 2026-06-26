@@ -4124,6 +4124,18 @@ function renderPressZones(){
 // ── ÉVOLUTION MATCH PAR MATCH ──────────────────────────────────────────
 let evolTeam = '', evolDir = 'both';
 
+function showEvolTip(e, txt){
+  let tip = document.getElementById('evol-tooltip');
+  if(!tip){ tip=document.createElement('div'); tip.id='evol-tooltip';
+    tip.style.cssText='position:fixed;background:#1a1a2e;color:#fff;padding:6px 10px;border-radius:6px;font-size:.8em;pointer-events:none;z-index:9999;white-space:nowrap;box-shadow:0 2px 8px rgba(0,0,0,.3)';
+    document.body.appendChild(tip); }
+  tip.textContent=txt; tip.style.display='block';
+  tip.style.left=(e.clientX+12)+'px'; tip.style.top=(e.clientY-30)+'px';
+}
+function hideEvolTip(){
+  const tip=document.getElementById('evol-tooltip');
+  if(tip) tip.style.display='none';
+}
 function renderEvolution(){
   loadData();
   const allGoals = getAllGoals();
@@ -4228,7 +4240,7 @@ function renderEvolution(){
     const sc = data[d.m.id]?.score;
     const scStr = sc ? (typeof sc==='object' ? sc.dom+'-'+sc.ext : sc) : '—';
     const tip = abbr + ' | ' + d.m.date + ' | ' + scStr;
-    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85" title="${tip}"/>`;
+    barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85" style="cursor:pointer" onmouseenter="showEvolTip(event,'${tip.replace(/'/g,'&#39;')}' )" onmouseleave="hideEvolTip()"/>`;
     if(d.total>0) barsG1 += `<text x="${x+barW/2}" y="${by-3}" text-anchor="middle" font-size="9" fill="var(--accent)" font-weight="bold">${d.total}</text>`;
   });
 
