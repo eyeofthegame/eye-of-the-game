@@ -4282,12 +4282,12 @@ function renderEvolution(){
   });
 
   // Legend tactique1 — clickable filter
-  const resetBtn = `<button onclick="evolTacFilter=new Set();renderEvolution()" style="font-size:.7em;padding:2px 8px;margin-left:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--muted)">✕ Tout afficher</button>`;
+  const resetBtn = `<button data-tac="reset" style="font-size:.7em;padding:2px 8px;margin-left:8px;border:1px solid var(--border);border-radius:4px;background:var(--bg);cursor:pointer;color:var(--muted)">✕ Tout afficher</button>`;
   tac1Order.forEach(k=>{
     if(!VDJ.tactique1[k]) return;
     const active = evolTacFilter.size===0 || evolTacFilter.has(k);
     const opacity = active ? '1' : '0.3';
-    legsG2 += `<span onclick="toggleEvolTac(${k})" style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:.72em;cursor:pointer;opacity:${opacity};user-select:none">
+    legsG2 += `<span data-tac="${k}" style="display:inline-flex;align-items:center;gap:3px;margin-right:10px;font-size:.72em;cursor:pointer;opacity:${opacity};user-select:none">
       <span style="display:inline-block;width:10px;height:10px;background:${tac1Colors[k]};border:1px solid #ccc;border-radius:2px"></span>
       ${VDJ.tactique1[k].nom}</span>`;
   });
@@ -4355,6 +4355,14 @@ function renderEvolution(){
   </div>`;
 
   document.getElementById('view-evolution').innerHTML = html;
+  document.getElementById('view-evolution').addEventListener('click', function(e){
+    const el = e.target.closest('[data-tac]');
+    if(!el) return;
+    const v = el.dataset.tac;
+    if(v==='reset'){ evolTacFilter=new Set(); }
+    else { const k=Number(v); if(evolTacFilter.has(k)) evolTacFilter.delete(k); else evolTacFilter.add(k); }
+    renderEvolution();
+  }, {once:true});
 }
 
 // ── PROFIL BUTEUR EXPRESS ──────────────────────────────────────────────
