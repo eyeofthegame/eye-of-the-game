@@ -4007,7 +4007,10 @@ async function lsSearchFixtures(){
       lsFetch('https://v3.football.api-sports.io/fixtures?live=all', { headers:{'x-apisports-key':key} }),
       lsFetch('https://v3.football.api-sports.io/fixtures?date='+today, { headers:{'x-apisports-key':key} })
     ]);
+    lsLog('📡 Status: '+r1.status+' / '+r2.status);
     const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+    if(d1.errors && Object.keys(d1.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d1.errors));
+    if(d2.errors && Object.keys(d2.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d2.errors));
     const seen = new Set();
     let allFixtures = [...(d1.response||[]), ...(d2.response||[])].filter(f=>{ if(seen.has(f.fixture.id)) return false; seen.add(f.fixture.id); return true; });
     lsLog('📅 '+allFixtures.length+' matchs trouvés au total');
