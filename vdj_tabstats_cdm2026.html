@@ -7276,9 +7276,24 @@ function renderFicheMatch(){
   <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px 18px">
     <div style="font-size:.72em;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">${_lang==='en'?'🔭 Key Scenarios':'🔭 Scénarios probables'}</div>
     ${scenarios.map(s => `<div style="font-size:.88em;line-height:1.6;padding:7px 12px;background:#f8f9ff;border-radius:6px;margin-bottom:6px">${s}</div>`).join('')}
-  </div>`;
+  </div>
+  <div style="margin-top:20px;text-align:right">
+    <button onclick="printFicheMatch()" style="padding:10px 22px;font-size:.95em;font-family:inherit;background:#003399;color:#fff;border:none;border-radius:8px;cursor:pointer;display:inline-flex;align-items:center;gap:8px">
+      📄 \${_lang==='en'?'Export PDF':'Exporter en PDF'}
+    </button>
+  </div>\`;
 
   el.innerHTML = html;
+}
+
+function printFicheMatch(){
+  const el = document.getElementById('view-ficheMatch');
+  if(!el) return;
+  const clone = el.cloneNode(true);
+  clone.querySelectorAll('button,select').forEach(e=>e.style.display='none');
+  const w = window.open('','_blank','width=900,height=700');
+  w.document.write('<!DOCTYPE html><html><head><meta charset="utf-8"><title>Fiche Match</title><style>body{font-family:Georgia,serif;color:#1a1a2e;background:#fff;margin:0;padding:20px}h1{font-size:1.4em;border-bottom:2px solid #003399;padding-bottom:8px}@media print{body{padding:10px}}</style></head><body>'+clone.innerHTML+'<script>window.onload=function(){window.print();window.close();}<\/script></body></html>');
+  w.document.close();
 }
 
 // ══════════════════════════════════════════════════════════
