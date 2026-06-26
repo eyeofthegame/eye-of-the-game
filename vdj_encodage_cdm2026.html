@@ -3974,9 +3974,19 @@ function lsSaveKey(){
 
 
 // ── CORS PROXY (toujours actif — api-sports.io bloque les appels browser) ──
-function lsFetch(url, opts){
-  const proxy = 'https://corsproxy.io/?' + encodeURIComponent(url);
-  return fetch(proxy, opts);
+async function lsFetch(url, opts){
+  // Try corsproxy.io first, fallback to allorigins
+  const proxies = [
+    'https://corsproxy.io/?' + encodeURIComponent(url),
+    'https://api.allorigins.win/raw?url=' + encodeURIComponent(url)
+  ];
+  for(const proxy of proxies){
+    try {
+      const r = await fetch(proxy, opts);
+      if(r.ok) return r;
+    } catch(e){}
+  }
+  return fetch(url, opts); // last resort direct
 }
 
 async function lsSearchFixtures(){
