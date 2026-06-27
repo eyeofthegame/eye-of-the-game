@@ -4304,7 +4304,7 @@ function renderEvolution(){
       if(lastGroup !== null){
         const sx = x - barPad/2;
         separatorsG1 += `<line x1="${sx}" y1="0" x2="${sx}" y2="${G1H-18}" stroke="#888" stroke-width="1.5"/>`;
-        separatorsG2 += `<line x1="${sx}" y1="0" x2="${sx}" y2="${G2H-14}" stroke="#888" stroke-width="1.5"/>`;
+        separatorsG2 += `<line x1="${sx}" y1="0" x2="${sx}" y2="86" stroke="#888" stroke-width="1.5"/>`;
       }
       groupLabelsG1 += `<text x="${x}" y="${G1H-4}" font-size="7.5" fill="var(--muted)" font-weight="600">${grp}</text>`;
       lastGroup = grp;
