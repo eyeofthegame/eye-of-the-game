@@ -2350,11 +2350,11 @@ function renderTopScorers(){
     });
     return o;
   }
-  const tac1Opts  = makeOptions(VDJ.tactique1, [1,2,3,4,5,6], 'Toutes les tactiques');
-  const natOpts  = makeOptions(VDJ.tactique3, [1,2,3,4], 'Toute nature du but');
-  const ori1Opts  = makeOptions(VDJ.origine1,  ORDER.origine1, "Toutes les origines");
-  const ori2Opts  = makeOptions(VDJ.origine2,  [4,3,2], "Toutes les intentions");
-  const minOpts   = makeOptions(VDJ.minutes,   ORDER.minutes, "Toutes les périodes");
+  const tac1Opts  = makeOptions(VDJ.tactique1, [1,2,3,4,5,6], _lang==='en'?'All tactics':'Toutes les tactiques');
+  const natOpts  = makeOptions(VDJ.tactique3, [1,2,3,4], _lang==='en'?'All types':'Toute nature du but');
+  const ori1Opts  = makeOptions(VDJ.origine1,  ORDER.origine1, _lang==='en'?'All origins':'Toutes les origines');
+  const ori2Opts  = makeOptions(VDJ.origine2,  [4,3,2], _lang==='en'?'All intentions':'Toutes les intentions');
+  const minOpts   = makeOptions(VDJ.minutes,   ORDER.minutes, _lang==='en'?'All periods':'Toutes les périodes');
   const teamOpts  = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>` + teams.map(t=>`<option value="${t}">${tf(t)}</option>`).join('');
 
   const filterBar = `<div id="scorer-filter-bar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
@@ -3991,7 +3991,7 @@ function renderPressZones(){
 
   // Filters UI
   const teamOpts = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>` + teams.map(t=>`<option value="${t}"${pzTeam===t?' selected':''}>${tf(t)}</option>`).join('');
-  const tac1Opts = '<option value="">Toutes les tactiques</option>' +
+  const tac1Opts = (_lang==='en'?'<option value="">All tactics</option>':'<option value="">Toutes les tactiques</option>') +
     [1,2,3,4,5,6].filter(k=>VDJ.tactique1[k]).map(k=>`<option value="${k}"${pzTac1==k?' selected':''}>${VDJ.tactique1[k].nom}</option>`).join('');
 
   // Filter goals that have pressX/pressY
@@ -4041,7 +4041,7 @@ function renderPressZones(){
     <path d="M ${_p(M+PW-7)},${M} A 7,7 0 0,0 ${_p(M+PW)},${_p(M+7)}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
     <path d="M ${M},${_p(M+PH-7)} A 7,7 0 0,0 ${_p(M+7)},${_p(M+PH)}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
     <path d="M ${_p(M+PW-7)},${_p(M+PH)} A 7,7 0 0,1 ${_p(M+PW)},${_p(M+PH-7)}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
-    <text x="${TW/2}" y="${TH-4}" text-anchor="middle" fill="rgba(74,96,127,.65)" font-size="9" font-family="sans-serif" letter-spacing=".8">Direction de l'attaque →</text>`;
+    <text x="${TW/2}" y="${TH-4}" text-anchor="middle" fill="rgba(74,96,127,.65)" font-size="9" font-family="sans-serif" letter-spacing=".8">${_lang==='en'?'Attack direction →':'Direction de l\'attaque →'}</text>`;
 
   // Coordinate mapping: pressX(0-1 left-right) → by vertical, pressY(0-1 top-bottom, 0=attack) → bx horizontal (inverted: attack=left)
   // Build bubble clusters: grid cells of 6% x 6%
@@ -4075,7 +4075,7 @@ function renderPressZones(){
       <line x1="8" y1="11" x2="645" y2="11"
             stroke="url(#arrowGrad)" stroke-width="3" stroke-linecap="round" marker-end="url(#arrowHead)"/>
       <text x="50%" y="9" text-anchor="middle" font-size="9" fill="#3949ab" opacity="0.7"
-            font-family="system-ui,sans-serif" letter-spacing="1.2" font-weight="600">DIRECTION DE L'ATTAQUE</text>
+            font-family="system-ui,sans-serif" letter-spacing="1.2" font-weight="600">${_lang==='en'?'ATTACK DIRECTION':'DIRECTION DE L\'ATTAQUE'}</text>
     </svg>
   </div>`;
   let pitchSvg = arrowAbove + `<svg viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="max-width:100%;display:block;border-radius:8px">
