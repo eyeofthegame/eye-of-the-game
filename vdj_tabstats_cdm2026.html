@@ -4289,7 +4289,8 @@ function renderEvolution(){
   const barW = Math.max(8, Math.floor((G1W - barPad*(nM+1)) / nM));
   const totalW = barPad + nM*(barW+barPad);
 
-  let barsG1 = '', labelsG1 = '';
+  let barsG1 = '', labelsG1 = '', separatorsG1 = '', groupLabelsG1 = '';
+  let lastGroup = null;
   matchData.forEach((d,i)=>{
     const x = barPad + i*(barW+barPad);
     const bh = d.total > 0 ? Math.round((d.total/maxGoals)*(G1H-28)) : 0;
@@ -4298,6 +4299,16 @@ function renderEvolution(){
     const sc = data[d.m.id]?.score;
     const scStr = sc ? (typeof sc==='object' ? sc.dom+'-'+sc.ext : sc) : '—';
     const tip = abbr + ' | ' + d.m.date + ' | ' + scStr;
+    const grp = d.m.group || d.m.phase || '';
+    if(grp && grp !== lastGroup){
+      if(lastGroup !== null){
+        // vertical separator line before this group
+        separatorsG1 += `<line x1="${x-barPad/2}" y1="0" x2="${x-barPad/2}" y2="${G1H-18}" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+      }
+      // group label at bottom
+      groupLabelsG1 += `<text x="${x}" y="${G1H-4}" font-size="7.5" fill="var(--muted)" font-weight="600">${grp}</text>`;
+      lastGroup = grp;
+    }
     barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85" style="cursor:pointer" onmouseenter="showEvolTip(event,'${tip.replace(/'/g,'&#39;')}' )" onmouseleave="hideEvolTip()"/>`;
     if(d.total>0) barsG1 += `<text x="${x+barW/2}" y="${by-3}" text-anchor="middle" font-size="9" fill="var(--accent)" font-weight="bold">${d.total}</text>`;
   });
@@ -4311,7 +4322,7 @@ function renderEvolution(){
   }
 
   const svg1 = `<svg viewBox="0 0 ${totalW} ${G1H}" width="100%" style="display:block;max-width:100%">
-    ${yTicksG1}${barsG1}${labelsG1}
+    ${yTicksG1}${separatorsG1}${barsG1}${groupLabelsG1}
   </svg>`;
 
   // ── GRAPHE 2 : distribution tactique stacked ────────────────────────
@@ -4346,7 +4357,7 @@ function renderEvolution(){
   legsG2 += evolTacFilter.size > 0 ? resetBtn : '';
 
   const svg2 = `<svg viewBox="0 0 ${totalW} ${G2H}" width="100%" style="display:block;max-width:100%">
-    ${barsG2}${labelsG1}
+    ${separatorsG1.replace(/y2="${G1H-18}"/g, `y2="${G2H-14}"`)}${barsG2}
   </svg>`;
 
   // ── GRAPHE 3 : heatmap temporelle ──────────────────────────────────
@@ -4400,10 +4411,6 @@ function renderEvolution(){
       ${svg2}
     </div>
 
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1em">
-      <div style="font-size:.8em;font-weight:bold;color:var(--accent);margin-bottom:.5em">${_lang==='en'?'Time map — goals per 15 min slot':'Carte temporelle — buts par tranche de 15 min'}</div>
-      ${svg3}
-    </div>
   </div>`;
 
   document.getElementById('view-evolution').innerHTML = html;
