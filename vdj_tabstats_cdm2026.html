@@ -3771,6 +3771,10 @@ function renderTete(){
       ${teamOpts}
     </select>
     ${teteTeam?`<a href="#" onclick="teteTeam='';renderTete();return false" style="color:var(--accent);font-size:.82em">✕ ${_lang==='en'?'Show all':'Tout voir'}</a>`:''}
+    <div style="display:flex;gap:4px;margin-left:10px">
+      <button onclick="teteSortDir='desc';renderTete()" style="padding:4px 10px;border-radius:6px;border:1px solid #ccd;font-size:.82em;cursor:pointer;background:${teteSortDir==='desc'?'var(--accent)':'var(--bg)'};color:${teteSortDir==='desc'?'#fff':'inherit'};font-weight:${teteSortDir==='desc'?'700':'400'}">▼ ${_lang==='en'?'Most':'Plus'}</button>
+      <button onclick="teteSortDir='asc';renderTete()" style="padding:4px 10px;border-radius:6px;border:1px solid #ccd;font-size:.82em;cursor:pointer;background:${teteSortDir==='asc'?'var(--accent)':'var(--bg)'};color:${teteSortDir==='asc'?'#fff':'inherit'};font-weight:${teteSortDir==='asc'?'700':'400'}">▲ ${_lang==='en'?'Least':'Moins'}</button>
+    </div>
   </div>`;
 
   if(!headedAll.length || !activeSubs.length){
@@ -3811,8 +3815,11 @@ function renderTete(){
   });
   html += '<td></td></tr>';
 
-  // Data rows
-  allTeams.filter(t => teamTotal[t] > 0).forEach(t => {
+  // Data rows — sorted by total
+  const sortedTeams = allTeams.filter(t => teamTotal[t] > 0).sort((a,b) => {
+    return teteSortDir === 'desc' ? teamTotal[b] - teamTotal[a] : teamTotal[a] - teamTotal[b];
+  });
+  sortedTeams.forEach(t => {
     html += `<tr><td class="team">${tf(t)}</td>`;
     activeSubs.forEach((sub, si) => {
       const bR = si < activeSubs.length-1 ? 'border-right:3px solid #333;' : '';
@@ -3938,6 +3945,7 @@ function renderTete(){
 // ==============================================
 let pzTeam = '', pzTac1 = '';
 let teteTeam = '';
+let teteSortDir = 'desc'; // 'desc' = plus de buts en haut, 'asc' = moins en haut
 
 function showTeteTip(el){
   const tip = document.getElementById('tete-tip');
