@@ -3771,10 +3771,7 @@ function renderTete(){
       ${teamOpts}
     </select>
     ${teteTeam?`<a href="#" onclick="teteTeam='';renderTete();return false" style="color:var(--accent);font-size:.82em">✕ ${_lang==='en'?'Show all':'Tout voir'}</a>`:''}
-    <div style="display:flex;gap:4px;margin-left:10px">
-      <button onclick="teteSortDir='desc';renderTete()" style="padding:4px 10px;border-radius:6px;border:1px solid #ccd;font-size:.82em;cursor:pointer;background:${teteSortDir==='desc'?'var(--accent)':'var(--bg)'};color:${teteSortDir==='desc'?'#fff':'inherit'};font-weight:${teteSortDir==='desc'?'700':'400'}">▼ ${_lang==='en'?'Most':'Plus'}</button>
-      <button onclick="teteSortDir='asc';renderTete()" style="padding:4px 10px;border-radius:6px;border:1px solid #ccd;font-size:.82em;cursor:pointer;background:${teteSortDir==='asc'?'var(--accent)':'var(--bg)'};color:${teteSortDir==='asc'?'#fff':'inherit'};font-weight:${teteSortDir==='asc'?'700':'400'}">▲ ${_lang==='en'?'Least':'Moins'}</button>
-    </div>
+
   </div>`;
 
   if(!headedAll.length || !activeSubs.length){
@@ -3801,7 +3798,7 @@ function renderTete(){
     const bR = si < activeSubs.length-1 ? 'border-right:3px solid #fff;' : '';
     html += `<th colspan="${ZONES.length+1}" style="text-align:center;background:var(--accent);color:#fff;font-size:.78em;padding:3px 8px;border-bottom:2px solid #fff;${bR}">${sub.label}</th>`;
   });
-  html += '<td class="total">Total</td></tr>';
+  html += `<td class="total" style="cursor:pointer;${_sortCol==='__total__'?'outline:2px solid rgba(255,255,255,.55);outline-offset:-2px;':''}" onclick="analysisSortBy('__total__')" title="Trier par total">Total ${_sortCol==='__total__'?(_sortDir==='desc'?'▼':'▲'):'<span style=\"opacity:.3\">⇅</span>'}</td></tr>`;
 
   // Header row 2 — zones + sub-total
   html += '<tr><td></td>';
@@ -3815,9 +3812,12 @@ function renderTete(){
   });
   html += '<td></td></tr>';
 
-  // Data rows — sorted by total
+  // Data rows — sorted by total (uses shared _sortCol/_sortDir like other tables)
   const sortedTeams = allTeams.filter(t => teamTotal[t] > 0).sort((a,b) => {
-    return teteSortDir === 'desc' ? teamTotal[b] - teamTotal[a] : teamTotal[a] - teamTotal[b];
+    if(_sortCol === '__total__'){
+      return _sortDir === 'desc' ? teamTotal[b] - teamTotal[a] : teamTotal[a] - teamTotal[b];
+    }
+    return a.localeCompare(b); // default: alphabetical
   });
   sortedTeams.forEach(t => {
     html += `<tr><td class="team">${tf(t)}</td>`;
@@ -3945,7 +3945,6 @@ function renderTete(){
 // ==============================================
 let pzTeam = '', pzTac1 = '';
 let teteTeam = '';
-let teteSortDir = 'desc'; // 'desc' = plus de buts en haut, 'asc' = moins en haut
 
 function showTeteTip(el){
   const tip = document.getElementById('tete-tip');
