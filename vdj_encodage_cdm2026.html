@@ -3780,7 +3780,7 @@ function vdjSelectHtml(idx, field, curVal, tableKey, orderedKeys){
     const sel = curVal==k ? ' selected' : '';
     opts += `<option value="${k}" style="background:#${tbl[k].c1};color:#${tbl[k].c2}"${sel}>${tbl[k].nom}</option>`;
   });
-  return `<select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))">${opts}</select>`;
+  return `<select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))" onkeyup="vdjKeyUp(event,this,${idx},'${field}')">${opts}</select>`;
 }
 
 function buildVDJSumBar(idx, g){
@@ -4547,38 +4547,31 @@ function checkGoalCompleteness(g, idx) {
 // ── FIN VALIDATION RUBRIQUES VDJ ─────────────────────────────────────────────
 
 // ── CYCLE CLAVIER SUR LES SELECTS VDJ ────────────────────────────────────────
-// Appuyer plusieurs fois sur la même lettre cycle parmi les options qui commencent par cette lettre
-(function(){
-  let _skLastKey = '', _skLastTime = 0, _skLastIdx = -1;
+let _kuKey='', _kuTime=0, _kuIdx=-1;
+function selectCycle(){}  // placeholder inutilisé
 
-  document.addEventListener('keydown', function(e){
-    const sel = document.activeElement;
-    if(!sel || sel.tagName !== 'SELECT') return;
-    // Ignorer touches spéciales
-    if(e.key.length !== 1 || e.ctrlKey || e.metaKey || e.altKey) return;
-    const letter = e.key.toLowerCase();
-    // Trouver toutes les options qui commencent par cette lettre
-    const opts = Array.from(sel.options);
-    const matches = opts.map((o,i)=>({i,o})).filter(({o})=>o.text.trim().toLowerCase().startsWith(letter) && o.value !== '');
-    if(!matches.length) return;
-    e.preventDefault();
-    const now = Date.now();
-    let nextIdx;
-    if(letter === _skLastKey && now - _skLastTime < 1800){
-      // Même lettre dans le délai : avancer au suivant
-      const pos = matches.findIndex(m=>m.i === _skLastIdx);
-      nextIdx = pos >= 0 ? matches[(pos+1) % matches.length].i : matches[0].i;
-    } else {
-      // Nouvelle lettre ou délai dépassé : premier match
-      nextIdx = matches[0].i;
-    }
-    sel.selectedIndex = nextIdx;
-    sel.dispatchEvent(new Event('change'));
-    _skLastKey = letter;
-    _skLastTime = now;
-    _skLastIdx = nextIdx;
-  }, true);
-})();
+function vdjKeyUp(e, sel, idx, field){
+  if(e.key.length!==1 || e.ctrlKey || e.metaKey || e.altKey) return;
+  const letter = e.key.toLowerCase();
+  const matches = Array.from(sel.options)
+    .map((o,i)=>({i,o}))
+    .filter(({o})=>o.text.trim().toLowerCase().startsWith(letter) && o.value!=='');
+  if(!matches.length) return;
+  const now = Date.now();
+  if(letter===_kuKey && now-_kuTime<2000){
+    // Même lettre — avancer au suivant
+    const pos = matches.findIndex(m=>m.i===_kuIdx);
+    const ni = pos>=0 ? matches[(pos+1)%matches.length].i : matches[0].i;
+    sel.selectedIndex = ni;
+    _kuIdx = ni;
+    updateGoalPill(idx, field, parseInt(sel.value));
+  } else {
+    // Premier appui — browser a déjà sauté, on enregistre où on est
+    _kuIdx = sel.selectedIndex;
+  }
+  _kuKey = letter;
+  _kuTime = now;
+}
 // ── FIN CYCLE CLAVIER ────────────────────────────────────────────────────────
 
 </script>
