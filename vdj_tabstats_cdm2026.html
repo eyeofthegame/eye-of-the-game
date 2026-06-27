@@ -3798,7 +3798,7 @@ function renderTete(){
     const bR = si < activeSubs.length-1 ? 'border-right:3px solid #fff;' : '';
     html += `<th colspan="${ZONES.length+1}" style="text-align:center;background:var(--accent);color:#fff;font-size:.78em;padding:3px 8px;border-bottom:2px solid #fff;${bR}">${sub.label}</th>`;
   });
-  html += `<td class="total" style="cursor:pointer;${_sortCol==='__total__'?'outline:2px solid rgba(255,255,255,.55);outline-offset:-2px;':''}" onclick="analysisSortBy('__total__')" title="Trier par total">Total ${_sortCol==='__total__'?(_sortDir==='desc'?'▼':'▲'):'<span style=\"opacity:.3\">⇅</span>'}</td></tr>`;
+  html += `<td class="total" style="cursor:pointer;${_teteSortCol==='__total__'?'outline:2px solid rgba(255,255,255,.55);outline-offset:-2px;':''}" onclick="teteSortBy('__total__')" title="Trier par total">Total ${_teteSortCol==='__total__'?(_teteSortDir==='desc'?'▼':'▲'):'<span style=\"opacity:.3\">⇅</span>'}</td></tr>`;
 
   // Header row 2 — zones + sub-total
   html += '<tr><td></td>';
@@ -3814,8 +3814,8 @@ function renderTete(){
 
   // Data rows — sorted by total (uses shared _sortCol/_sortDir like other tables)
   const sortedTeams = allTeams.filter(t => teamTotal[t] > 0).sort((a,b) => {
-    if(_sortCol === '__total__'){
-      return _sortDir === 'desc' ? teamTotal[b] - teamTotal[a] : teamTotal[a] - teamTotal[b];
+    if(_teteSortCol === '__total__'){
+      return _teteSortDir === 'desc' ? teamTotal[b] - teamTotal[a] : teamTotal[a] - teamTotal[b];
     }
     return a.localeCompare(b); // default: alphabetical
   });
@@ -3945,6 +3945,14 @@ function renderTete(){
 // ==============================================
 let pzTeam = '', pzTac1 = '';
 let teteTeam = '';
+let _teteSortCol = null, _teteSortDir = null;
+function teteSortBy(col){
+  if(_teteSortCol === col){
+    if(_teteSortDir==='desc') _teteSortDir='asc';
+    else { _teteSortCol=null; _teteSortDir=null; }
+  } else { _teteSortCol=col; _teteSortDir='desc'; }
+  renderTete();
+}
 
 function showTeteTip(el){
   const tip = document.getElementById('tete-tip');
@@ -6260,8 +6268,8 @@ function renderComparateur(){
   <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:16px;margin-bottom:16px">
     <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Playing Direction — Goals Scored':'🔍 Intention de jeu — buts marqués'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-      <div>${distrBar(gA,'origine2',[4,3,2],{2:{nom:_lang==='en'?'Center':'Axe'},3:{nom:_lang==='en'?'Right':'Droite'},4:{nom:_lang==='en'?'Left':'Gauche'}})}</div>
-      <div>${distrBar(gB,'origine2',[4,3,2],{2:{nom:_lang==='en'?'Center':'Axe'},3:{nom:_lang==='en'?'Right':'Droite'},4:{nom:_lang==='en'?'Left':'Gauche'}})}</div>
+      <div>${distrBar(gA,'origine2',[4,2,3],{2:{nom:_lang==='en'?'Center':'Axe'},3:{nom:_lang==='en'?'Right':'Droite'},4:{nom:_lang==='en'?'Left':'Gauche'}})}</div>
+      <div>${distrBar(gB,'origine2',[4,2,3],{2:{nom:_lang==='en'?'Center':'Axe'},3:{nom:_lang==='en'?'Right':'Droite'},4:{nom:_lang==='en'?'Left':'Gauche'}})}</div>
     </div>
   </div>
 
@@ -6453,7 +6461,7 @@ function renderSankey(){
       const lbl=n.label.length>15?n.label.slice(0,14)+'…':n.label;
       svg+=`<rect x="${x}" y="${y}" width="${colW}" height="${h}" rx="4" fill="${n.color}" opacity="0.93"/>`;
       if(h>=16) svg+=`<text x="${x+colW/2}" y="${y+h/2}" text-anchor="middle" dominant-baseline="middle" fill="${tc}" font-size="10" font-weight="700">${lbl}</text>`;
-      svg+=`<text x="${x+colW/2}" y="${y+h+12}" text-anchor="middle" fill="${n.color==='#ffffff'?'#888':n.color}" font-size="9.5">${cnt} — ${pct}%</text>`;
+      svg+=`<text x="${x+colW/2}" y="${y+h+14}" text-anchor="middle" fill="#222" font-size="11" font-weight="700">${cnt} — ${pct}%</text>`;
     });
     svg+=`<text x="${x+colW/2}" y="${PAD_T-10}" text-anchor="middle" fill="var(--muted,#888)" font-size="11" font-weight="700" letter-spacing="0.5">${layer.label.toUpperCase()}</text>`;
   });
@@ -6709,11 +6717,11 @@ function renderRapport(){
     <!-- Origine -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Direction — Goals Scored':'🔍 Origine — Buts marqués'}</div>
-      ${distrTableMini(gFor,'origine2',[4,3,2],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
+      ${distrTableMini(gFor,'origine2',[4,2,3],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Direction — Goals Conceded':'🔍 Origine — Buts encaissés'}</div>
-      ${distrTableMini(gAgainst,'origine2',[4,3,2],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
+      ${distrTableMini(gAgainst,'origine2',[4,2,3],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
     </div>
 
     <!-- Actions top 5 -->
