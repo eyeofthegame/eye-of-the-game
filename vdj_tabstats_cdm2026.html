@@ -1878,7 +1878,7 @@ function renderHome(){
   const total = goals.length;
   const pct = (n,t) => t>0 ? Math.round(n/t*100)+'%' : '—';
 
-  let html = `<h1>TabStats — ${_lang==='en'?'Overview':'Vue d\u2019ensemble'} — ${_lang==='en'?'WC 2026':'CDM 2026'}</h1>
+  let html = `<h1>${_lang==='en'?'Overview':'Vue d\u2019ensemble'} — ${_lang==='en'?'WC 2026':'CDM 2026'}</h1>
   <div class="stats-summary">
     <div class="stat-card"><div class="num">${matchesEncoded}</div><div class="lbl">${_lang==='en'?'Matches encoded':'Matchs encodés'}</div></div>
     <div class="stat-card"><div class="num">${goals.length}</div><div class="lbl">${_lang==='en'?'Goals analysed':'Buts analysés'}</div></div>
