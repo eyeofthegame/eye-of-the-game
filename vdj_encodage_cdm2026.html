@@ -3780,7 +3780,7 @@ function vdjSelectHtml(idx, field, curVal, tableKey, orderedKeys){
     const sel = curVal==k ? ' selected' : '';
     opts += `<option value="${k}" style="background:#${tbl[k].c1};color:#${tbl[k].c2}"${sel}>${tbl[k].nom}</option>`;
   });
-  return `<select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))" onkeyup="vdjKeyUp(event,this,${idx},'${field}')">${opts}</select>`;
+  return `<select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))" onkeyup="vdjKeyUp(event,this,${idx},'${field}')">${opts}</select><button type="button" onclick="vdjCycleNext(this)" title="Option suivante (même lettre)" style="margin-left:3px;padding:2px 6px;font-size:.75em;cursor:pointer;border-radius:3px;border:1px solid #bbb;background:#f0f0f0;color:#333;vertical-align:middle;line-height:1">⟳</button>`;
 }
 
 function buildVDJSumBar(idx, g){
@@ -4548,7 +4548,7 @@ function checkGoalCompleteness(g, idx) {
 
 // ── CYCLE CLAVIER SUR LES SELECTS VDJ ────────────────────────────────────────
 let _kuKey='', _kuTime=0, _kuIdx=-1;
-function selectCycle(){}  // placeholder inutilisé
+function selectCycle(){}
 
 function vdjKeyUp(e, sel, idx, field){
   if(e.key.length!==1 || e.ctrlKey || e.metaKey || e.altKey) return;
@@ -4559,18 +4559,31 @@ function vdjKeyUp(e, sel, idx, field){
   if(!matches.length) return;
   const now = Date.now();
   if(letter===_kuKey && now-_kuTime<2000){
-    // Même lettre — avancer au suivant
     const pos = matches.findIndex(m=>m.i===_kuIdx);
     const ni = pos>=0 ? matches[(pos+1)%matches.length].i : matches[0].i;
     sel.selectedIndex = ni;
     _kuIdx = ni;
     updateGoalPill(idx, field, parseInt(sel.value));
   } else {
-    // Premier appui — browser a déjà sauté, on enregistre où on est
     _kuIdx = sel.selectedIndex;
   }
   _kuKey = letter;
   _kuTime = now;
+}
+
+function vdjCycleNext(btn){
+  const sel = btn.previousElementSibling;
+  const cur = sel.options[sel.selectedIndex];
+  if(!cur || !cur.value) return;
+  const letter = cur.text.trim()[0].toLowerCase();
+  const matches = Array.from(sel.options)
+    .map((o,i)=>({i,o}))
+    .filter(({o})=>o.text.trim().toLowerCase().startsWith(letter) && o.value!=='');
+  if(matches.length<2) return;
+  const pos = matches.findIndex(m=>m.i===sel.selectedIndex);
+  const ni = pos>=0 ? matches[(pos+1)%matches.length].i : matches[0].i;
+  sel.selectedIndex = ni;
+  if(typeof sel.onchange==='function') sel.onchange.call(sel, new Event('change'));
 }
 // ── FIN CYCLE CLAVIER ────────────────────────────────────────────────────────
 

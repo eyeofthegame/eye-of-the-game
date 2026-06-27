@@ -574,6 +574,7 @@ main { background: var(--bg) !important; }
 <a href="#" onclick="showAnalysis('minutes10')" data-key="minutes10" data-i18n="nav-minutes10">Minutes (10')</a>
 <a href="#" onclick="showAnalysis('lieu')" data-key="lieu" data-i18n="nav-lieu">Lieu du tir</a>
 <a href="#" onclick="showView('presszones')" id="nav-presszones" data-i18n="nav-presszones">🟠 Zones de récupération</a>
+<a href="#" onclick="showView('recupranking')" id="nav-recupranking">📊 Classement récup.</a>
 
 <h3 id="sb-h-pa">🎯 Phases arrêtées</h3>
 <a href="#" onclick="showAnalysis('origine1',{filter:'pa'})" data-key="pa" data-i18n="nav-pa">Origines PA</a>
@@ -615,6 +616,7 @@ main { background: var(--bg) !important; }
 <div id="view-overunder" style="display:none"></div>
 <div id="view-shotmap" style="display:none"></div>
 <div id="view-presszones" style="display:none"></div>
+<div id="view-recupranking" style="display:none"></div>
 <div id="view-tete" style="display:none"></div>
 <div id="view-evolution" style="display:none"></div>
 <div id="view-scorerprofile" style="display:none"></div>
@@ -1807,6 +1809,7 @@ function showView(name){
   else if(name==='overunder') renderOverUnder();
   else if(name==='shotmap') renderShotMap();
   else if(name==='presszones') renderPressZones();
+  else if(name==='recupranking') renderRecupRanking();
   else if(name==='tete') renderTete();
   else if(name==='topscorers') renderTopScorers();
   else if(name==='assists') renderAssists();
@@ -3944,6 +3947,76 @@ function showTeteTip(el){
 function hideTeteTip(){
   const tip = document.getElementById('tete-tip');
   if(tip) tip.style.display = 'none';
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// 📊 CLASSEMENT ZONES DE RÉCUPÉRATION PAR ÉQUIPE
+// ══════════════════════════════════════════════════════════════════════════════
+function renderRecupRanking(){
+  loadData();
+  const allGoals = getAllGoals();
+  const el = document.getElementById('view-recupranking');
+
+  // Goals with a recovery zone encoded
+  const recupGoals = allGoals.filter(g =>
+    g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1))
+  );
+
+  // Group by team
+  const byTeam = {};
+  recupGoals.forEach(g=>{
+    if(!byTeam[g.team]) byTeam[g.team]=[];
+    byTeam[g.team].push(g);
+  });
+
+  const sorted = Object.entries(byTeam).sort((a,b)=>b[1].length-a[1].length);
+  const total = recupGoals.length || 1;
+
+  let html = `<div class="view-header"><h2>📊 ${_lang==='en'?'Recovery Zone Ranking':'Classement zones de récupération'}</h2></div>
+  <div style="padding:16px">
+  <p style="color:var(--muted);font-size:.85em;margin-bottom:16px">
+    ${recupGoals.length} ${_lang==='en'?'goals with recovery zone encoded':'buts avec zone de récupération encodée'} —
+    ${_lang==='en'?'click on count to see the goals, 🗺 to see the map':'cliquer sur le nombre pour voir les buts, 🗺 pour la carte'}
+  </p>
+  <table class="tableau" style="width:auto;min-width:380px">
+    <tr>
+      <th>#</th>
+      <th style="text-align:left">${_lang==='en'?'Team':'Équipe'}</th>
+      <th title="${_lang==='en'?'Goals with recovery zone':'Buts avec zone'}">${_lang==='en'?'Recov.':'Récup.'}</th>
+      <th>%</th>
+      <th>🗺</th>
+    </tr>`;
+
+  sorted.forEach(([team, goals], i)=>{
+    const flag = TEAM_FLAGS[team] || '';
+    const pct = Math.round(goals.length/total*100);
+    const safeTeam = team.replace(/'/g,"\'");
+    html += `<tr>
+      <td>${i+1}</td>
+      <td class="team" style="white-space:nowrap">${flag} ${tf(team)}</td>
+      <td class="total" style="cursor:pointer;text-decoration:underline;font-weight:700;color:var(--accent)"
+          onclick="showGoalDetailRecup('${safeTeam}')">${goals.length}</td>
+      <td style="color:var(--muted);font-size:.85em">${pct}%</td>
+      <td style="text-align:center">
+        <span style="cursor:pointer;font-size:1.1em" title="${_lang==='en'?'See map':'Voir la carte'}"
+              onclick="pzTeam='${safeTeam}';showView('presszones')">🗺</span>
+      </td>
+    </tr>`;
+  });
+
+  html += `</table></div>`;
+  el.innerHTML = html;
+}
+
+function showGoalDetailRecup(team){
+  const goals = getAllGoals().filter(g=>
+    g.team===team && (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1)))
+  );
+  document.getElementById('detail-title').textContent =
+    `${tf(team)} — ${_lang==='en'?'Goals with recovery zone':'Buts avec zone de récup.'} (${goals.length})`;
+  renderDetailGoals(goals);
+  document.getElementById('detail-panel').classList.add('open');
 }
 
 function renderPressZones(){
