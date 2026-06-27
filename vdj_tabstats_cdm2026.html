@@ -4289,7 +4289,7 @@ function renderEvolution(){
   const barW = Math.max(8, Math.floor((G1W - barPad*(nM+1)) / nM));
   const totalW = barPad + nM*(barW+barPad);
 
-  let barsG1 = '', labelsG1 = '', separatorsG1 = '', groupLabelsG1 = '';
+  let barsG1 = '', labelsG1 = '', separatorsG1 = '', separatorsG2 = '', groupLabelsG1 = '';
   let lastGroup = null;
   matchData.forEach((d,i)=>{
     const x = barPad + i*(barW+barPad);
@@ -4302,10 +4302,10 @@ function renderEvolution(){
     const grp = d.m.group || d.m.phase || '';
     if(grp && grp !== lastGroup){
       if(lastGroup !== null){
-        // vertical separator line before this group
-        separatorsG1 += `<line x1="${x-barPad/2}" y1="0" x2="${x-barPad/2}" y2="${G1H-18}" stroke="var(--border-strong)" stroke-width="1.5" stroke-dasharray="3,2"/>`;
+        const sx = x - barPad/2;
+        separatorsG1 += `<line x1="${sx}" y1="0" x2="${sx}" y2="${G1H-18}" stroke="#888" stroke-width="1.5"/>`;
+        separatorsG2 += `<line x1="${sx}" y1="0" x2="${sx}" y2="${G2H-14}" stroke="#888" stroke-width="1.5"/>`;
       }
-      // group label at bottom
       groupLabelsG1 += `<text x="${x}" y="${G1H-4}" font-size="7.5" fill="var(--muted)" font-weight="600">${grp}</text>`;
       lastGroup = grp;
     }
@@ -4357,7 +4357,7 @@ function renderEvolution(){
   legsG2 += evolTacFilter.size > 0 ? resetBtn : '';
 
   const svg2 = `<svg viewBox="0 0 ${totalW} ${G2H}" width="100%" style="display:block;max-width:100%">
-    ${separatorsG1.replace(/y2="${G1H-18}"/g, `y2="${G2H-14}"`)}${barsG2}
+    ${separatorsG2}${barsG2}
   </svg>`;
 
   // ── GRAPHE 3 : heatmap temporelle ──────────────────────────────────
