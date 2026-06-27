@@ -239,6 +239,7 @@ nav.sidebar h3, nav.sidebar h4, nav.sidebar .section-title {
 <button onclick="lsTogglePanel()" style="font-size:.72em;padding:3px 8px;width:100%;background:#4b607f;color:#e8d8c9;border:none;border-radius:4px;cursor:pointer;font-weight:600">⚙ Configurer…</button>
 <h3 style="margin-top:1.2em">Vidéos</h3>
 <a href="#" onclick="showPage('missing-links')" id="nav-missing-links">🎬 URLs manquantes <span id="missing-links-count" style="background:#7700cc;color:#fff;border-radius:10px;padding:1px 6px;font-size:.75em;margin-left:3px"></span></a>
+<a href="#" onclick="showPage('all-videos')" id="nav-all-videos">🎥 Toutes les vidéos</a>
 <div style="margin-top:2em;padding-top:1em;border-top:1px solid var(--border);font-size:.7em;color:var(--muted)">
 Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 </div>
@@ -438,6 +439,11 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 <div id="page-missing-links" class="hidden">
 <h1>🎬 URLs vidéo manquantes</h1>
 <div id="missing-links-page-content"></div>
+</div>
+
+<div id="page-all-videos" class="hidden">
+<h1>🎥 Toutes les vidéos — édition en masse</h1>
+<div id="all-videos-page-content"></div>
 </div>
 
 </main>
@@ -1195,6 +1201,7 @@ function showPage(name){
   if(name==='options') renderOptions();
   if(name==='direct') renderDirectPage();
   if(name==='missing-links') renderMissingLinksPage();
+  if(name==='all-videos') renderAllVideosPage();
 }
 
 // ==========================================
@@ -4531,6 +4538,74 @@ function saveMissingLink(matchId, goalIdx) {
 }
 
 document.addEventListener('DOMContentLoaded', refreshMissingLinksCount);
+
+function renderAllVideosPage() {
+  const container = document.getElementById('all-videos-page-content');
+  const allGoals = [];
+  Object.entries(data).forEach(([matchId, match]) => {
+    if (!match.goals || !match.goals.length) return;
+    const m = MATCHES.find(x => x.id == matchId) || {};
+    match.goals.forEach((g, idx) => {
+      if (!g.buteur) return;
+      allGoals.push({ matchId: parseInt(matchId), match: m, goalIdx: idx, goal: g });
+    });
+  });
+  if (allGoals.length === 0) {
+    container.innerHTML = '<div class="step-box">Aucun but encodé.</div>';
+    return;
+  }
+  // Group by match
+  const byMatch = {};
+  allGoals.forEach(item => {
+    const key = item.matchId;
+    if (!byMatch[key]) byMatch[key] = { match: item.match, goals: [] };
+    byMatch[key].goals.push(item);
+  });
+
+  let html = `<div style="display:flex;align-items:center;gap:12px;margin-bottom:1.2em">
+    <span style="color:var(--muted);font-size:.95em">${allGoals.length} but${allGoals.length>1?'s':''} au total</span>
+    <button onclick="saveAllVideos()" style="padding:7px 18px;background:#7700cc;color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;font-size:.95em">💾 Tout sauvegarder</button>
+  </div>`;
+
+  Object.values(byMatch).forEach(({ match, goals }) => {
+    const dateStr = match.date || '';
+    html += `<div class="step-box" style="margin-bottom:1.2em">
+      <h3 style="margin-bottom:.7em;font-size:1em">${match.dom||'?'} — ${match.ext||'?'} <span style="font-weight:400;font-size:.85em;color:var(--muted)">${dateStr}</span></h3>`;
+    goals.forEach(({ matchId, goalIdx, goal }) => {
+      const min = goal.minute ? goal.minute + "'" : "?'";
+      const currentUrl = goal.lien || '';
+      const hasUrl = currentUrl.length > 0;
+      html += `<div style="display:flex;align-items:center;gap:10px;margin-bottom:8px;padding:6px 8px;background:${hasUrl?'#f0faf0':'#faf6f0'};border-radius:6px;border:1px solid ${hasUrl?'#aed6a0':'var(--border)'}">
+        <span style="font-weight:700;color:#7700cc;min-width:32px">${min}</span>
+        <span style="flex:0 0 180px;font-weight:600;font-size:.9em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${goal.buteur||'?'}</span>
+        <input type="text" value="${currentUrl.replace(/"/g,'&quot;')}" placeholder="Coller l'URL vidéo…"
+          id="av-${matchId}-${goalIdx}"
+          style="flex:1;padding:5px 8px;border:2px solid ${hasUrl?'#4caf50':'#ccc'};border-radius:6px;font-size:.88em"
+          oninput="document.getElementById('av-${matchId}-${goalIdx}').style.borderColor=this.value?'#7700cc':'#ccc'">
+        ${hasUrl ? `<a href="${currentUrl}" target="_blank" style="font-size:.85em;color:#7700cc;white-space:nowrap">▶ Voir</a>` : ''}
+      </div>`;
+    });
+    html += `</div>`;
+  });
+
+  container.innerHTML = html;
+}
+
+function saveAllVideos() {
+  const inputs = document.querySelectorAll('[id^="av-"]');
+  inputs.forEach(input => {
+    const parts = input.id.split('-');
+    const matchId = parseInt(parts[1]);
+    const goalIdx = parseInt(parts[2]);
+    if (!data[matchId] || !data[matchId].goals[goalIdx]) return;
+    data[matchId].goals[goalIdx].lien = input.value.trim();
+  });
+  saveData();
+  renderAllVideosPage();
+  refreshMissingLinksCount();
+  alert('✅ Toutes les URLs sauvegardées !');
+}
+
 // ── FIN URLs MANQUANTES ───────────────────────────────────────────────────────
 
 // ── VALIDATION RUBRIQUES VDJ ──────────────────────────────────────────────────
