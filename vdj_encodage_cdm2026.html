@@ -4377,7 +4377,15 @@ function openVideoModal(rawUrl){
     iframe.src = embedUrl;
     clearTimeout(modal._blockTimer);
     modal._ytPlaying = false;
-    modal._blockTimer = setTimeout(()=>{ if(!modal._ytPlaying && modal.style.display !== 'none'){ _openPopup(); } }, 2500);
+    modal._blockTimer = setTimeout(()=>{
+      if(!modal._ytPlaying && modal.style.display !== 'none'){
+        const bar = document.getElementById('vdj-video-bar');
+        if(bar) bar.style.cursor='pointer';
+        const span = bar ? bar.querySelector('span') : null;
+        if(span) span.innerHTML = '⚠️ Cliquez ici pour ouvrir la vidéo';
+        if(bar) bar.onclick = _openPopup;
+      }
+    }, 2500);
     window.removeEventListener('message', _ytMessageHandler);
     window.addEventListener('message', _ytMessageHandler);
   } else {
