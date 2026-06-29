@@ -1693,7 +1693,7 @@ const GS_TYPES = {
  10:{label:'But ⚽',        color:'#cc0000', text:'#fff'},
 };
 
-function buildGoalSchemaSection(idx, g, isDirect=false, rightContent='') {
+function buildGoalSchemaSection(idx, g, isDirect=false, rightContent='', rightId=null) {
   const steps = g.goalSteps || [];
   // Real pitch: 105m × 68m → portrait H/W = 105/68
   const W=300, H=Math.round(300*105/68), M=10, TW=320, TH=Math.round(300*105/68)+20;
@@ -1904,7 +1904,7 @@ function buildGoalSchemaSection(idx, g, isDirect=false, rightContent='') {
         style="font-size:.75em;padding:2px 8px;border-radius:10px;cursor:pointer;background:#fee;border:1px solid #f88;color:#c00">✕ Effacer tout</button>` : '';
 
   const rightCol = rightContent
-    ? `<div id="vdj-pills-${idx}" style="flex:1;min-width:0;max-height:520px;overflow-y:auto;padding-right:2px">${rightContent}</div>`
+    ? `<div id="${rightId||'vdj-pills-'+idx}" style="flex:1;min-width:0;max-height:520px;overflow-y:auto;padding-right:2px">${rightContent}</div>`
     : '';
   _GS_STEP_EDITORS[idx] = stepEditors || '';
   return `<div style="background:#eef4ee;border:2px solid #4a8a4a;border-radius:8px;padding:8px 8px;margin-top:10px">
@@ -2995,8 +2995,7 @@ function buildDirectGoalForm(idx, g, m){
   <div class="row" style="flex-wrap:wrap;gap:12px;margin-top:6px">
     <label>Assist :</label>${buildDirectAcInput(idx, 'assist', g.assist||'', false)}
   </div>
-  <div id="direct-vdj-pills-${idx}" style="margin-top:10px">${buildDirectVDJPillsSection(idx, g)}</div>
-  ${buildGoalSchemaSection(idx, g, true)}
+  ${buildGoalSchemaSection(idx, g, true, buildDirectVDJPillsSection(idx, g), 'direct-vdj-pills-'+idx)}
   <div class="row" style="margin-top:10px">
     <label>Valeur : <select onchange="directUpdateGoal(${idx},'valeur',parseInt(this.value))">${[1,2,3,4,5].map(v=>`<option value="${v}"${g.valeur===v?' selected':''}>${v}</option>`).join('')}</select></label>
     <label style="margin-left:16px">Lien vidéo : <input type="text" value="${g.lien||''}" onchange="directUpdateGoal(${idx},'lien',this.value)" placeholder="URL (facultatif)" style="width:220px"></label>
