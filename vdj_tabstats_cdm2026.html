@@ -7747,16 +7747,18 @@ function spFilterByField(dataAttr, val, pillsId){
       _spActiveGoals.add(parseInt(g.getAttribute('data-gi')));
     }
   });
-  // Reset pill visuals
+  // Reset pill visuals — hide non-matching, highlight matching
   const container=document.getElementById(pillsId);
   if(container) container.querySelectorAll('.sp-pill').forEach(p=>{
     const gi=parseInt(p.getAttribute('data-gi'));
     p.classList.remove('sp-active');
     if(_spActiveGoals.has(gi)){
       const col=p.querySelector('span').style.background;
-      p.style.background=col+'22'; p.classList.add('sp-active');
+      p.style.background=col+'22';
+      p.style.display='flex';
+      p.classList.add('sp-active');
     } else {
-      p.style.background='#fff';
+      p.style.display='none';
     }
   });
   _spApplyOpacity();
@@ -7768,7 +7770,7 @@ function spResetAll(pillsId){
   document.querySelectorAll('[id^="sp-goal-"]').forEach(g=>{ g.style.opacity='1'; });
   const container=document.getElementById(pillsId);
   if(container) container.querySelectorAll('.sp-pill').forEach(p=>{
-    p.style.background='#fff'; p.classList.remove('sp-active');
+    p.style.display='flex'; p.style.background='#fff'; p.classList.remove('sp-active');
   });
 }
 
