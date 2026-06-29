@@ -2237,7 +2237,7 @@ ${resetBtn}
         const n = ct2.catKeys.length;
         h += `<th colspan="${n}" style="text-align:center;background:var(--accent);color:#fff;font-size:.78em;padding:3px 8px;border-bottom:2px solid #fff;border-right:3px solid #fff">${label}</th>`;
       });
-      h += '<td class="total">Total</td></tr>';
+      h += `<td class="total" style="cursor:pointer;${_lieuSortDir?'outline:2px solid rgba(255,255,255,.55);outline-offset:-2px;':''}" onclick="lieuSortBy()" title="Trier par total">Total ${_lieuSortDir===null?'<span style="opacity:.3">⇅</span>':(_lieuSortDir==='desc'?'▼':'▲')}</td></tr>`;
 
       // Header row 2 — sub-category names
       h += '<tr><td></td>';
@@ -2250,8 +2250,18 @@ ${resetBtn}
       });
       h += '<td></td></tr>';
 
-      // Data rows
-      allTeams2.forEach(t => {
+      // Data rows — sort by total if requested
+      const _lieuTeams = [...allTeams2];
+      if(_lieuSortDir){
+        const _lieuTotals = {};
+        _lieuTeams.forEach(t => {
+          let tot = 0;
+          activeSubs.forEach(({ct2}) => { tot += (isSc?ct2.teamScored:ct2.teamConceded)[t]||0; });
+          _lieuTotals[t] = tot;
+        });
+        _lieuTeams.sort((a,b) => _lieuSortDir==='desc' ? _lieuTotals[b]-_lieuTotals[a] : _lieuTotals[a]-_lieuTotals[b]);
+      }
+      _lieuTeams.forEach(t => {
         let rowTotal = 0;
         activeSubs.forEach(({ct2}) => { rowTotal += (isSc?ct2.teamScored:ct2.teamConceded)[t]||0; });
         h += `<tr><td class="team">${tf(t)}</td>`;
@@ -3946,11 +3956,19 @@ function renderTete(){
 let pzTeam = '', pzTac1 = '';
 let teteTeam = '';
 let _teteSortCol = null, _teteSortDir = null;
+let _lieuSortDir = null;
 function teteSortBy(col){
   if(_teteSortCol === col){
     if(_teteSortDir==='desc') _teteSortDir='asc';
     else { _teteSortCol=null; _teteSortDir=null; }
   } else { _teteSortCol=col; _teteSortDir='desc'; }
+  renderTete();
+}
+function lieuSortBy(){
+  if(_lieuSortDir==='desc') _lieuSortDir='asc';
+  else if(_lieuSortDir==='asc') _lieuSortDir=null;
+  else _lieuSortDir='desc';
+  renderAnalysis('lieu', _curAOpts);
   renderTete();
 }
 
