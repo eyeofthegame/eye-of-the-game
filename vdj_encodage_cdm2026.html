@@ -3820,6 +3820,127 @@ function buildVDJSumBar(idx, g){
   </div>`;
 }
 
+
+// ── Suggestion automatique ────────────────────────────────────────────────
+function getAllEncodedGoals(){
+  // Récupère tous les buts encodés toutes compétitions confondues
+  const goals = [];
+  try {
+    const raw = localStorage.getItem(activeDataKey());
+    if(!raw) return goals;
+    const d = JSON.parse(raw);
+    Object.keys(d).forEach(matchId => {
+      const md = d[matchId];
+      if(!md || !Array.isArray(md.goals)) return;
+      md.goals.forEach(g => {
+        if(g && g.team && g.tactique1) goals.push(Object.assign({}, g, {matchId}));
+      });
+    });
+  } catch(e){}
+  return goals;
+}
+
+function applySuggestion(goalIdx, tac1, lieu, ori1){
+  const md = getMatchData(currentMatchId);
+  const g = md.goals[goalIdx];
+  if(!g) return;
+  if(tac1)  g.tactique1 = tac1;
+  if(lieu)  g.lieu      = lieu;
+  if(ori1)  g.origine1  = ori1;
+  saveData();
+  const container = document.getElementById('vdj-pills-' + goalIdx);
+  if(container) container.innerHTML = buildVDJPillsSection(goalIdx, md.goals[goalIdx]);
+  const sumC = document.getElementById('vdj-sum-' + goalIdx);
+  if(sumC) sumC.innerHTML = buildVDJSumBar(goalIdx, md.goals[goalIdx]);
+}
+
+function buildSuggestionPanel(goalIdx, team){
+  const allGoals = getAllEncodedGoals().filter(g => g.team === team);
+  const total = allGoals.length;
+  if(total < 2) return '';
+
+  // Compter distributions tactique1
+  const tac1Count = {};
+  allGoals.forEach(g => {
+    const k = Number(g.tactique1);
+    tac1Count[k] = (tac1Count[k]||0) + 1;
+  });
+
+  // Top 3 tactiques → pour chacune, lieu + origine1 les plus fréquents
+  const patterns = Object.entries(tac1Count)
+    .sort((a,b) => b[1] - a[1])
+    .slice(0, 3)
+    .map(([tac1str, cnt]) => {
+      const tac1 = Number(tac1str);
+      const sub = allGoals.filter(g => Number(g.tactique1) === tac1);
+      // Lieu dominant
+      const lieuC = {};
+      sub.forEach(g => { if(g.lieu){ const k=Number(g.lieu); lieuC[k]=(lieuC[k]||0)+1; } });
+      const topLieu = Object.entries(lieuC).sort((a,b)=>b[1]-a[1])[0];
+      // Origine1 dominant
+      const ori1C = {};
+      sub.forEach(g => { if(g.origine1){ const k=Number(g.origine1); ori1C[k]=(ori1C[k]||0)+1; } });
+      const topOri1 = Object.entries(ori1C).sort((a,b)=>b[1]-a[1])[0];
+      return {
+        tac1,
+        lieu:  topLieu  ? Number(topLieu[0])  : 0,
+        ori1:  topOri1  ? Number(topOri1[0])  : 0,
+        count: cnt,
+        pct:   Math.round(cnt / total * 100)
+      };
+    });
+
+  // Rendre le panel
+  const _tc = hex => {
+    if(!hex) return '#111';
+    const h = hex.replace('#','');
+    const r=parseInt(h.slice(0,2),16), g2=parseInt(h.slice(2,4),16), b=parseInt(h.slice(4,6),16);
+    return (0.299*r + 0.587*g2 + 0.114*b) > 140 ? '#111' : '#fff';
+  };
+
+  let btnHtml = '';
+  patterns.forEach(p => {
+    const tacInfo  = VDJ.tactique1 && VDJ.tactique1[p.tac1];
+    const lieuInfo = p.lieu  && VDJ.lieu    && VDJ.lieu[p.lieu];
+    const ori1Info = p.ori1  && VDJ.origine1 && VDJ.origine1[p.ori1];
+    if(!tacInfo) return;
+
+    const tacBg  = '#' + (tacInfo.c1  || '888888');
+    const lieuBg = lieuInfo ? '#' + (lieuInfo.c1 || 'aaaaaa') : '';
+    const tacTc  = _tc(tacBg);
+    const lieuTc = lieuInfo ? _tc(lieuBg) : '#fff';
+
+    const lieuSpan = lieuInfo
+      ? '<span style="background:' + lieuBg + ';color:' + lieuTc + ';padding:1px 5px;border-radius:3px;font-size:.92em">' + lieuInfo.nom + '</span>'
+      : '';
+    const ori1Span = ori1Info
+      ? '<span style="color:#555;font-size:.9em">' + ori1Info.nom + '</span>'
+      : '';
+
+    btnHtml += '<button onclick="applySuggestion(' + goalIdx + ',' + p.tac1 + ',' + p.lieu + ',' + p.ori1 + ')" '
+      + 'title="Appliquer ce pattern" '
+      + 'style="display:inline-flex;align-items:center;gap:4px;padding:4px 9px;border-radius:8px;cursor:pointer;'
+      + 'border:2px solid ' + tacBg + ';background:#fff;white-space:nowrap;transition:box-shadow .1s" '
+      + 'onmouseover="this.style.boxShadow=\'0 0 0 3px ' + tacBg + '44\'" '
+      + 'onmouseout="this.style.boxShadow=\'\'">'
+      + '<span style="background:' + tacBg + ';color:' + tacTc + ';padding:2px 7px;border-radius:4px;font-weight:bold;font-size:.85em">' + tacInfo.nom + '</span>'
+      + lieuSpan
+      + ori1Span
+      + '<span style="color:' + tacBg + ';font-weight:900;font-size:.88em;margin-left:2px">' + p.pct + '%</span>'
+      + '</button>';
+  });
+
+  if(!btnHtml) return '';
+
+  return '<div style="background:linear-gradient(135deg,#eef3ff,#f5f0ff);border:2px solid #7799cc;border-radius:8px;padding:8px 12px;margin-bottom:10px">'
+    + '<div style="font-size:.7em;font-weight:bold;color:#3355aa;margin-bottom:6px;display:flex;align-items:center;gap:5px">'
+    + '🧠 Suggestions — ' + total + ' but' + (total>1?'s':'') + ' encodés pour ' + team
+    + '<span style="font-weight:400;color:#6677aa;font-size:.9em">(cliquer pour appliquer)</span>'
+    + '</div>'
+    + '<div style="display:flex;flex-wrap:wrap;gap:6px">' + btnHtml + '</div>'
+    + '</div>';
+}
+
 function buildVDJPillsSection(idx, g){
   const t1 = g.tactique1;
   const isPA = t1==5, isPEN = t1==6;
@@ -3855,7 +3976,8 @@ function buildVDJPillsSection(idx, g){
   const d1Nom = g.tactique2 && g.tactique2!=1 && VDJ.tactique2[g.tactique2] ? VDJ.tactique2[g.tactique2].nom.substring(0,8) : '—';
   const d2Nom = g.tactique2b && g.tactique2b!=1 && VDJ.tactique2[g.tactique2b] ? VDJ.tactique2[g.tactique2b].nom.substring(0,8) : '—';
 
-  return `<div class="vdj-pills-section">
+  const suggPanel = buildSuggestionPanel(idx, g.team);
+  return `<div class="vdj-pills-section">${suggPanel}
   <div class="${rowCls(t1)}" id="vdj-row-${idx}-tac">
     <div class="vdj-step-num">1</div>
     <div style="flex:1">
