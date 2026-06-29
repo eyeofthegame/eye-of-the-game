@@ -84,7 +84,7 @@ button.success:hover{background:var(--green);color:#fff}
 .vdj-pill:hover{transform:translateY(-1px);box-shadow:inset 0 1px 2px rgba(255,255,255,.38),0 4px 8px rgba(0,0,0,.28)}
 .vdj-pill:hover{opacity:.85}
 .vdj-pill.dimmed{opacity:.2;pointer-events:none}
-.vdj-step-select{width:100%;border:1.5px solid #ccc;border-radius:5px;padding:3px 5px;font-size:.7em;font-weight:600;background:#fff;color:#222;cursor:pointer}
+.vdj-step-select{flex:1;min-width:0;border:1.5px solid #ccc;border-radius:5px;padding:3px 5px;font-size:.7em;font-weight:600;background:#fff;color:#222;cursor:pointer}
 .vdj-step-select:focus{border-color:var(--accent);outline:none}
 .vdj-sum-bar{display:flex;flex-wrap:wrap;gap:4px;padding:5px 10px;background:#1a1a2e;border-bottom:2px solid #2255cc;margin-bottom:4px}
 .vdj-sum-chip{display:flex;align-items:center;gap:2px;font-size:.68em;font-weight:700;border-radius:10px;padding:2px 8px;box-shadow:inset 0 1px 2px rgba(255,255,255,.32),inset 0 -1px 1px rgba(0,0,0,.12),0 1px 4px rgba(0,0,0,.2);position:relative;overflow:hidden}
@@ -3791,7 +3791,7 @@ function vdjSelectHtml(idx, field, curVal, tableKey, orderedKeys){
     const sel = curVal==k ? ' selected' : '';
     opts += `<option value="${k}" style="background:#${tbl[k].c1};color:#${tbl[k].c2}"${sel}>${tbl[k].nom}</option>`;
   });
-  return `<select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))" onkeyup="vdjKeyUp(event,this,${idx},'${field}')">${opts}</select><button type="button" onclick="vdjCycleNext(this)" title="Option suivante (même lettre)" style="margin-left:3px;padding:2px 6px;font-size:.75em;cursor:pointer;border-radius:3px;border:1px solid #bbb;background:#f0f0f0;color:#333;vertical-align:middle;line-height:1">⟳</button>`;
+  return `<div style="display:flex;align-items:center;gap:4px;width:100%"><select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))" onkeyup="vdjKeyUp(event,this,${idx},'${field}')">${opts}</select><button type="button" onclick="vdjCycleNext(this)" title="Option suivante (même lettre)" style="flex-shrink:0;padding:3px 8px;font-size:.75em;cursor:pointer;border-radius:4px;border:1px solid #bbb;background:#f0f0f0;color:#333;line-height:1;white-space:nowrap">⟳</button></div>`;
 }
 
 function buildVDJSumBar(idx, g){
