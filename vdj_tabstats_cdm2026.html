@@ -5777,10 +5777,11 @@ function renderRecherche(){
 
   // ── Filter goals ────────────────────────────────────────────────────
   const goals = allGoals.filter(g=>{
-    // Team: include regular goals + CSC by opponent benefiting fTeam
+    // Team: inclut buts normaux + CSC adverses bénéficiant à fTeam
+    // On utilise g.csc (flag encodé) plutôt que isCsc() dynamique
     if(fTeam){
-      const isTeamGoal = g.team === fTeam && !isCsc(g);
-      const isBenefitCSC = g.opponent === fTeam && isCsc(g);
+      const isTeamGoal  = g.team === fTeam && g.csc !== true;
+      const isBenefitCSC = g.opponent === fTeam && g.csc === true;
       if(!isTeamGoal && !isBenefitCSC) return false;
     }
     if(fButeur && !(g.buteur||'').toLowerCase().includes(fButeur)) return false;
