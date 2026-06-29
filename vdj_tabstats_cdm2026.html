@@ -1809,7 +1809,7 @@ function renderPenalties(){
 function showView(name){
   currentView = name;
   currentKey = null;
-  history.replaceState(null,'','#'+name);
+  try{ localStorage.setItem('_vdj_page','view:'+name); }catch(e){}
   document.querySelectorAll('main > div').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
   const navEl = document.getElementById('nav-'+name);
@@ -1843,7 +1843,7 @@ function showView(name){
 function showAnalysis(key, opts={}){
   currentView = 'analysis';
   currentKey = key;
-  history.replaceState(null,'','#analysis:'+key+(opts.filter?':'+opts.filter:''));
+  try{ localStorage.setItem('_vdj_page','analysis:'+key+(opts.filter?':'+opts.filter:'')); }catch(e){}
   document.querySelectorAll('main > div').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
   const dataKey = opts.filter==='pa' ? 'pa' : key;
@@ -7414,14 +7414,18 @@ function printRapport(team){
 
 
 (function(){
-  const hash = window.location.hash.replace('#','');
-  if(!hash){ showView('home'); return; }
-  if(hash.startsWith('analysis:')){
-    const parts = hash.split(':');
-    showAnalysis(parts[1], parts[2]?{filter:parts[2]}:{});
-  } else {
-    showView(hash);
-  }
+  try{
+    const saved = localStorage.getItem('_vdj_page');
+    if(saved && saved.startsWith('analysis:')){
+      const parts = saved.split(':');
+      showAnalysis(parts[1], parts[2]?{filter:parts[2]}:{});
+      return;
+    } else if(saved && saved.startsWith('view:')){
+      showView(saved.replace('view:',''));
+      return;
+    }
+  }catch(e){}
+  showView('home');
 })();
 
 // ── LIVE SYNC ──────────────────────────────────────────
