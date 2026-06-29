@@ -5972,13 +5972,18 @@ function renderRecherche(){
         ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:.7em;cursor:pointer;flex-shrink:0">▶</button>`
         : '';
       const hasSteps = (g.goalSteps||[]).length > 0;
+      const isCscGoal = g.csc === true;
       const venue = g.team===g.match.dom ? '🏠' : '✈️';
+      const displayTeam = isCscGoal ? tf(g.opponent) : tf(g.team);
+      const displayFlag = isCscGoal ? (TEAM_FLAGS[g.opponent]||'') : (TEAM_FLAGS[g.team]||'');
+      const cscBadge = isCscGoal ? '<span style="background:#cc0000;color:#fff;font-size:.62em;font-weight:900;padding:2px 6px;border-radius:3px;flex-shrink:0;letter-spacing:.04em">CSC</span>' : '';
       return `<div class="rech-pill" data-gi="${gi}" onclick="rechToggleGoal(this,${gi})"
         style="display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:6px;cursor:pointer;
         border:2px solid ${col};background:#fff;transition:all .1s;opacity:${hasSteps?1:0.65}">
         <span style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></span>
         <span style="font-size:.65em;color:#666;flex-shrink:0">${venue}</span>
-        <span style="flex:1;font-size:.72em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'—'} <span style="font-weight:400;color:#777">${tf(g.team)}</span></span>
+        ${cscBadge}
+        <span style="flex:1;font-size:.72em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'—'} <span style="font-weight:400;color:#777">${displayFlag} ${displayTeam}</span></span>
         <span style="font-size:.65em;background:${tacCol};color:${tacTc};border-radius:2px;padding:1px 4px;white-space:nowrap;flex-shrink:0;font-weight:600">${tac}</span>
         <span style="font-size:.7em;font-weight:800;color:${col};white-space:nowrap">${score}</span>
         <span style="font-size:.68em;color:#888;white-space:nowrap">${g.minute}'</span>
