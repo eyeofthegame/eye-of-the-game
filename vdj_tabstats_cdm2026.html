@@ -5756,10 +5756,10 @@ let _spSelected = null; // {name, team}
 let _rechActiveGoals = new Set();
 let _rechPillsId = 'rech-pills';
 let _rechActivePresets = new Set();
-let _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+let _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',mode:'off'};
 let _rechCurrentGoals = [];
 let _rechCompareMode = false;
-let _rechStatB = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+let _rechStatB = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',mode:'off'};
 let _rechActiveGoalsB = new Set();
 let _rechActivePresetsB = new Set();
 let _rechCurrentGoalsB = [];
@@ -6339,8 +6339,18 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
   const fMin   = stateObj.min;
   const fFin   = stateObj.fin;
 
+  const fMode  = stateObj.mode || 'off';
   const goals = allGoals.filter(g=>{
-    if(fTeam && g.team !== fTeam) return false;
+    if(fMode === 'def'){
+      // Défensif : buts encaissés par fTeam
+      if(fTeam){
+        if(!(g.match.dom === fTeam || g.match.ext === fTeam)) return false;
+        if(g.team === fTeam) return false;
+      }
+    } else {
+      // Offensif (défaut) : buts marqués par fTeam
+      if(fTeam && g.team !== fTeam) return false;
+    }
     if(fButeur && !(g.buteur||'').toLowerCase().includes(fButeur)) return false;
     if(fTac1 && String(g.tactique1)!==fTac1) return false;
     if(fNat  && String(g.tactique3)!==fNat)  return false;
@@ -6393,6 +6403,16 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
     <select id="${pfx}venue" onchange="${updateFn}('venue',this.value)" style="${ss}"><option value="">${_lang==='en'?'H/A':'Dom/Ext'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️</option></select>
     <button onclick="${resetFn}()" style="font-size:.72em;padding:3px 7px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕</button>
   </div>`;
+
+  // Mode toggle (offensif/défensif) — visible only when team is selected
+  const fMode2 = stateObj.mode || 'off';
+  const modeBar = fTeam ? (()=>{
+    const btnStyle = (active, col) => 'font-size:.72em;padding:3px 10px;border-radius:20px;cursor:pointer;font-weight:'+(active?'bold':'normal')+';border:2px solid '+col+';background:'+(active?col:'var(--card)')+';color:'+(active?'#fff':'var(--text)')+';white-space:nowrap';
+    return '<div style="display:flex;gap:6px;margin-bottom:8px;align-items:center"><span style="font-size:.68em;color:var(--muted);font-weight:bold;text-transform:uppercase;letter-spacing:.04em">Mode :</span>'
+      +'<button onclick="'+updateFn+'(\'mode\',\'off\')" style="'+btnStyle(fMode2==='off','#1a6e2e')+'">⚔️ Offensif</button>'
+      +'<button onclick="'+updateFn+'(\'mode\',\'def\')" style="'+btnStyle(fMode2==='def','#8b2020')+'">🛡️ Défensif</button>'
+      +'</div>';
+  })() : '';
 
   // Count
   const hasFilter=fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue;
@@ -6508,6 +6528,7 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
   return `<div style="flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px">
     ${presetsHtml}
     ${filterHtml}
+    ${modeBar}
     ${countHtml}
     <div style="display:flex;gap:10px;align-items:flex-start">
       <div style="flex-shrink:0">
