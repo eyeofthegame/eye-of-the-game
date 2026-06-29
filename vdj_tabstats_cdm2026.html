@@ -7183,6 +7183,152 @@ function buildTeamRadar(team, allGoals, W){
 }
 
 
+
+// ── Preview adversaire ────────────────────────────────────────────────────
+let _prevTeam = '';
+
+function renderPreview(){
+  loadData();
+  const allGoals = getAllGoals();
+  const teams = getTeams().sort();
+  const el = document.getElementById('view-preview');
+  if(!el) return;
+
+  const teamOpts = '<option value="">— '+(_lang==='en'?'Choose opponent':'Choisir adversaire')+' —</option>'
+    + teams.map(t=>'<option value="'+t+'"'+(t===_prevTeam?' selected':'')+'>'+tf(t)+'</option>').join('');
+
+  if(!_prevTeam){
+    el.innerHTML = '<div style="padding:28px">'
+      +'<h2 style="color:var(--accent)">🎯 '+(_lang==='en'?'Opponent Preview':'Preview adversaire')+'</h2>'
+      +'<p style="color:var(--muted);margin-bottom:16px">'+(_lang==='en'?'Select an opponent to generate the scouting report.':'Sélectionnez un adversaire pour générer la fiche de scouting.')+'</p>'
+      +'<select onchange="_prevTeam=this.value;renderPreview()" style="font-size:1em;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);min-width:240px">'+teamOpts+'</select>'
+      +'</div>';
+    return;
+  }
+
+  const offGoals = allGoals.filter(g => g.team === _prevTeam);
+  const defGoals = allGoals.filter(g =>
+    (g.match.dom === _prevTeam || g.match.ext === _prevTeam) && g.team !== _prevTeam
+  );
+
+  function topPatterns(goals, field, tbl, n){
+    if(!goals.length) return '<em style="color:var(--muted);font-size:.8em">—</em>';
+    const counts = {};
+    goals.forEach(g=>{ const k=g[field]; if(k) counts[k]=(counts[k]||0)+1; });
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n).map(function(entry){
+      const k=entry[0], cnt=entry[1];
+      const info=tbl[k]; if(!info) return '';
+      const bg='#'+(info.c1||'888'), col='#'+(info.c2||'fff');
+      const pct=Math.round(cnt/goals.length*100);
+      return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
+        +'<span style="background:'+bg+';color:'+col+';padding:2px 8px;border-radius:4px;font-size:.72em;font-weight:700;white-space:nowrap;min-width:100px">'+info.nom+'</span>'
+        +'<div style="flex:1;height:5px;border-radius:3px;background:'+bg+';width:'+pct+'%;min-width:6px"></div>'
+        +'<span style="font-size:.72em;font-weight:700;color:var(--muted);white-space:nowrap">'+cnt+' ('+pct+'%)</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  function topPlayers(goals, n){
+    if(!goals.length) return '<em style="color:var(--muted);font-size:.8em">—</em>';
+    const counts={};
+    goals.forEach(g=>{ const k=g.buteur||'?'; counts[k]=(counts[k]||0)+1; });
+    const medals=['🥇','🥈','🥉'];
+    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n).map(function(entry,i){
+      return '<div style="display:flex;align-items:center;gap:6px;margin-bottom:5px;font-size:.78em">'
+        +'<span>'+( medals[i]||'·')+'</span>'
+        +'<span style="font-weight:600;flex:1">'+entry[0]+'</span>'
+        +'<span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 8px;font-weight:700;font-size:.85em">'+entry[1]+'</span>'
+        +'</div>';
+    }).join('');
+  }
+
+  function pillList(goals, limit){
+    const GC=['#e63946','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#ff5722','#8bc34a'];
+    const disp=goals.slice(0,limit||8);
+    if(!disp.length) return '<div style="font-size:.78em;color:var(--muted);padding:8px">'+(_lang==='en'?'No goals encoded yet.':'Aucun but encodé.')+'</div>';
+    const _tc=function(hex){const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g2=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return(0.299*r+0.587*g2+0.114*b)>140?'#111':'#fff';};
+    return disp.map(function(g,gi){
+      const col=GC[gi%GC.length];
+      const tac=VDJ.tactique1[g.tactique1]?VDJ.tactique1[g.tactique1].nom:'—';
+      const tacBg=VDJ.tactique1[g.tactique1]?'#'+VDJ.tactique1[g.tactique1].c1:'#888';
+      const isCsc=g.csc===true;
+      const cscBadge=isCsc?'<span style="background:#cc0000;color:#fff;font-size:.6em;padding:1px 4px;border-radius:2px;margin-right:2px">CSC</span>':'';
+      const vid=g.lien?'<button onclick="event.stopPropagation();openVideoModal(\''+g.lien+'\')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:.6em;cursor:pointer">▶</button>':'';
+      const ori=VDJ.origine1[g.origine1]?VDJ.origine1[g.origine1].nom:'';
+      return '<div style="display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:5px;border-left:3px solid '+col+';background:#fff;margin-bottom:3px">'
+        +'<span style="flex:1;font-size:.7em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+cscBadge+(g.buteur||'—')+' <span style="font-weight:400;color:#888">'+(isCsc?tf(g.opponent):tf(g.team))+'</span></span>'
+        +'<span style="font-size:.64em;background:'+tacBg+';color:'+_tc(tacBg)+';border-radius:2px;padding:1px 4px;white-space:nowrap;font-weight:600">'+tac+'</span>'
+        +(ori?'<span style="font-size:.62em;color:#888;white-space:nowrap">'+ori+'</span>':'')
+        +'<span style="font-size:.65em;font-weight:800;color:'+col+';white-space:nowrap">'+g.minute+"'</span>"
+        +vid
+        +'</div>';
+    }).join('');
+  }
+
+  function card(title, body, accent){
+    return '<div style="background:var(--card);border:1.5px solid '+(accent||'var(--border)')+';border-radius:10px;padding:14px;margin-bottom:10px">'
+      +'<div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:'+(accent||'var(--muted)')+';margin-bottom:8px">'+title+'</div>'
+      +body+'</div>';
+  }
+
+  const flag = (typeof TEAM_FLAGS !== 'undefined' && TEAM_FLAGS[_prevTeam]) ? TEAM_FLAGS[_prevTeam] : '';
+
+  let html = '<div style="padding:16px 20px">'
+
+    // Header
+    +'<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">'
+    +'<div><h2 style="margin:0;color:var(--accent)">🎯 '+(_lang==='en'?'Opponent Preview':'Preview adversaire')+'</h2>'
+    +'<div style="font-size:.75em;color:var(--muted);margin-top:2px">'+(_lang==='en'?'Scouting report — encoded goals only':'Fiche scouting — buts encodés uniquement')+'</div></div>'
+    +'<select onchange="_prevTeam=this.value;renderPreview()" style="font-size:.85em;padding:5px 10px;border-radius:8px;border:2px solid var(--accent);margin-left:auto">'+teamOpts+'</select>'
+    +'</div>'
+
+    // Banner
+    +'<div style="background:linear-gradient(135deg,var(--accent)18,transparent);border:1.5px solid var(--accent);border-radius:12px;padding:12px 18px;margin-bottom:16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">'
+    +'<span style="font-size:2.2em">'+flag+'</span>'
+    +'<div><div style="font-size:1.25em;font-weight:900;color:var(--text)">'+tf(_prevTeam)+'</div>'
+    +'<div style="font-size:.78em;color:var(--muted);margin-top:3px">'
+    +'<b style="color:#1a6e2e">⚔️ '+offGoals.length+'</b> '+(_lang==='en'?'goals scored':'buts marqués')
+    +' &nbsp;·&nbsp; <b style="color:#8b2020">🛡️ '+defGoals.length+'</b> '+(_lang==='en'?'goals conceded':'buts encaissés')
+    +'</div></div>'
+    +'<div style="margin-left:auto">'+buildTeamRadar(_prevTeam, allGoals, 160)+'</div>'
+    +'</div>'
+
+    // Main 2-col grid
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">'
+
+    // Offensive
+    +'<div>'
+    +'<div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#1a6e2e;margin-bottom:8px">⚔️ '+(_lang==='en'?'How they score':'Comment ils marquent')+' ('+offGoals.length+' '+(_lang==='en'?'goals':'buts')+')</div>'
+    +card('🎭 '+(_lang==='en'?'Tactics':'Tactique'), topPatterns(offGoals,'tactique1',VDJ.tactique1,5), '#1a6e2e44')
+    +card('📍 '+(_lang==='en'?'Shot zone':'Lieu du tir'), topPatterns(offGoals,'lieu',VDJ.lieu,3), '#1a6e2e44')
+    +card('🏆 '+(_lang==='en'?'Top scorers':'Buteurs'), topPlayers(offGoals,5), '#1a6e2e44')
+    +'</div>'
+
+    // Defensive
+    +'<div>'
+    +'<div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#8b2020;margin-bottom:8px">🛡️ '+(_lang==='en'?'How they concede':'Comment ils encaissent')+' ('+defGoals.length+' '+(_lang==='en'?'goals':'buts')+')</div>'
+    +card('🎭 '+(_lang==='en'?'Tactics conceded':'Tactiques encaissées'), topPatterns(defGoals,'tactique1',VDJ.tactique1,5), '#8b202044')
+    +card('📍 '+(_lang==='en'?'Zones conceded':'Zones encaissées'), topPatterns(defGoals,'lieu',VDJ.lieu,3), '#8b202044')
+    +card('⚠️ '+(_lang==='en'?'Scorers against them':'Auteurs des buts'), topPlayers(defGoals,5), '#8b202044')
+    +'</div>'
+    +'</div>'
+
+    // Recent pills
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+    +'<div style="background:var(--card);border:1.5px solid #1a6e2e44;border-radius:10px;padding:12px">'
+    +'<div style="font-size:.7em;font-weight:800;text-transform:uppercase;color:#1a6e2e;margin-bottom:8px">📋 '+(_lang==='en'?'Their goals (last 8)':'Leurs buts (8 derniers)')+'</div>'
+    +pillList(offGoals,8)
+    +'</div>'
+    +'<div style="background:var(--card);border:1.5px solid #8b202044;border-radius:10px;padding:12px">'
+    +'<div style="font-size:.7em;font-weight:800;text-transform:uppercase;color:#8b2020;margin-bottom:8px">📋 '+(_lang==='en'?'Goals against them (last 8)':'Buts encaissés (8 derniers)')+'</div>'
+    +pillList(defGoals,8)
+    +'</div>'
+    +'</div>'
+    +'</div>';
+
+  el.innerHTML = html;
+}
+
 function renderComparateur(){
   loadData();
   const teams = getTeams().sort();
