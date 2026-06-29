@@ -5753,24 +5753,26 @@ let _spSelected = null; // {name, team}
 // ═══════════════════════════════════════════════════════════════════════
 let _rechActiveGoals = new Set();
 let _rechPillsId = 'rech-pills';
+let _rechActivePreset = null;
+let _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
 
 function renderRecherche(){
   loadData();
   const allGoals = getAllGoals();
   const teams = getTeams();
 
-  // ── Read filter state (preserve across re-renders) ──────────────────
-  const fTeam   = document.getElementById('rech-team')?.value   || '';
-  const fButeur = (document.getElementById('rech-buteur')?.value || '').trim().toLowerCase();
-  const fTac1   = document.getElementById('rech-tac1')?.value   || '';
-  const fNat    = document.getElementById('rech-nat')?.value    || '';
-  const fOri1   = document.getElementById('rech-ori1')?.value   || '';
-  const fOri2   = document.getElementById('rech-ori2')?.value   || '';
-  const fAct    = document.getElementById('rech-act')?.value    || '';
-  const fLieu   = document.getElementById('rech-lieu')?.value   || '';
-  const fVenue  = document.getElementById('rech-venue')?.value  || '';
-  const fMin    = document.getElementById('rech-min')?.value    || '';
-  const fFin    = document.getElementById('rech-fin')?.value    || '';
+  // ── Read filter state from _rechState ────────────────────────────────
+  const fTeam   = _rechState.team;
+  const fButeur = _rechState.buteur.toLowerCase();
+  const fTac1   = _rechState.tac1;
+  const fNat    = _rechState.nat;
+  const fOri1   = _rechState.ori1;
+  const fOri2   = _rechState.ori2;
+  const fAct    = _rechState.act;
+  const fLieu   = _rechState.lieu;
+  const fVenue  = _rechState.venue;
+  const fMin    = _rechState.min;
+  const fFin    = _rechState.fin;
 
   // ── Filter goals ────────────────────────────────────────────────────
   const goals = allGoals.filter(g=>{
@@ -5830,17 +5832,17 @@ function renderRecherche(){
   <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px">
     <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🔬 ${_lang==='en'?'Filters':'Filtres'}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
-      <select id="rech-team"  onchange="renderRecherche()" style="${selStyle}${fTeam?' font-weight:bold;border-color:var(--accent)':''}">${teamOptsR}</select>
-      <input  id="rech-buteur" type="text" placeholder="🔍 ${_lang==='en'?'Player':'Joueur'}…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="renderRecherche()" style="${selStyle};min-width:130px">
-      <select id="rech-tac1"  onchange="renderRecherche()" style="${selStyle}${fTac1?' font-weight:bold;border-color:var(--accent)':''}">${tac1OptsR.replace(`value="${fTac1}"`,`value="${fTac1}" selected`)}</select>
-      <select id="rech-nat"   onchange="renderRecherche()" style="${selStyle}${fNat?' font-weight:bold;border-color:var(--accent)':''}">${natOptsR.replace(`value="${fNat}"`,`value="${fNat}" selected`)}</select>
-      <select id="rech-ori1"  onchange="renderRecherche()" style="${selStyle}${fOri1?' font-weight:bold;border-color:var(--accent)':''}">${ori1OptsR.replace(`value="${fOri1}"`,`value="${fOri1}" selected`)}</select>
-      <select id="rech-ori2"  onchange="renderRecherche()" style="${selStyle}${fOri2?' font-weight:bold;border-color:var(--accent)':''}">${ori2OptsR.replace(`value="${fOri2}"`,`value="${fOri2}" selected`)}</select>
-      <select id="rech-act"   onchange="renderRecherche()" style="${selStyle}${fAct?' font-weight:bold;border-color:var(--accent)':''}">${actOptsR.replace(`value="${fAct}"`,`value="${fAct}" selected`)}</select>
-      <select id="rech-lieu"  onchange="renderRecherche()" style="${selStyle}${fLieu?' font-weight:bold;border-color:var(--accent)':''}">${lieuOptsR.replace(`value="${fLieu}"`,`value="${fLieu}" selected`)}</select>
-      <select id="rech-fin"   onchange="renderRecherche()" style="${selStyle}${fFin?' font-weight:bold;border-color:var(--accent)':''}">${finOptsR.replace(`value="${fFin}"`,`value="${fFin}" selected`)}</select>
-      <select id="rech-min"   onchange="renderRecherche()" style="${selStyle}${fMin?' font-weight:bold;border-color:var(--accent)':''}">${minOptsR.replace(`value="${fMin}"`,`value="${fMin}" selected`)}</select>
-      <select id="rech-venue" onchange="renderRecherche()" style="${selStyle}${fVenue?' font-weight:bold;border-color:var(--accent)':''}">${venueOptsR}</select>
+      <select id="rech-team"  onchange="rechUpdateFilter('team',this.value)" style="${selStyle}${fTeam?' font-weight:bold;border-color:var(--accent)':''}">${teamOptsR}</select>
+      <input  id="rech-buteur" type="text" placeholder="🔍 ${_lang==='en'?'Player':'Joueur'}…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="rechUpdateFilter('buteur',this.value)" style="${selStyle};min-width:130px">
+      <select id="rech-tac1"  onchange="rechUpdateFilter('tac1',this.value)" style="${selStyle}${fTac1?' font-weight:bold;border-color:var(--accent)':''}">${tac1OptsR.replace(`value="${fTac1}"`,`value="${fTac1}" selected`)}</select>
+      <select id="rech-nat"   onchange="rechUpdateFilter('nat',this.value)" style="${selStyle}${fNat?' font-weight:bold;border-color:var(--accent)':''}">${natOptsR.replace(`value="${fNat}"`,`value="${fNat}" selected`)}</select>
+      <select id="rech-ori1"  onchange="rechUpdateFilter('ori1',this.value)" style="${selStyle}${fOri1?' font-weight:bold;border-color:var(--accent)':''}">${ori1OptsR.replace(`value="${fOri1}"`,`value="${fOri1}" selected`)}</select>
+      <select id="rech-ori2"  onchange="rechUpdateFilter('ori2',this.value)" style="${selStyle}${fOri2?' font-weight:bold;border-color:var(--accent)':''}">${ori2OptsR.replace(`value="${fOri2}"`,`value="${fOri2}" selected`)}</select>
+      <select id="rech-act"   onchange="rechUpdateFilter('act',this.value)" style="${selStyle}${fAct?' font-weight:bold;border-color:var(--accent)':''}">${actOptsR.replace(`value="${fAct}"`,`value="${fAct}" selected`)}</select>
+      <select id="rech-lieu"  onchange="rechUpdateFilter('lieu',this.value)" style="${selStyle}${fLieu?' font-weight:bold;border-color:var(--accent)':''}">${lieuOptsR.replace(`value="${fLieu}"`,`value="${fLieu}" selected`)}</select>
+      <select id="rech-fin"   onchange="rechUpdateFilter('fin',this.value)" style="${selStyle}${fFin?' font-weight:bold;border-color:var(--accent)':''}">${finOptsR.replace(`value="${fFin}"`,`value="${fFin}" selected`)}</select>
+      <select id="rech-min"   onchange="rechUpdateFilter('min',this.value)" style="${selStyle}${fMin?' font-weight:bold;border-color:var(--accent)':''}">${minOptsR.replace(`value="${fMin}"`,`value="${fMin}" selected`)}</select>
+      <select id="rech-venue" onchange="rechUpdateFilter('venue',this.value)" style="${selStyle}${fVenue?' font-weight:bold;border-color:var(--accent)':''}">${venueOptsR}</select>
       <button onclick="rechReset()" style="font-size:.8em;padding:3px 10px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕ ${_lang==='en'?'Reset':'Réinitialiser'}</button>
     </div>
   </div>`;
@@ -5987,9 +5989,23 @@ function renderRecherche(){
     pillsHtml += `<div style="font-size:.75em;color:var(--muted);text-align:center;padding:6px">${_lang==='en'?`Showing first ${MAX_DISPLAY} of ${goals.length} goals`:`Affichage des ${MAX_DISPLAY} premiers buts sur ${goals.length}`}</div>`;
   }
 
+  // ── Presets bar ────────────────────────────────────────────────────
+  const presetsBar = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
+    <span style="font-size:.7em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">Accès rapide</span>
+    ${_RECH_PRESETS.map(p=>{
+      const isActive = _rechActivePreset === p.key;
+      const bg = isActive ? p.color : 'var(--card)';
+      const tc = isActive ? p.tc : 'var(--text)';
+      const border = isActive ? p.color : 'var(--border)';
+      const fw = isActive ? 'bold' : 'normal';
+      return `<button onclick="rechApplyPreset('${p.key}')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:${bg};color:${tc};border:2px solid ${border};font-weight:${fw};transition:all .15s;white-space:nowrap">${p.label}</button>`;
+    }).join('')}
+  </div>`;
+
   const html = `
   <div style="padding:1.2em 1.5em">
     <h2 style="margin-bottom:.7em;color:var(--accent)">🔬 ${_lang==='en'?'Custom Search':'Recherche personnalisée'}</h2>
+    ${presetsBar}
     ${filterBar}
     ${countBadge}
     <div style="display:flex;gap:14px;align-items:flex-start">
@@ -6012,11 +6028,38 @@ function renderRecherche(){
   _rechActiveGoals.clear();
 }
 
+function rechUpdateFilter(key, val){
+  _rechState[key] = val;
+  _rechActivePreset = null;
+  renderRecherche();
+}
+
+const _RECH_PRESETS = [
+  {key:'jdp',    label:'🎭 Jeu placé',       filters:{tac1:'1'}, color:'#888888', tc:'#fff'},
+  {key:'jdr',    label:'⚡ Dominant rapide',  filters:{tac1:'2'}, color:'#BBC4C3', tc:'#444'},
+  {key:'reco',   label:'🔥 Reconversion',     filters:{tac1:'3'}, color:'#ffcccc', tc:'#880000'},
+  {key:'trans',  label:'🚀 Transition',        filters:{tac1:'4'}, color:'#880044', tc:'#fff'},
+  {key:'pa',     label:'🎯 Phase arrêtée',    filters:{tac1:'5'}, color:'#ffff44', tc:'#0000ff'},
+  {key:'pen',    label:'⚽ Penalty',           filters:{tac1:'6'}, color:'#cc0000', tc:'#fff'},
+  {key:'dom',    label:'🏠 Domicile',          filters:{venue:'dom'}, color:'#1a6e2e', tc:'#fff'},
+  {key:'ext',    label:'✈️ Extérieur',        filters:{venue:'ext'}, color:'#8b2020', tc:'#fff'},
+  {key:'rect1',  label:'📦 Petit rectangle',  filters:{lieu:'1'},  color:'#ffaa00', tc:'#fff'},
+  {key:'fin76',  label:'⏱ 76'–89'',         filters:{min:'7'},   color:'#1a237e', tc:'#fff'},
+  {key:'fin90',  label:'🔴 90'+',             filters:{min:'8'},   color:'#311b92', tc:'#fff'},
+];
+
+function rechApplyPreset(key){
+  const p = _RECH_PRESETS.find(p=>p.key===key);
+  if(!p) return;
+  _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+  Object.assign(_rechState, p.filters);
+  _rechActivePreset = key;
+  renderRecherche();
+}
+
 function rechReset(){
-  ['rech-team','rech-tac1','rech-nat','rech-ori1','rech-ori2','rech-act','rech-lieu','rech-fin','rech-min','rech-venue'].forEach(id=>{
-    const el=document.getElementById(id); if(el) el.value='';
-  });
-  const b=document.getElementById('rech-buteur'); if(b) b.value='';
+  _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+  _rechActivePreset = null;
   renderRecherche();
 }
 
