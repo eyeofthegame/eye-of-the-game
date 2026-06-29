@@ -5990,17 +5990,17 @@ function renderRecherche(){
   }
 
   // ── Presets bar ────────────────────────────────────────────────────
-  const presetsBar = `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
-    <span style="font-size:.7em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">Accès rapide</span>
-    ${_RECH_PRESETS.map(p=>{
-      const isActive = _rechActivePreset === p.key;
-      const bg = isActive ? p.color : 'var(--card)';
-      const tc = isActive ? p.tc : 'var(--text)';
-      const border = isActive ? p.color : 'var(--border)';
-      const fw = isActive ? 'bold' : 'normal';
-      return `<button onclick="rechApplyPreset('${p.key}')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:${bg};color:${tc};border:2px solid ${border};font-weight:${fw};transition:all .15s;white-space:nowrap">${p.label}</button>`;
-    }).join('')}
-  </div>`;
+  let _presetBtns = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center"><span style="font-size:.7em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">Accès rapide</span>';
+  _RECH_PRESETS.forEach(function(p){
+    const isActive = _rechActivePreset === p.key;
+    const bg = isActive ? p.color : 'var(--card)';
+    const tc = isActive ? p.tc : 'var(--text)';
+    const border = isActive ? p.color : 'var(--border)';
+    const fw = isActive ? 'bold' : 'normal';
+    _presetBtns += '<button onclick="rechApplyPreset(\'' + p.key + '\')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:' + bg + ';color:' + tc + ';border:2px solid ' + border + ';font-weight:' + fw + ';transition:all .15s;white-space:nowrap">' + p.label + '</button>';
+  });
+  _presetBtns += '</div>';
+  const presetsBar = _presetBtns;
 
   const html = `
   <div style="padding:1.2em 1.5em">
