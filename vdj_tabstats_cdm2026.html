@@ -5758,6 +5758,11 @@ let _rechPillsId = 'rech-pills';
 let _rechActivePresets = new Set();
 let _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
 let _rechCurrentGoals = [];
+let _rechCompareMode = false;
+let _rechStatB = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+let _rechActiveGoalsB = new Set();
+let _rechActivePresetsB = new Set();
+let _rechCurrentGoalsB = [];
 
 function renderRecherche(){
   loadData();
@@ -6009,9 +6014,35 @@ function renderRecherche(){
   _presetBtns += '</div>';
   const presetsBar = _presetBtns;
 
-  const html = `
+  // ── Compare mode toggle button ─────────────────────────────────────
+  const compareBtnStyle = _rechCompareMode
+    ? 'background:var(--accent);color:#fff;border-color:var(--accent)'
+    : 'background:var(--card);color:var(--text);border-color:var(--border)';
+  const compareToggleBtn = '<button onclick="rechToggleCompare()" style="font-size:.78em;padding:4px 12px;border-radius:20px;cursor:pointer;border:2px solid;font-weight:bold;' + compareBtnStyle + '">🆚 Mode comparaison</button>';
+
+  let html;
+  if(_rechCompareMode){
+    // ── Two-panel compare layout ─────────────────────────────────────
+    const panelA = _buildRechPanel(_rechState, _rechActivePresets, allGoals, 'A');
+    const panelB = _buildRechPanel(_rechStatB,  _rechActivePresetsB, allGoals, 'B');
+    html = '<div style="padding:1.2em 1.5em">' +
+      '<div style="display:flex;align-items:center;gap:10px;margin-bottom:.8em">' +
+        '<h2 style="margin:0;color:var(--accent)">🔬 Recherche personnalisée</h2>' +
+        compareToggleBtn +
+      '</div>' +
+      '<div style="display:flex;gap:12px;align-items:flex-start">' +
+        '<div style="flex:1;min-width:0"><div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#1a6e2e;margin-bottom:6px;padding:3px 8px;background:#e8f5e9;border-radius:4px;display:inline-block">⬛ Équipe A</div>' + panelA + '</div>' +
+        '<div style="flex:1;min-width:0"><div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.07em;color:#8b2020;margin-bottom:6px;padding:3px 8px;background:#ffebee;border-radius:4px;display:inline-block">⬛ Équipe B</div>' + panelB + '</div>' +
+      '</div>' +
+    '</div>';
+  } else {
+    // ── Single panel layout (existing) ───────────────────────────────
+    html = `
   <div style="padding:1.2em 1.5em">
-    <h2 style="margin-bottom:.7em;color:var(--accent)">🔬 ${_lang==='en'?'Custom Search':'Recherche personnalisée'}</h2>
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:.7em">
+      <h2 style="margin:0;color:var(--accent)">🔬 ${_lang==='en'?'Custom Search':'Recherche personnalisée'}</h2>
+      ${compareToggleBtn}
+    </div>
     ${presetsBar}
     ${filterBar}
     ${countBadge}
@@ -6031,9 +6062,10 @@ function renderRecherche(){
       </div>
     </div>
   </div>`;
+  }
 
   document.getElementById('view-recherche').innerHTML = html;
-  _rechActiveGoals.clear();
+  if(!_rechCompareMode) _rechActiveGoals.clear();
 }
 
 function rechUpdateFilter(key, val){
@@ -6206,6 +6238,290 @@ function rechCloseFullscreen(){
 
 function _rechFsKeyHandler(e){
   if(e.key==='Escape') rechCloseFullscreen();
+}
+
+
+// ── Compare mode helpers ────────────────────────────────────────────────────
+function rechToggleCompare(){
+  _rechCompareMode = !_rechCompareMode;
+  renderRecherche();
+}
+
+function rechUpdateFilterB(key, val){
+  _rechStatB[key] = val;
+  _rechActivePresetsB.forEach(pk=>{
+    const p=_RECH_PRESETS.find(pr=>pr.key===pk);
+    if(p && p.filters[key]!==undefined) _rechActivePresetsB.delete(pk);
+  });
+  renderRecherche();
+}
+
+function rechApplyPresetB(key){
+  const p=_RECH_PRESETS.find(pr=>pr.key===key);
+  if(!p) return;
+  if(_rechActivePresetsB.has(key)){
+    _rechActivePresetsB.delete(key);
+    Object.keys(p.filters).forEach(k=>{ _rechStatB[k]=''; });
+  } else {
+    _rechActivePresetsB.add(key);
+    Object.assign(_rechStatB, p.filters);
+  }
+  renderRecherche();
+}
+
+function rechResetB(){
+  _rechStatB={team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+  _rechActivePresetsB.clear();
+  renderRecherche();
+}
+
+function rechToggleGoalB(pill, gi){
+  if(_rechActiveGoalsB.has(gi)){
+    _rechActiveGoalsB.delete(gi);
+    pill.style.background='#fff';
+    pill.classList.remove('rech-active');
+  } else {
+    _rechActiveGoalsB.add(gi);
+    const col=pill.querySelector('span').style.background;
+    pill.style.background=col+'22';
+    pill.classList.add('rech-active');
+  }
+  document.querySelectorAll('[id^="rgB-goal-"]').forEach(g=>{
+    const gi2=parseInt(g.getAttribute('data-gi'));
+    g.style.opacity=(_rechActiveGoalsB.size===0||_rechActiveGoalsB.has(gi2))?'1':'0.08';
+  });
+}
+
+function rechResetPillsB(){
+  _rechActiveGoalsB.clear();
+  document.querySelectorAll('[id^="rgB-goal-"]').forEach(g=>g.style.opacity='1');
+  const c=document.getElementById('rech-pills-b');
+  if(c) c.querySelectorAll('.rech-pill-b').forEach(p=>{ p.style.display='flex'; p.style.background='#fff'; });
+}
+
+function rechFullscreenB(){
+  const goals = _rechActiveGoalsB.size>0
+    ? _rechCurrentGoalsB.filter((g,gi)=>_rechActiveGoalsB.has(gi))
+    : _rechCurrentGoalsB;
+  // Temporarily swap state for rechFullscreen reuse
+  const _savedGoals = _rechCurrentGoals;
+  const _savedActive = new Set(_rechActiveGoals);
+  _rechCurrentGoals = goals;
+  _rechActiveGoals = new Set([...Array(goals.length).keys()].filter(i=>true));
+  _rechActiveGoals.clear();
+  rechFullscreen();
+  _rechCurrentGoals = _savedGoals;
+  _rechActiveGoals = _savedActive;
+}
+
+function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
+  const isB = panelSuffix === 'B';
+  const updateFn = isB ? 'rechUpdateFilterB' : 'rechUpdateFilter';
+  const presetFn = isB ? 'rechApplyPresetB' : 'rechApplyPreset';
+  const resetFn  = isB ? 'rechResetB' : 'rechReset';
+  const resetPillsFn = isB ? 'rechResetPillsB' : 'rechResetPills';
+  const toggleGoalFn = isB ? 'rechToggleGoalB' : 'rechToggleGoal';
+  const fsFn     = isB ? 'rechFullscreenB' : 'rechFullscreen';
+  const pillsId  = isB ? 'rech-pills-b' : 'rech-pills';
+  const goalIdPfx= isB ? 'rgB' : 'rg';
+  const pfx      = isB ? 'rechb-' : 'rech-';
+  const activeGoals = isB ? _rechActiveGoalsB : _rechActiveGoals;
+
+  const fTeam  = stateObj.team;
+  const fButeur= stateObj.buteur.toLowerCase();
+  const fTac1  = stateObj.tac1;
+  const fNat   = stateObj.nat;
+  const fOri1  = stateObj.ori1;
+  const fOri2  = stateObj.ori2;
+  const fAct   = stateObj.act;
+  const fLieu  = stateObj.lieu;
+  const fVenue = stateObj.venue;
+  const fMin   = stateObj.min;
+  const fFin   = stateObj.fin;
+
+  const goals = allGoals.filter(g=>{
+    if(fTeam && g.team !== fTeam) return false;
+    if(fButeur && !(g.buteur||'').toLowerCase().includes(fButeur)) return false;
+    if(fTac1 && String(g.tactique1)!==fTac1) return false;
+    if(fNat  && String(g.tactique3)!==fNat)  return false;
+    if(fOri1 && String(g.origine1) !==fOri1) return false;
+    if(fOri2 && String(g.origine2) !==fOri2) return false;
+    if(fAct  && String(g.actions)  !==fAct)  return false;
+    if(fLieu && String(g.lieu)     !==fLieu) return false;
+    if(fFin  && String(g.finitions)!==fFin)  return false;
+    if(fVenue){
+      const isHome=g.team===g.match.dom;
+      if(fVenue==='dom'&&!isHome) return false;
+      if(fVenue==='ext'&&isHome)  return false;
+    }
+    if(fMin){
+      const _s=String(g.minute||''),_i=parseInt(_s)||1;
+      const bk=_s.includes('45+')?9:_s.includes('90+')?8:_i===45?4:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();
+      if(String(bk)!==fMin) return false;
+    }
+    return true;
+  });
+
+  if(isB){ _rechCurrentGoalsB = goals; } else { _rechCurrentGoals = goals; }
+
+  const teams = getTeams();
+  function mo(tbl,ord,lbl){let o=`<option value="">${lbl}</option>`;ord.forEach(k=>{if(tbl[k])o+=`<option value="${k}"${String(k)===stateObj[Object.keys(stateObj)[0]]?'':''}">${tbl[k].nom}</option>`;});return o;}
+  function moS(tbl,ord,lbl,curKey){let o=`<option value="">${lbl}</option>`;ord.forEach(k=>{if(tbl[k])o+=`<option value="${k}"${String(k)===curKey?' selected':''}">${tbl[k].nom}</option>`;});return o;}
+
+  const ss='font-size:.78em;padding:3px 5px;border-radius:4px;border:1px solid var(--border);background:var(--card)';
+
+  const teamOpts=`<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>`+teams.map(t=>`<option value="${t}"${t===fTeam?' selected':''}>${tf(t)}</option>`).join('');
+
+  // Presets bar
+  let presetsHtml='<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px">';
+  _RECH_PRESETS.forEach(function(p){
+    const isActive=activePresetsSet.has(p.key);
+    const bg=isActive?p.color:'var(--card)';
+    const tc=isActive?p.tc:'var(--text)';
+    const border=isActive?p.color:'var(--border)';
+    presetsHtml+='<button onclick="'+presetFn+'(\''+p.key+'\')" style="font-size:.72em;padding:3px 8px;border-radius:20px;cursor:pointer;background:'+bg+';color:'+tc+';border:2px solid '+border+';white-space:nowrap">'+p.label+'</button>';
+  });
+  presetsHtml+='</div>';
+
+  // Filter bar
+  const filterHtml=`<div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;align-items:center">
+    <select id="${pfx}team" onchange="${updateFn}('team',this.value)" style="${ss}">${teamOpts}</select>
+    <input id="${pfx}buteur" type="text" placeholder="🔍 Joueur…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="${updateFn}('buteur',this.value)" style="${ss};min-width:100px">
+    <select id="${pfx}tac1" onchange="${updateFn}('tac1',this.value)" style="${ss}">${moS(VDJ.tactique1,ORDER.tactique1||[1,2,3,4,5,6],_lang==='en'?'All tactics':'Toutes les tactiques',fTac1)}</select>
+    <select id="${pfx}ori1" onchange="${updateFn}('ori1',this.value)" style="${ss}">${moS(VDJ.origine1,ORDER.origine1,_lang==='en'?'All origins':'Toutes les origines',fOri1)}</select>
+    <select id="${pfx}lieu" onchange="${updateFn}('lieu',this.value)" style="${ss}">${moS(VDJ.lieu,ORDER.lieu||[1,2,3],_lang==='en'?'All locations':'Tous les lieux',fLieu)}</select>
+    <select id="${pfx}venue" onchange="${updateFn}('venue',this.value)" style="${ss}"><option value="">${_lang==='en'?'H/A':'Dom/Ext'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️</option></select>
+    <button onclick="${resetFn}()" style="font-size:.72em;padding:3px 7px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕</button>
+  </div>`;
+
+  // Count
+  const hasFilter=fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue;
+  const countHtml=`<div style="font-size:.78em;color:var(--muted);margin-bottom:6px"><b style="color:var(--accent)">${goals.length}</b> but${goals.length!==1?'s':''} ${hasFilter?'trouvé'+(goals.length!==1?'s':''):'au total'}</div>`;
+
+  // Pitch
+  const _GC=['#e63946','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#ff5722','#8bc34a','#f06292','#ffd600'];
+  const M=8,W=200,H=Math.round(200*105/68),sx=W/68,sy=H/105,TW=W+M*2,TH=H+M*2;
+
+  function _pb2(){
+    const paW=40.32*sx,paH=16.5*sy,paX=M+(W-40.32*sx)/2;
+    const saW=18.32*sx,saH=5.5*sy,saX=M+(W-18.32*sx)/2;
+    const gW=7.32*sx,gX=M+(W-7.32*sx)/2;
+    const cx=M+W/2,cy=M+H/2,ccR=9.15*Math.min(sx,sy);
+    return `<rect width="${TW}" height="${TH}" fill="#c8cdd4" rx="4"/>
+      <rect x="${M}" y="${M}" width="${W}" height="${H}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width="1"/>
+      <line x1="${M}" y1="${cy.toFixed(1)}" x2="${M+W}" y2="${cy.toFixed(1)}" stroke="rgba(74,96,127,.5)" stroke-width=".7"/>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${ccR.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.5)" stroke-width=".7"/>
+      <rect x="${paX.toFixed(1)}" y="${M}" width="${paW.toFixed(1)}" height="${paH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width=".8"/>
+      <rect x="${saX.toFixed(1)}" y="${M}" width="${saW.toFixed(1)}" height="${saH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width=".8"/>
+      <rect x="${gX.toFixed(1)}" y="${M-5}" width="${gW.toFixed(1)}" height="5" fill="rgba(255,255,255,.25)" stroke="rgba(74,96,127,.6)" stroke-width=".7"/>
+      <rect x="${paX.toFixed(1)}" y="${(M+H-paH).toFixed(1)}" width="${paW.toFixed(1)}" height="${paH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width=".8"/>
+      <rect x="${saX.toFixed(1)}" y="${(M+H-saH).toFixed(1)}" width="${saW.toFixed(1)}" height="${saH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width=".8"/>
+      <rect x="${gX.toFixed(1)}" y="${M+H}" width="${gW.toFixed(1)}" height="5" fill="rgba(255,255,255,.25)" stroke="rgba(74,96,127,.6)" stroke-width=".7"/>`;
+  }
+
+  function _arr2(x1,y1,x2,y2,col,curve,dash){
+    const c=curve||0,sw=1.6;
+    const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+    if(len<3) return '';
+    const ds=dash?`stroke-dasharray="${dash}"`:'';
+    if(c!==0){
+      const nx=-dy/len,ny=dx/len,mag=c*50,mx=(x1+x2)/2,my=(y1+y2)/2;
+      const cpx=mx+nx*mag,cpy=my+ny*mag;
+      const tdx=x2-cpx,tdy=y2-cpy,tlen=Math.sqrt(tdx*tdx+tdy*tdy);
+      const tux=tdx/tlen,tuy=tdy/tlen,tipX=x2-tux*6,tipY=y2-tuy*6,hx=-tuy*4,hy=tux*4;
+      return `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cpx.toFixed(1)},${cpy.toFixed(1)} ${tipX.toFixed(1)},${tipY.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${sw}" ${ds}/>
+        <polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(tipX+hx).toFixed(1)},${(tipY+hy).toFixed(1)} ${(tipX-hx).toFixed(1)},${(tipY-hy).toFixed(1)}" fill="${col}"/>`;
+    }
+    const ux=dx/len,uy=dy/len,tipX=x2-ux*6,tipY=y2-uy*6,hx=-uy*4,hy=ux*4;
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${tipX.toFixed(1)}" y2="${tipY.toFixed(1)}" stroke="${col}" stroke-width="${sw}" ${ds}/>
+      <polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(tipX+hx).toFixed(1)},${(tipY+hy).toFixed(1)} ${(tipX-hx).toFixed(1)},${(tipY-hy).toFixed(1)}" fill="${col}"/>`;
+  }
+
+  function _paths2(g,col){
+    const steps=g.goalSteps||[];
+    if(!steps.length) return '';
+    let svg='';
+    for(let si=1;si<steps.length;si++){
+      const prev=steps[si-1],cur=steps[si];
+      const x1=M+prev.x*W,y1=M+prev.y*H,x2=M+cur.x*W,y2=M+cur.y*H;
+      svg+=_arr2(x1,y1,x2,y2,col,cur.curve||0,cur.type===6?null:'5,3');
+    }
+    steps.forEach((s,si)=>{
+      const px=(M+s.x*W).toFixed(1),py=(M+s.y*H).toFixed(1);
+      const hasBut10=steps.some(ss=>ss.type===10);
+      if(s.type===10||(si===steps.length-1&&!hasBut10)){
+        svg+=`<circle cx="${px}" cy="${py}" r="7" fill="${col}" stroke="#4b607f" stroke-width="1.2"/>
+          <text x="${px}" y="${(parseFloat(py)+3.5).toFixed(1)}" text-anchor="middle" font-size="8">⚽</text>`;
+      } else {
+        svg+=`<circle cx="${px}" cy="${py}" r="5" fill="${col}" stroke="#4b607f" stroke-width="1"/>
+          <text x="${px}" y="${(parseFloat(py)+3).toFixed(1)}" text-anchor="middle" font-size="6.5" font-weight="bold" fill="white">${si+1}</text>`;
+      }
+    });
+    return svg;
+  }
+
+  const MAX=40;
+  const disp=goals.slice(0,MAX);
+  let pathsSvg='';
+  disp.forEach((g,gi)=>{
+    const col=_GC[gi%_GC.length];
+    const p=_paths2(g,col);
+    if(p) pathsSvg+=`<g id="${goalIdPfx}-goal-${gi}" data-gi="${gi}">${p}</g>`;
+  });
+
+  const pitchSvg=`<svg viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="display:block;border-radius:6px;flex-shrink:0">
+    ${_pb2()}${pathsSvg||`<text x="${TW/2}" y="${TH/2}" text-anchor="middle" font-size="10" fill="rgba(74,96,127,.5)">Aucun but</text>`}
+  </svg>`;
+
+  // Pills
+  let pillsHtml='';
+  if(!disp.length){
+    pillsHtml=`<div style="padding:12px;text-align:center;color:var(--muted);font-size:.8em">Aucun but pour ces filtres</div>`;
+  } else {
+    pillsHtml=disp.map((g,gi)=>{
+      const col=_GC[gi%_GC.length];
+      const matchStr=`${tf(g.match.dom)} – ${tf(g.match.ext)}`;
+      const isCscGoal=g.csc===true;
+      const displayTeam=isCscGoal?tf(g.opponent):tf(g.team);
+      const displayFlag=isCscGoal?(TEAM_FLAGS[g.opponent]||''):(TEAM_FLAGS[g.team]||'');
+      const cscBadge=isCscGoal?'<span style="background:#cc0000;color:#fff;font-size:.6em;font-weight:900;padding:1px 4px;border-radius:3px">CSC</span>':'';
+      const tacCol=VDJ.tactique1[g.tactique1]?'#'+VDJ.tactique1[g.tactique1].c1:'#888';
+      const _tch=(hex)=>{const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g2=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return(0.299*r+0.587*g2+0.114*b)>140?'#111':'#fff';};
+      const tacTc=_tch(tacCol);
+      const tac=VDJ.tactique1[g.tactique1]?VDJ.tactique1[g.tactique1].nom:'—';
+      const videoBtn=g.lien?`<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:.65em;cursor:pointer;flex-shrink:0">▶</button>`:'';
+      const pillCls=isB?'rech-pill-b':'rech-pill';
+      const toggleFn=`${toggleGoalFn}(this,${gi})`;
+      return `<div class="${pillCls}" data-gi="${gi}" onclick="${toggleFn}"
+        style="display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:6px;cursor:pointer;border:2px solid ${col};background:#fff;transition:all .1s">
+        <span style="width:9px;height:9px;border-radius:50%;background:${col};flex-shrink:0"></span>
+        ${cscBadge}
+        <span style="flex:1;font-size:.68em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'—'} <span style="font-weight:400;color:#777">${displayFlag} ${displayTeam}</span></span>
+        <span style="font-size:.6em;background:${tacCol};color:${tacTc};border-radius:2px;padding:1px 3px;white-space:nowrap;flex-shrink:0;font-weight:600">${tac}</span>
+        <span style="font-size:.66em;font-weight:800;color:${col};white-space:nowrap">${g.minute}'</span>
+        ${videoBtn}
+      </div>`;
+    }).join('');
+    if(goals.length>MAX) pillsHtml+=`<div style="font-size:.7em;color:var(--muted);text-align:center;padding:4px">${MAX}/${goals.length} buts affichés</div>`;
+  }
+
+  return `<div style="flex:1;min-width:0;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px">
+    ${presetsHtml}
+    ${filterHtml}
+    ${countHtml}
+    <div style="display:flex;gap:10px;align-items:flex-start">
+      <div style="flex-shrink:0">
+        ${pitchSvg}
+        <div style="display:flex;gap:4px;margin-top:5px">
+          <button onclick="${resetPillsFn}()" style="flex:1;padding:2px 6px;font-size:.65em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer">✕ Tout</button>
+          <button onclick="${fsFn}()" style="padding:2px 6px;font-size:.65em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer">⛶</button>
+        </div>
+      </div>
+      <div id="${pillsId}" style="flex:1;display:flex;flex-direction:column;gap:3px;max-height:${TH+30}px;overflow-y:auto">
+        ${pillsHtml}
+      </div>
+    </div>
+  </div>`;
 }
 
 function rechToggleGoal(pill, gi){
