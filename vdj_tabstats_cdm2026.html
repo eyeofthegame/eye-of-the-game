@@ -1975,28 +1975,29 @@ function renderHome(){
     }).length);
     const maxB = Math.max(...bucketCounts, 1);
     const BAR_H = 44;
-    const barSvg = BUCKETS.map((label, bi) => {
+    const COL = bi => bi >= 5 ? '#8b2020' : bi >= 3 ? '#c07020' : '#2a7d4f';
+    const barDivs = BUCKETS.map((label, bi) => {
       const cnt = bucketCounts[bi];
-      const barH = Math.round((cnt/maxB)*BAR_H);
-      const x = bi*(100/BUCKETS.length);
-      const w = 100/BUCKETS.length;
-      const col = bi >= 5 ? '#8b2020' : bi >= 3 ? '#c07020' : '#2a7d4f';
-      return '<g>'
-        +'<rect x="'+(x+1).toFixed(1)+'%" y="'+(BAR_H-barH)+'" width="'+(w-2).toFixed(1)+'%" height="'+barH+'" rx="2" fill="'+col+'" opacity="0.85"/>'
-        +(cnt>0?'<text x="'+(x+w/2).toFixed(1)+'%" y="'+(BAR_H-barH-3)+'" text-anchor="middle" font-size="8" fill="var(--text)" font-weight="700">'+cnt+'</text>':'')
-        +'<text x="'+(x+w/2).toFixed(1)+'%" y="'+(BAR_H+10)+'" text-anchor="middle" font-size="7.5" fill="var(--muted)">'+label+"'</text>"
-        +'</g>';
+      const pct = Math.round((cnt/maxB)*100);
+      const col = COL(bi);
+      return '<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:3px">'
+        +'<div style="font-size:.72em;font-weight:700;color:var(--text);line-height:1;min-height:14px">'+cnt+'</div>'
+        +'<div style="width:100%;display:flex;align-items:flex-end;height:52px;padding:0 3px">'
+        +'<div style="width:100%;height:'+pct+'%;background:'+col+';border-radius:3px 3px 0 0;opacity:.88;min-height:'+(cnt>0?'4':'0')+'px;transition:height .3s"></div>'
+        +'</div>'
+        +'<div style="font-size:.68em;color:var(--muted);white-space:nowrap">'+label+"'</div>"
+        +'</div>';
     }).join('');
 
     html += '<h2 style="color:var(--accent);font-size:1em;text-transform:uppercase;letter-spacing:.06em;margin:1.4em 0 .5em">⏱ '+(_lang==='en'?'Goal Timing':'Chronologie des buts')+'</h2>'
-      +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px 4px">'
-      +'<div style="display:flex;gap:12px;font-size:.7em;font-weight:700;margin-bottom:6px">'
+      +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:12px 14px 10px">'
+      +'<div style="display:flex;gap:12px;font-size:.7em;font-weight:700;margin-bottom:10px">'
       +'<span style="color:'+GC_DOM+'">⬤ '+(_lang==='en'?'1st half':'1ère mi-temps')+'</span>'
       +'<span style="color:#c07020">⬤ '+(_lang==='en'?'2nd half':'2ème mi-temps')+'</span>'
       +'<span style="color:'+GC_EXT+'">⬤ '+(_lang==='en'?'Extra time':'Prolongations')+'</span>'
       +'<span style="margin-left:auto;color:var(--muted)">'+allGoalsForTL.length+' '+(_lang==='en'?'goals':'buts')+'</span>'
       +'</div>'
-      +'<svg viewBox="0 0 100 '+(BAR_H+14)+'" preserveAspectRatio="none" width="100%" height="'+(BAR_H+14)+'px" style="display:block;overflow:visible">'+barSvg+'</svg>'
+      +'<div style="display:flex;gap:4px;align-items:flex-end">'+barDivs+'</div>'
       +'</div>';
 
     // ── B. Browser filtré (accordéon) ────────────────────────────────
@@ -3518,7 +3519,7 @@ function renderOverUnder(){
 // ==============================================
 // CARTE DES TIRS
 // ==============================================
-let smTeam = [], smType = 'both', smTac1 = '', smViewMode = 'dots';
+let smTeam = [], smType = 'both', smTac1 = '';
 let _tlTeam = '', _tlPhase = '', _tlOpen = false;
 let smLegendFilter = ['scored','conceded','assist','assist-centre','assist-pa'];
 
@@ -3609,9 +3610,7 @@ function renderShotMap(){
     ${tacSelect}
     <div style="flex:1"></div>
     ${countBadge}
-    <div style="width:1px;height:28px;background:var(--border);margin:0 4px"></div>
-    <button onclick="smViewMode='dots';renderShotMap()" style="padding:4px 11px;border-radius:20px;font-size:.8em;font-weight:${smViewMode==='dots'?'700':'400'};cursor:pointer;border:2px solid ${smViewMode==='dots'?'var(--accent)':'#ccc'};background:${smViewMode==='dots'?'var(--accent)':'#fff'};color:${smViewMode==='dots'?'#fff':'var(--text)'};transition:.15s">📍 Dots</button>
-    <button onclick="smViewMode='heat';renderShotMap()" style="padding:4px 11px;border-radius:20px;font-size:.8em;font-weight:${smViewMode==='heat'?'700':'400'};cursor:pointer;border:2px solid ${smViewMode==='heat'?'#e63b00':'#ccc'};background:${smViewMode==='heat'?'#e63b00':'#fff'};color:${smViewMode==='heat'?'#fff':'var(--text)'};transition:.15s">🔥 Heatmap</button>
+
   </div>`;
 
   // ═══════════════════════════════════════════
@@ -3738,10 +3737,9 @@ function renderShotMap(){
       </div>
     </div>
     <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px">
-      <div style="font-size:.85em;font-weight:700;color:var(--accent);margin-bottom:6px;text-align:center">📍 ${smViewMode==='heat'?(_lang==='en'?'Shot Heatmap':'Heatmap des tirs'):(_lang==='en'?'Shot Positions':'Position des tirs')} <span style="font-weight:400;color:var(--muted)">(${filtered.length})</span></div>
-      <div style="position:relative" id="sm-shot-wrap">
-        <svg id="sm-shot-svg" viewBox="0 0 ${TW} ${TH}" width="100%" style="border-radius:6px;display:block">${pitchLines}${smViewMode==='dots'?dots:''}</svg>
-        <canvas id="sm-heat-canvas" style="position:absolute;top:0;left:0;width:100%;height:100%;border-radius:6px;pointer-events:none;display:${smViewMode==='heat'?'block':'none'}"></canvas>
+      <div style="font-size:.85em;font-weight:700;color:var(--accent);margin-bottom:6px;text-align:center">📍 ${_lang==='en'?'Shot Positions':'Position des tirs'} <span style="font-weight:400;color:var(--muted)">(${filtered.length})</span></div>
+      <div style="position:relative">
+        <svg viewBox="0 0 ${TW} ${TH}" width="100%" style="border-radius:6px;display:block">${pitchLines}${dots}</svg>
         <div id="shot-tip" style="display:none;position:absolute;background:rgba(0,0,0,.88);color:#fff;padding:6px 10px;border-radius:6px;font-size:.8em;pointer-events:none;max-width:320px;z-index:99;white-space:nowrap"></div>
       </div>
     </div>
@@ -3775,73 +3773,8 @@ function renderShotMap(){
   }
 
   el.innerHTML = html;
-  if(smViewMode === 'heat'){
-    requestAnimationFrame(() => _smDrawHeatmap(filtered, TW, TH, M, W, H));
-  }
 }
 
-function _smDrawHeatmap(goals, TW, TH, M, W, H){
-  const wrap = document.getElementById('sm-shot-wrap');
-  const canvas = document.getElementById('sm-heat-canvas');
-  if(!canvas || !wrap) return;
-  const wRect = wrap.getBoundingClientRect();
-  const scaleX = wRect.width / TW;
-  const scaleY = wRect.height / TH;
-  const CW = Math.round(wRect.width), CH = Math.round(wRect.height);
-  canvas.width  = CW;
-  canvas.height = CH;
-  const ctx = canvas.getContext('2d');
-  ctx.clearRect(0, 0, CW, CH);
-  if(!goals.length) return;
-
-  // Draw blurred spots on a temp canvas
-  const tmp = document.createElement('canvas');
-  tmp.width = CW; tmp.height = CH;
-  const tc = tmp.getContext('2d');
-  const r = Math.round(CW * 0.085); // radius in px
-
-  goals.forEach(g => {
-    const px = (M + g.pitchX * W) * scaleX;
-    const py = (M + g.pitchY * H) * scaleY;
-    const grad = tc.createRadialGradient(px, py, 0, px, py, r);
-    grad.addColorStop(0,   'rgba(255,255,255,0.35)');
-    grad.addColorStop(0.5, 'rgba(255,255,255,0.15)');
-    grad.addColorStop(1,   'rgba(255,255,255,0)');
-    tc.fillStyle = grad;
-    tc.beginPath();
-    tc.arc(px, py, r, 0, Math.PI*2);
-    tc.fill();
-  });
-
-  // Colorize: black→blue→cyan→green→yellow→red
-  const src = tc.getImageData(0, 0, CW, CH);
-  const dst = ctx.createImageData(CW, CH);
-  const palette = [
-    [0,   0,  0],   // 0
-    [0,   0,160],   // 0.15
-    [0, 180,255],   // 0.35
-    [0, 220, 80],   // 0.55
-    [255,220,  0],  // 0.75
-    [255, 80,  0],  // 0.90
-    [255,  0,  0],  // 1.0
-  ];
-  function lerp3(a, b, t){ return [a[0]+(b[0]-a[0])*t, a[1]+(b[1]-a[1])*t, a[2]+(b[2]-a[2])*t]; }
-  function getColor(v){
-    const n = palette.length - 1;
-    const i = Math.min(Math.floor(v * n), n-1);
-    return lerp3(palette[i], palette[i+1], v * n - i);
-  }
-  for(let i=0; i<src.data.length; i+=4){
-    const a = src.data[i] / 255; // white channel = intensity
-    if(a < 0.01){ dst.data[i+3] = 0; continue; }
-    const [r2,g2,b2] = getColor(Math.min(a * 1.6, 1));
-    dst.data[i]   = r2;
-    dst.data[i+1] = g2;
-    dst.data[i+2] = b2;
-    dst.data[i+3] = Math.round(Math.min(a * 1.4, 0.88) * 255);
-  }
-  ctx.putImageData(dst, 0, 0);
-}
 
 function _smToggleTeam(t){
   if(smTeam.includes(t)) smTeam=smTeam.filter(x=>x!==t);
