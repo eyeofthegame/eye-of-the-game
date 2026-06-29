@@ -6075,7 +6075,9 @@ function rechReset(){
 
 
 function rechFullscreen(){
-  const goals = _rechCurrentGoals;
+  const goals = _rechActiveGoals.size > 0
+    ? _rechCurrentGoals.filter((g,gi)=>_rechActiveGoals.has(gi))
+    : _rechCurrentGoals;
   const _GOAL_COLORS = ['#e63946','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#ff5722','#8bc34a','#f06292','#ffd600'];
   const M=12, W=440, H=Math.round(440*105/68), sx=W/68, sy=H/105;
   const TW=W+M*2, TH=H+M*2;
