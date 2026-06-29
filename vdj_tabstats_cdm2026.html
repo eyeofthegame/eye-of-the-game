@@ -5797,16 +5797,20 @@ function renderRecherche(){
   });
 
   // ── Build dropdown options ──────────────────────────────────────────
-  function mo(tbl, ord, lbl){ return makeOptions(tbl, ord, lbl); }
+  function mo(tbl, ord, lbl){
+    let o=`<option value="">${lbl}</option>`;
+    ord.forEach(k=>{ if(tbl[k]) o+=`<option value="${k}">${tbl[k].nom}</option>`; });
+    return o;
+  }
   const teamOptsR  = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>`+teams.map(t=>`<option value="${t}"${t===fTeam?' selected':''}>${tf(t)}</option>`).join('');
   const tac1OptsR  = mo(VDJ.tactique1, ORDER.tactique1||[1,2,3,4,5,6], _lang==='en'?'All tactics':'Toutes les tactiques');
   const natOptsR   = mo(VDJ.tactique3,  [1,2,3,4],              _lang==='en'?'All types':'Toute nature du but');
   const ori1OptsR  = mo(VDJ.origine1,   ORDER.origine1,          _lang==='en'?'All origins':'Toutes les origines');
   const ori2OptsR  = mo(VDJ.origine2,   ORDER.origine2||[4,3,2], _lang==='en'?'All intentions':'Toutes les intentions');
   const actOptsR   = mo(VDJ.actions,    ORDER.actions,           _lang==='en'?'All actions':'Toutes les actions');
-  const lieuOptsR  = mo(VDJ.lieu,       [1,2,3],                 _lang==='en'?'All locations':'Tous les lieux');
+  const lieuOptsR  = mo(VDJ.lieu,       ORDER.lieu||[1,2,3],     _lang==='en'?'All locations':'Tous les lieux');
   const minOptsR   = mo(VDJ.minutes,    ORDER.minutes,           _lang==='en'?'All periods':'Toutes les périodes');
-  const finOptsR   = mo(VDJ.finitions,  [1,2,3,4,5,6],          _lang==='en'?'All finishes':'Toutes les finitions');
+  const finOptsR   = mo(VDJ.finitions,  ORDER.finitions||[1,2,3,4,5,6], _lang==='en'?'All finishes':'Toutes les finitions');
   const venueOptsR = `<option value="">${_lang==='en'?'Home/Away':'Domicile/Extérieur'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠 ${_lang==='en'?'Home':'Domicile'}</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️ ${_lang==='en'?'Away':'Extérieur'}</option>`;
 
   function sel(id, opts, cur, label){
