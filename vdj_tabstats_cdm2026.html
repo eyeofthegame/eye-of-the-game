@@ -537,12 +537,22 @@ main { background: var(--bg) !important; }
 nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 
 
-@keyframes rech-pop {
-  0%   { opacity:0; transform:scale(0) translate(-50%,-50%); }
-  65%  { transform:scale(1.35) translate(-50%,-50%); }
-  100% { opacity:1; transform:scale(1) translate(-50%,-50%); }
+@keyframes pillGlow {
+  0%   { box-shadow: 0 0 0 0 currentColor; }
+  50%  { box-shadow: 0 0 0 6px transparent; }
+  100% { box-shadow: 0 0 0 0 transparent; }
 }
-.rg-dot-anim { transform-origin:50% 50%; transform-box:fill-box; }
+@keyframes dotPulse {
+  0%,100% { r: 7; opacity:.85; }
+  50%      { r: 11; opacity:1; }
+}
+@keyframes rech-pop {
+  0%   { opacity:0; transform:scale(0); transform-box:fill-box; transform-origin:center; }
+  65%  { opacity:1; transform:scale(1.4); transform-box:fill-box; transform-origin:center; }
+  100% { opacity:1; transform:scale(1); transform-box:fill-box; transform-origin:center; }
+}
+.rg-dot-anim { transform-box:fill-box; transform-origin:center; }
+.rech-pill.rech-active { animation: pillGlow .5s ease-out; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
 </head>
@@ -5946,10 +5956,19 @@ function renderRecherche(){
   const displayGoals = goals.slice(0, MAX_DISPLAY);
   _rechCurrentGoals = displayGoals;
   let allPathsSvg = '';
+  // Lieu → approximate shot y-position (0=top goal, 1=bottom)
+  const _lieuY = {1: 0.07, 2: 0.16, 3: 0.27};
   displayGoals.forEach((g,gi)=>{
     const col = _GOAL_COLORS[gi % _GOAL_COLORS.length];
     const paths = _goalPaths(g, col);
-    if(paths) allPathsSvg += `<g id="rg-goal-${gi}" data-gi="${gi}" data-venue="${g.team===g.match.dom?'dom':'ext'}">${paths}</g>`;
+    // Always create group — fallback dot if no steps encoded
+    const marker = paths || (()=>{
+      const ly = _lieuY[g.lieu] || 0.14;
+      const bx = (M + W*0.5).toFixed(1), by = (M + H*ly).toFixed(1);
+      return `<circle class="rg-dot-anim" cx="${bx}" cy="${by}" r="8" fill="${col}" stroke="#4b607f" stroke-width="1.5" opacity="0"/>
+              <text x="${bx}" y="${(parseFloat(by)+4).toFixed(1)}" text-anchor="middle" font-size="9" opacity="0">⚽</text>`;
+    })();
+    allPathsSvg += `<g id="rg-goal-${gi}" data-gi="${gi}" data-venue="${g.team===g.match.dom?'dom':'ext'}">${marker}</g>`;
   });
 
   const pitchSvg = `
@@ -6562,68 +6581,63 @@ function animateGoalPath(gi, pfx){
   pfx = pfx || 'rg';
   const group = document.getElementById(pfx+'-goal-'+gi);
   if(!group) return;
-  const SEG_DUR = 320, OVERLAP = 0.45;
 
-  // Collect segments (line + path = arrow body) and arrowheads (polygon)
-  const segs = Array.from(group.querySelectorAll('line, path'));
+  const SEG_DUR = 300, OVERLAP = 0.4;
+  const segs  = Array.from(group.querySelectorAll('line, path'));
   const heads = Array.from(group.querySelectorAll('polygon'));
   const dots  = Array.from(group.querySelectorAll('circle, text'));
 
-  // Reset everything to invisible
+  // Hide everything first
   [...segs, ...heads, ...dots].forEach(el=>{
     el.style.transition = 'none';
     el.style.opacity = '0';
-    el.style.strokeDasharray = '';
-    el.style.strokeDashoffset = '';
   });
+  segs.forEach(seg=>{ seg.style.strokeDasharray=''; seg.style.strokeDashoffset=''; });
 
-  let cursor = 0;
+  // No path steps — just pop the fallback dot
+  if(!segs.length){
+    dots.forEach((d,i)=>{
+      setTimeout(()=>{
+        d.style.animation = 'rech-pop 400ms cubic-bezier(.34,1.56,.64,1) both';
+        d.style.opacity = '1';
+      }, i*60);
+    });
+    return;
+  }
 
-  segs.forEach((seg, i)=>{
-    // compute length
-    let len = 50;
-    if(seg.tagName === 'line'){
-      const x1=parseFloat(seg.getAttribute('x1')||0), y1=parseFloat(seg.getAttribute('y1')||0);
-      const x2=parseFloat(seg.getAttribute('x2')||0), y2=parseFloat(seg.getAttribute('y2')||0);
-      len = Math.sqrt((x2-x1)**2+(y2-y1)**2) || 50;
-    } else {
-      try{ len = seg.getTotalLength()||50; }catch(e){}
-    }
+  // Animate each segment sequentially
+  let cursor = 40;
+  segs.forEach((seg,i)=>{
+    let len = 60;
+    try{
+      if(seg.tagName==='line'){
+        const x1=parseFloat(seg.getAttribute('x1')||0), y1=parseFloat(seg.getAttribute('y1')||0);
+        const x2=parseFloat(seg.getAttribute('x2')||0), y2=parseFloat(seg.getAttribute('y2')||0);
+        len = Math.sqrt((x2-x1)**2+(y2-y1)**2)||60;
+      } else { len = seg.getTotalLength()||60; }
+    }catch(e){}
 
-    const startAt = cursor;
-    // set initial dash state (invisible line)
+    const at = cursor;
     setTimeout(()=>{
-      seg.style.transition = 'none';
       seg.style.opacity = '1';
       seg.style.strokeDasharray = len;
       seg.style.strokeDashoffset = len;
-      // Force reflow then animate
-      seg.getBoundingClientRect();
+      void seg.getBoundingClientRect();
       seg.style.transition = 'stroke-dashoffset '+SEG_DUR+'ms cubic-bezier(.4,0,.2,1)';
       seg.style.strokeDashoffset = '0';
-    }, startAt);
+    }, at);
 
-    // Arrowhead appears at midpoint of segment draw
     const head = heads[i];
-    if(head){
-      setTimeout(()=>{
-        head.style.transition = 'opacity 120ms ease';
-        head.style.opacity = '1';
-      }, startAt + SEG_DUR * 0.7);
-    }
-
-    cursor += Math.round(SEG_DUR * (1 - OVERLAP));
+    if(head) setTimeout(()=>{ head.style.transition='opacity 150ms ease'; head.style.opacity='1'; }, at+Math.round(SEG_DUR*0.7));
+    cursor += Math.round(SEG_DUR*(1-OVERLAP));
   });
 
-  // Step dots appear sequentially after all segments done
-  const dotsStart = cursor + 80;
-  dots.forEach((d, i)=>{
+  // Step markers pop in after all segments
+  dots.forEach((d,i)=>{
     setTimeout(()=>{
-      d.classList.add('rg-dot-anim');
-      d.style.transformOrigin = (d.getAttribute('cx')||'50%')+' '+(d.getAttribute('cy')||'50%');
-      d.style.animation = 'rech-pop 300ms cubic-bezier(.34,1.56,.64,1) both';
+      d.style.animation = 'rech-pop 380ms cubic-bezier(.34,1.56,.64,1) both';
       d.style.opacity = '1';
-    }, dotsStart + i * 90);
+    }, cursor+60+i*80);
   });
 }
 
