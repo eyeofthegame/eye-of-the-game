@@ -1970,8 +1970,15 @@ function renderHome(){
     // ── A. Histogramme global ─────────────────────────────────────────
     const allGoalsForTL = _tlMatchIds.flatMap(k => (data[k].goals || []).filter(g => g && g.minute));
     const bucketCounts = BUCKETS.map((_,bi) => allGoalsForTL.filter(g => {
-      const m = parseInt(g.minute)||0;
-      return m > (bi===0?0:BUCKET_MAX[bi-1]) && m <= BUCKET_MAX[bi];
+      const ms = String(g.minute||'');
+      const mi = parseInt(ms)||0;
+      const is45p = ms.includes('45+');
+      const is90p = ms.includes('90+') || mi > 90;
+      if(bi===6) return is90p;                                          // 90+
+      if(is90p)  return false;                                          // 90+ goals not in other buckets
+      if(bi===2) return is45p || (mi>30 && mi<=45);                    // 31-45 inclus 45+
+      if(is45p)  return false;                                          // 45+ only in bucket 2
+      return mi > (bi===0?0:BUCKET_MAX[bi-1]) && mi <= BUCKET_MAX[bi];
     }).length);
     const maxB = Math.max(...bucketCounts, 1);
     const BAR_H = 44;
@@ -5968,9 +5975,16 @@ function renderRecherche(){
   const fFin    = _rechState.fin;
 
   // ── Filter goals ────────────────────────────────────────────────────
+  const fMode  = _rechState.mode || 'off';
   const goals = allGoals.filter(g=>{
-    // team = équipe créditée du but (bénéficiaire), CSC inclus
-    if(fTeam && g.team !== fTeam) return false;
+    if(fTeam){
+      if(fMode === 'def'){
+        if(!(g.match.dom===fTeam || g.match.ext===fTeam)) return false;
+        if(g.team === fTeam) return false;
+      } else {
+        if(g.team !== fTeam) return false;
+      }
+    }
     if(fButeur && !(g.buteur||'').toLowerCase().includes(fButeur)) return false;
     if(fTac1   && String(g.tactique1) !== fTac1) return false;
     if(fNat    && String(g.tactique3) !== fNat)  return false;
@@ -6022,6 +6036,10 @@ function renderRecherche(){
     <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🔬 ${_lang==='en'?'Filters':'Filtres'}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
       <select id="rech-team"  onchange="rechUpdateFilter('team',this.value)" style="${selStyle}${fTeam?' font-weight:bold;border-color:var(--accent)':''}">${teamOptsR}</select>
+      ${fTeam ? '<div style="display:inline-flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0">'
+        +'<button onclick="rechUpdateFilter(\'mode\',\'off\')" style="padding:3px 10px;font-size:.78em;font-weight:700;border:none;cursor:pointer;border-right:1px solid var(--border);background:'+(fMode==='off'?'var(--accent)':'var(--card)')+';color:'+(fMode==='off'?'#fff':'var(--text)')+'">⚔️ '+(_lang==='en'?'Off':'Off')+'</button>'
+        +'<button onclick="rechUpdateFilter(\'mode\',\'def\')" style="padding:3px 10px;font-size:.78em;font-weight:700;border:none;cursor:pointer;background:'+(fMode==='def'?'#8b2020':'var(--card)')+';color:'+(fMode==='def'?'#fff':'var(--text)')+'">🛡️ '+(_lang==='en'?'Def':'Déf')+'</button>'
+        +'</div>' : ''}
       <input  id="rech-buteur" type="text" placeholder="🔍 ${_lang==='en'?'Player':'Joueur'}…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="rechUpdateFilter('buteur',this.value)" style="${selStyle};min-width:130px">
       <select id="rech-tac1"  onchange="rechUpdateFilter('tac1',this.value)" style="${selStyle}${fTac1?' font-weight:bold;border-color:var(--accent)':''}">${tac1OptsR.replace(`value="${fTac1}"`,`value="${fTac1}" selected`)}</select>
       <select id="rech-nat"   onchange="rechUpdateFilter('nat',this.value)" style="${selStyle}${fNat?' font-weight:bold;border-color:var(--accent)':''}">${natOptsR.replace(`value="${fNat}"`,`value="${fNat}" selected`)}</select>
@@ -6039,10 +6057,14 @@ function renderRecherche(){
   // ── Result count badge ──────────────────────────────────────────────
   const hasFilter = fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue;
   const countBadge = `<div style="font-size:.82em;color:var(--muted);margin-bottom:8px">
-    ${hasFilter
-      ? (_lang==='en' ? `<b style="color:var(--accent)">${goals.length}</b> goal${goals.length!==1?'s':''} found out of <b>${allGoals.length}</b>` : `<b style="color:var(--accent)">${goals.length}</b> but${goals.length!==1?'s':''} trouvé${goals.length!==1?'s':''} sur <b>${allGoals.length}</b>`)
-      : (_lang==='en' ? `<b>${allGoals.length}</b> goals encoded` : `<b>${allGoals.length}</b> buts encodés — Appliquez un filtre pour explorer`)
-    }
+    ${(()=>{
+      const modeLabel = fTeam ? (fMode==='def' ? ' 🛡️ '+(_lang==='en'?'(defensive)':'(buts encaissés)') : ' ⚔️ '+(_lang==='en'?'(offensive)':'(buts marqués)')) : '';
+      if(hasFilter || fTeam)
+        return _lang==='en'
+          ? '<b style="color:var(--accent)">'+goals.length+'</b> goal'+(goals.length!==1?'s':'')+' found out of <b>'+allGoals.length+'</b>'+modeLabel
+          : '<b style="color:var(--accent)">'+goals.length+'</b> but'+(goals.length!==1?'s':'')+' trouvé'+(goals.length!==1?'s':'')+' sur <b>'+allGoals.length+'</b>'+modeLabel;
+      return _lang==='en' ? '<b>'+allGoals.length+'</b> goals encoded' : '<b>'+allGoals.length+'</b> buts encodés — Appliquez un filtre pour explorer';
+    })()}
   </div>`;
 
   // ── Pitch SVG ───────────────────────────────────────────────────────
