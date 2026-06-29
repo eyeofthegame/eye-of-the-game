@@ -5753,7 +5753,7 @@ let _spSelected = null; // {name, team}
 // ═══════════════════════════════════════════════════════════════════════
 let _rechActiveGoals = new Set();
 let _rechPillsId = 'rech-pills';
-let _rechActivePreset = null;
+let _rechActivePresets = new Set();
 let _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
 
 function renderRecherche(){
@@ -5992,7 +5992,7 @@ function renderRecherche(){
   // ── Presets bar ────────────────────────────────────────────────────
   let _presetBtns = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center"><span style="font-size:.7em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">Accès rapide</span>';
   _RECH_PRESETS.forEach(function(p){
-    const isActive = _rechActivePreset === p.key;
+    const isActive = _rechActivePresets.has(p.key);
     const bg = isActive ? p.color : 'var(--card)';
     const tc = isActive ? p.tc : 'var(--text)';
     const border = isActive ? p.color : 'var(--border)';
@@ -6030,7 +6030,8 @@ function renderRecherche(){
 
 function rechUpdateFilter(key, val){
   _rechState[key] = val;
-  _rechActivePreset = null;
+  // Deactivate any preset that controls this field
+  _RECH_PRESETS.forEach(p=>{ if(p.filters[key]!==undefined) _rechActivePresets.delete(p.key); });
   renderRecherche();
 }
 
@@ -6049,17 +6050,23 @@ const _RECH_PRESETS = [
 ];
 
 function rechApplyPreset(key){
-  const p = _RECH_PRESETS.find(p=>p.key===key);
+  const p = _RECH_PRESETS.find(pr=>pr.key===key);
   if(!p) return;
-  _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
-  Object.assign(_rechState, p.filters);
-  _rechActivePreset = key;
+  if(_rechActivePresets.has(key)){
+    // Deactivate: clear its filter field
+    _rechActivePresets.delete(key);
+    Object.keys(p.filters).forEach(k=>{ _rechState[k]=''; });
+  } else {
+    // Activate: apply its filter (additive)
+    _rechActivePresets.add(key);
+    Object.assign(_rechState, p.filters);
+  }
   renderRecherche();
 }
 
 function rechReset(){
   _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
-  _rechActivePreset = null;
+  _rechActivePresets.clear();
   renderRecherche();
 }
 
