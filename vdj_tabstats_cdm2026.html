@@ -5756,7 +5756,7 @@ let _rechPillsId = 'rech-pills';
 
 function renderRecherche(){
   loadData();
-  const allGoals = getAllGoals().filter(g=>!isCsc(g));
+  const allGoals = getAllGoals();
   const teams = getTeams();
 
   // ── Read filter state (preserve across re-renders) ──────────────────
@@ -5774,7 +5774,12 @@ function renderRecherche(){
 
   // ── Filter goals ────────────────────────────────────────────────────
   const goals = allGoals.filter(g=>{
-    if(fTeam   && g.team !== fTeam) return false;
+    // Team: include regular goals + CSC by opponent benefiting fTeam
+    if(fTeam){
+      const isTeamGoal = g.team === fTeam && !isCsc(g);
+      const isBenefitCSC = g.opponent === fTeam && isCsc(g);
+      if(!isTeamGoal && !isBenefitCSC) return false;
+    }
     if(fButeur && !(g.buteur||'').toLowerCase().includes(fButeur)) return false;
     if(fTac1   && String(g.tactique1) !== fTac1) return false;
     if(fNat    && String(g.tactique3) !== fNat)  return false;
