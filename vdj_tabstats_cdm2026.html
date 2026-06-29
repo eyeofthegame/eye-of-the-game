@@ -2365,6 +2365,7 @@ function renderTopScorers(){
   const ori1Opts  = makeOptions(VDJ.origine1,  ORDER.origine1, _lang==='en'?'All origins':'Toutes les origines');
   const ori2Opts  = makeOptions(VDJ.origine2,  [4,3,2], _lang==='en'?'All intentions':'Toutes les intentions');
   const minOpts   = makeOptions(VDJ.minutes,   ORDER.minutes, _lang==='en'?'All periods':'Toutes les périodes');
+  const lieuOpts  = makeOptions(VDJ.lieu,       [1,2,3],       _lang==='en'?'All locations':'Tous les lieux');
   const teamOpts  = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>` + teams.map(t=>`<option value="${t}">${tf(t)}</option>`).join('');
 
   const filterBar = `<div id="scorer-filter-bar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
@@ -2374,6 +2375,7 @@ function renderTopScorers(){
     <select id="sf-ori1"   onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${ori1Opts}</select>
     <select id="sf-ori2"   onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${ori2Opts}</select>
     <select id="sf-min"    onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${minOpts}</select>
+    <select id="sf-lieu"   onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${lieuOpts}</select>
     <button onclick="resetScorers()" style="font-size:.8em;padding:3px 8px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕ Réinitialiser</button>
   </div>
   <div id="scorer-table-body"></div>`;
@@ -2383,7 +2385,7 @@ function renderTopScorers(){
 }
 
 function resetScorers(){
-  ['sf-team','sf-tac1','sf-nat','sf-ori1','sf-ori2','sf-min'].forEach(id=>{
+  ['sf-team','sf-tac1','sf-nat','sf-ori1','sf-ori2','sf-min','sf-lieu'].forEach(id=>{
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
@@ -2398,6 +2400,7 @@ function refreshScorers(){
   const ori1  = document.getElementById('sf-ori1')?.value || '';
   const ori2  = document.getElementById('sf-ori2')?.value || '';
   const min   = document.getElementById('sf-min')?.value  || '';
+  const lieu  = document.getElementById('sf-lieu')?.value || '';
 
   const filtered = goals.filter(g=>{
     if(isCsc(g)) return false; // CSC gérés séparément
@@ -2406,6 +2409,7 @@ function refreshScorers(){
     if(nat  && String(g.tactique3) !== nat)  return false;
     if(ori1 && String(g.origine1)  !== ori1) return false;
     if(ori2 && String(g.origine2)  !== ori2) return false;
+    if(lieu && String(g.lieu)       !== lieu) return false;
     if(min){
       const _s=String(g.minute||''),_i=parseInt(_s)||1;
       const bucket=_s.includes('45+')?7:_s.includes('90+')?8:_i===45?7:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();
