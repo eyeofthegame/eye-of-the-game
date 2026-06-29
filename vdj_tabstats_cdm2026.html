@@ -7094,273 +7094,94 @@ let _cmpA = null, _cmpB = null;
 
 // ── Fingerprint Radar ─────────────────────────────────────────────────────
 function buildTeamRadar(team, allGoals, W){
-  W = W || 220;
-  const cx = W/2, cy = W/2, R = W*0.38, labelR = W*0.47;
-  const N = 6;
+  W = W || 240;
+  const PAD = 62;                        // space for labels outside the hexagon
+  const VW = W + PAD*2, VH = W + PAD*2; // total SVG canvas
+  const cx = VW/2, cy = VH/2;
+  const R  = W * 0.40;                   // hexagon radius
+  const LR = R + PAD * 0.78;            // label radius — well outside R
+  const N  = 6;
+
   const axes = [
-    {key:1, label:_lang==='en'?'Set\nplay':'Jeu\nplacé'},
-    {key:2, label:_lang==='en'?'Fast\ndominant':'Dominant\nrapide'},
-    {key:3, label:_lang==='en'?'Counter\npress':'Reconver-\nsion'},
-    {key:4, label:_lang==='en'?'Transition':'Transition'},
-    {key:5, label:_lang==='en'?'Set\npiece':'Phase\narrêtée'},
-    {key:6, label:_lang==='en'?'Penalty':'Penalty'},
+    {key:1, fr:'Jeu placé',        en:'Set play'},
+    {key:2, fr:'Dominant\nrapide', en:'Fast\ndominant'},
+    {key:3, fr:'Reconver-\nsion',  en:'Counter\npress'},
+    {key:4, fr:'Transition',       en:'Transition'},
+    {key:5, fr:'Phase\narrêtée',   en:'Set piece'},
+    {key:6, fr:'Penalty',          en:'Penalty'},
   ];
 
-  // Compute counts for each team
-  function pct(goals, key){
-    if(!goals.length) return 0;
-    return goals.filter(g=>Number(g.tactique1)===key).length / goals.length;
-  }
+  function pct(goals, key){ return goals.length ? goals.filter(g=>Number(g.tactique1)===key).length/goals.length : 0; }
 
   const tGoals = allGoals.filter(g=>g.team===team);
-  const allLen = allGoals.length || 1;
+  const allLen = allGoals.length||1;
+  const avgPct  = axes.map(a=>allGoals.filter(g=>Number(g.tactique1)===a.key).length/allLen);
+  const teamPct = axes.map(a=>pct(tGoals,a.key));
+  const tacCols = ['#888888','#7799bb','#ffcccc','#880044','#dddd00','#cc0000'];
 
-  // Tournament average per axis
-  const avgPct = axes.map(a => allGoals.filter(g=>Number(g.tactique1)===a.key).length / allLen);
-  const teamPct = axes.map(a => pct(tGoals, a.key));
+  const scale = v => Math.min(v/0.55, 1) * R;
 
-  // Max for normalization (use fixed scale 0→max_possible so axes are comparable)
-  // Use 0.6 as max (60% = full radius) — clip at R
-  const scale = v => Math.min(v / 0.55, 1) * R;
-
-  function toXY(i, val){
-    const angle = (Math.PI * 2 / N) * i - Math.PI / 2;
-    const r = scale(val);
-    return [cx + r * Math.cos(angle), cy + r * Math.sin(angle)];
+  function pt(i, val){
+    const angle = (Math.PI*2/N)*i - Math.PI/2;
+    return [cx + scale(val)*Math.cos(angle), cy + scale(val)*Math.sin(angle)];
   }
-
-  // Grid polygons (20%, 40%, 60%)
-  function gridPoly(frac){
-    return axes.map((_,i)=>{
-      const angle = (Math.PI*2/N)*i - Math.PI/2;
-      return (cx+R*frac*Math.cos(angle)).toFixed(1)+','+(cy+R*frac*Math.sin(angle)).toFixed(1);
-    }).join(' ');
+  function gridPt(i, frac){
+    const angle = (Math.PI*2/N)*i - Math.PI/2;
+    return [(cx+R*frac*Math.cos(angle)).toFixed(1), (cy+R*frac*Math.sin(angle)).toFixed(1)].join(',');
   }
+  function gridPoly(frac){ return axes.map((_,i)=>gridPt(i,frac)).join(' '); }
 
   // Axis lines
   const axisLines = axes.map((_,i)=>{
-    const angle = (Math.PI*2/N)*i - Math.PI/2;
-    const ex = (cx+R*Math.cos(angle)).toFixed(1), ey = (cy+R*Math.sin(angle)).toFixed(1);
-    return `<line x1="${cx}" y1="${cy}" x2="${ex}" y2="${ey}" stroke="rgba(100,120,150,.25)" stroke-width="1"/>`;
+    const a=(Math.PI*2/N)*i-Math.PI/2;
+    return `<line x1="${cx.toFixed(1)}" y1="${cy.toFixed(1)}" x2="${(cx+R*Math.cos(a)).toFixed(1)}" y2="${(cy+R*Math.sin(a)).toFixed(1)}" stroke="rgba(100,120,150,.22)" stroke-width="1"/>`;
   }).join('');
 
-  // Team polygon
-  const teamPts = axes.map((_,i)=>{ const [x,y]=toXY(i,teamPct[i]); return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
-  // Avg polygon
-  const avgPts  = axes.map((_,i)=>{ const [x,y]=toXY(i,avgPct[i]);  return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
+  // Polygons
+  const teamPts = axes.map((_,i)=>{ const [x,y]=pt(i,teamPct[i]); return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
+  const avgPts  = axes.map((_,i)=>{ const [x,y]=pt(i,avgPct[i]);  return x.toFixed(1)+','+y.toFixed(1); }).join(' ');
 
-  // Team color from VDJ if available
-  const tacColors = ['#888888','#BBC4C3','#ffcccc','#880044','#ffff44','#cc0000'];
-
-  // Labels
+  // Labels — smart anchor based on angle
   const labels = axes.map((a,i)=>{
     const angle = (Math.PI*2/N)*i - Math.PI/2;
-    const lx = (cx + labelR * Math.cos(angle)).toFixed(1);
-    const ly = (cy + labelR * Math.sin(angle)).toFixed(1);
-    const anchor = Math.abs(angle+Math.PI/2) < 0.3 ? 'middle' : (Math.cos(angle) > 0.1 ? 'start' : Math.cos(angle) < -0.1 ? 'end' : 'middle');
-    const lines = a.label.split('\n');
+    const lx = cx + LR*Math.cos(angle);
+    const ly = cy + LR*Math.sin(angle);
+    const cosA = Math.cos(angle);
+    const anchor = cosA > 0.25 ? 'start' : cosA < -0.25 ? 'end' : 'middle';
+    const label = _lang==='en' ? a.en : a.fr;
+    const lines = label.split('\n');
+    const lineH = 10;
+    const totalH = lines.length * lineH;
+    const baseY = ly - totalH/2 + lineH*0.5;
     const pctVal = Math.round(teamPct[i]*100);
-    return lines.map((l,li)=>`<text x="${lx}" y="${(parseFloat(ly)+(li-lines.length/2+0.5)*10).toFixed(1)}" text-anchor="${anchor}" font-size="7.5" font-weight="600" fill="var(--text)">${l}</text>`).join('')
-      + `<text x="${lx}" y="${(parseFloat(ly)+(lines.length/2+0.5)*10).toFixed(1)}" text-anchor="${anchor}" font-size="8" font-weight="900" fill="${tacColors[i]||'#888'}">${pctVal}%</text>`;
+    const col = tacCols[i]||'#888';
+    return lines.map((l,li)=>
+      `<text x="${lx.toFixed(1)}" y="${(baseY+li*lineH).toFixed(1)}" text-anchor="${anchor}" font-size="8.5" font-weight="600" fill="var(--text)" font-family="inherit">${l}</text>`
+    ).join('') +
+    `<text x="${lx.toFixed(1)}" y="${(baseY+lines.length*lineH+1).toFixed(1)}" text-anchor="${anchor}" font-size="9" font-weight="900" fill="${col}" font-family="inherit">${pctVal}%</text>`;
   }).join('');
 
-  // Dot markers on team polygon
-  const teamDots = axes.map((_,i)=>{
-    const [x,y] = toXY(i, teamPct[i]);
-    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${tacColors[i]||'#888'}" stroke="#fff" stroke-width="1"/>`;
+  // Team dots
+  const dots = axes.map((_,i)=>{
+    const [x,y]=pt(i,teamPct[i]);
+    return `<circle cx="${x.toFixed(1)}" cy="${y.toFixed(1)}" r="3.5" fill="${tacCols[i]||'#888'}" stroke="#fff" stroke-width="1.2"/>`;
   }).join('');
 
-  return `<svg viewBox="0 0 ${W} ${W}" width="${W}" height="${W}">
-    <!-- Grid -->
-    <polygon points="${gridPoly(1)}"   fill="none" stroke="rgba(100,120,150,.2)" stroke-width=".8"/>
+  const legY = VH - 8;
+  return `<svg viewBox="0 0 ${VW} ${VH}" width="${VW}" height="${VH}" style="display:block;overflow:visible">
+    <polygon points="${gridPoly(1)}"    fill="none" stroke="rgba(100,120,150,.22)" stroke-width=".9"/>
     <polygon points="${gridPoly(.667)}" fill="none" stroke="rgba(100,120,150,.15)" stroke-width=".6" stroke-dasharray="3,2"/>
     <polygon points="${gridPoly(.333)}" fill="none" stroke="rgba(100,120,150,.12)" stroke-width=".5" stroke-dasharray="2,2"/>
-    <!-- Axes -->
     ${axisLines}
-    <!-- Tournament avg -->
-    <polygon points="${avgPts}" fill="rgba(120,140,170,.12)" stroke="rgba(120,140,170,.5)" stroke-width="1.2" stroke-dasharray="4,3"/>
-    <!-- Team -->
-    <polygon points="${teamPts}" fill="${tacColors[0]+'33'}" stroke="${tacColors[0]}" stroke-width="2" style="transition:all .4s ease"/>
-    ${teamDots}
-    <!-- Labels -->
+    <polygon points="${avgPts}"  fill="rgba(120,140,170,.10)" stroke="rgba(120,140,170,.45)" stroke-width="1.2" stroke-dasharray="4,3"/>
+    <polygon points="${teamPts}" fill="${tacCols[0]+'28'}" stroke="${tacCols[0]}" stroke-width="2"/>
+    ${dots}
     ${labels}
-    <!-- Legend -->
-    <rect x="4" y="${W-18}" width="12" height="5" fill="rgba(120,140,170,.3)" stroke="rgba(120,140,170,.5)" stroke-width="1" stroke-dasharray="3,2"/>
-    <text x="20" y="${W-13}" font-size="7" fill="var(--muted)">${_lang==='en'?'Tournament avg':'Moy. tournoi'}</text>
+    <rect x="8" y="${legY-7}" width="14" height="6" fill="rgba(120,140,170,.2)" stroke="rgba(120,140,170,.5)" stroke-width="1" stroke-dasharray="3,2" rx="1"/>
+    <text x="26" y="${legY}" font-size="7.5" fill="var(--muted)" font-family="inherit">${_lang==='en'?'Tournament avg':'Moy. tournoi'}</text>
   </svg>`;
 }
 
-
-// ─────────────────────────────────────────────────────────────────────────────
-// PREVIEW ADVERSAIRE
-// ─────────────────────────────────────────────────────────────────────────────
-let _prevTeam = '';
-
-function renderPreview(){
-  loadData();
-  const allGoals = getAllGoals();
-  const teams = getTeams().sort();
-  const el = document.getElementById('view-preview');
-  if(!el) return;
-  localStorage.setItem('_vdj_page','view:preview');
-
-  const teamOpts = '<option value="">— '+ (_lang==='en'?'Choose opponent':'Choisir adversaire') +' —</option>'
-    + teams.map(t=>`<option value="${t}"${t===_prevTeam?' selected':''}>${tf(t)}</option>`).join('');
-
-  if(!_prevTeam){
-    el.innerHTML = `<div style="padding:24px">
-      <h2 style="color:var(--accent)">🎯 ${_lang==='en'?'Opponent Preview':'Preview adversaire'}</h2>
-      <p style="color:var(--muted);margin-bottom:16px">${_lang==='en'?'Select an opponent to generate the scouting report.':'Sélectionnez un adversaire pour générer la fiche de scouting.'}</p>
-      <select onchange="_prevTeam=this.value;renderPreview()" style="font-size:1em;padding:8px 16px;border-radius:8px;border:2px solid var(--accent);min-width:220px">${teamOpts}</select>
-    </div>`;
-    return;
-  }
-
-  // Goals FOR the team (offensive)
-  const offGoals = allGoals.filter(g => g.team === _prevTeam);
-  // Goals AGAINST the team (defensive — they conceded)
-  const defGoals = allGoals.filter(g =>
-    (g.match.dom === _prevTeam || g.match.ext === _prevTeam) && g.team !== _prevTeam
-  );
-
-  // ── Top patterns ──────────────────────────────────────────────────────────
-  function topPatterns(goals, field, tbl, n){
-    if(!goals.length) return '<em style="color:var(--muted);font-size:.8em">—</em>';
-    const counts = {};
-    goals.forEach(g=>{ const k=g[field]; if(k) counts[k]=(counts[k]||0)+1; });
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([k,cnt])=>{
-      const info = tbl[k];
-      if(!info) return '';
-      const bg='#'+(info.c1||'888'); const col='#'+(info.c2||'fff');
-      const pct=Math.round(cnt/goals.length*100);
-      const bar=`<div style="height:5px;border-radius:3px;background:${bg};width:${pct}%;margin-top:3px;min-width:8px"></div>`;
-      return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
-        <span style="background:${bg};color:${col};padding:2px 8px;border-radius:4px;font-size:.72em;font-weight:700;white-space:nowrap;min-width:90px">${info.nom}</span>
-        <div style="flex:1">${bar}</div>
-        <span style="font-size:.72em;font-weight:700;color:var(--muted);white-space:nowrap">${cnt} (${pct}%)</span>
-      </div>`;
-    }).join('');
-  }
-
-  // ── Top scorers / conceded-from ───────────────────────────────────────────
-  function topPlayers(goals, n){
-    if(!goals.length) return '<em style="color:var(--muted);font-size:.8em">—</em>';
-    const counts = {};
-    goals.forEach(g=>{ const k=g.buteur||'?'; counts[k]=(counts[k]||0)+1; });
-    return Object.entries(counts).sort((a,b)=>b[1]-a[1]).slice(0,n).map(([name,cnt],i)=>{
-      const medals=['🥇','🥈','🥉'];
-      return `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px;font-size:.78em">
-        <span style="font-size:.9em">${medals[i]||'·'}</span>
-        <span style="font-weight:600;flex:1">${name}</span>
-        <span style="background:var(--accent);color:#fff;border-radius:10px;padding:1px 7px;font-weight:700;font-size:.85em">${cnt}</span>
-      </div>`;
-    }).join('');
-  }
-
-  // ── Pill list (last 8 goals) ──────────────────────────────────────────────
-  function pillList(goals, limit){
-    const GC=['#e63946','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#ff5722','#8bc34a'];
-    const disp = goals.slice(0, limit||8);
-    if(!disp.length) return `<div style="font-size:.78em;color:var(--muted);padding:8px">${_lang==='en'?'No goals encoded yet.':'Aucun but encodé.'}</div>`;
-    const _tc=hex=>{const h=hex.replace('#','');const r=parseInt(h.slice(0,2),16),g2=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16);return(0.299*r+0.587*g2+0.114*b)>140?'#111':'#fff';};
-    return disp.map((g,gi)=>{
-      const col=GC[gi%GC.length];
-      const tac=VDJ.tactique1[g.tactique1]?VDJ.tactique1[g.tactique1].nom:'—';
-      const tacBg=VDJ.tactique1[g.tactique1]?'#'+VDJ.tactique1[g.tactique1].c1:'#888';
-      const tacTc=_tc(tacBg);
-      const isCscGoal=g.csc===true;
-      const displayTeam=isCscGoal?tf(g.opponent):tf(g.team);
-      const cscBadge=isCscGoal?'<span style="background:#cc0000;color:#fff;font-size:.6em;padding:1px 4px;border-radius:2px;margin-right:2px">CSC</span>':'';
-      const vidBtn=g.lien?`<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:.6em;cursor:pointer">▶</button>`:'';
-      const ori=VDJ.origine1[g.origine1]?VDJ.origine1[g.origine1].nom:'';
-      return `<div style="display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:5px;border-left:3px solid ${col};background:#fff;margin-bottom:3px">
-        <span style="flex:1;font-size:.7em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${cscBadge}${g.buteur||'—'} <span style="font-weight:400;color:#888">${displayTeam}</span></span>
-        <span style="font-size:.64em;background:${tacBg};color:${tacTc};border-radius:2px;padding:1px 4px;white-space:nowrap;font-weight:600">${tac}</span>
-        ${ori?`<span style="font-size:.62em;color:#888;white-space:nowrap">${ori}</span>`:''}
-        <span style="font-size:.65em;font-weight:800;color:${col};white-space:nowrap">${g.minute}'</span>
-        ${vidBtn}
-      </div>`;
-    }).join('');
-  }
-
-  // ── Section card helper ───────────────────────────────────────────────────
-  function card(title, body, accent){
-    return `<div style="background:var(--card);border:1.5px solid ${accent||'var(--border)'};border-radius:10px;padding:14px;height:100%;box-sizing:border-box">
-      <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:${accent||'var(--muted)'};margin-bottom:10px">${title}</div>
-      ${body}
-    </div>`;
-  }
-
-  const flag = TEAM_FLAGS[_prevTeam]||'';
-  const offEmpty = !offGoals.length;
-  const defEmpty = !defGoals.length;
-
-  const html = `<div style="padding:16px 20px">
-
-    <!-- Header -->
-    <div style="display:flex;align-items:center;gap:14px;margin-bottom:18px;flex-wrap:wrap">
-      <div>
-        <h2 style="margin:0;color:var(--accent)">🎯 ${_lang==='en'?'Opponent Preview':'Preview adversaire'}</h2>
-        <div style="font-size:.75em;color:var(--muted);margin-top:2px">${_lang==='en'?'Scouting report based on encoded goals':'Fiche de scouting basée sur les buts encodés'}</div>
-      </div>
-      <select onchange="_prevTeam=this.value;renderPreview()" style="font-size:.88em;padding:6px 12px;border-radius:8px;border:2px solid var(--accent);margin-left:auto">${teamOpts}</select>
-    </div>
-
-    <!-- Team banner -->
-    <div style="background:linear-gradient(135deg,var(--accent)22,var(--accent)08);border:1.5px solid var(--accent);border-radius:12px;padding:14px 20px;margin-bottom:18px;display:flex;align-items:center;gap:12px">
-      <span style="font-size:2em">${flag}</span>
-      <div>
-        <div style="font-size:1.3em;font-weight:900;color:var(--text)">${tf(_prevTeam)}</div>
-        <div style="font-size:.78em;color:var(--muted);margin-top:2px">
-          <b style="color:#1a6e2e">⚔️ ${offGoals.length}</b> ${_lang==='en'?'goals scored':'buts marqués'}
-          &nbsp;·&nbsp;
-          <b style="color:#8b2020">🛡️ ${defGoals.length}</b> ${_lang==='en'?'goals conceded':'buts encaissés'}
-        </div>
-      </div>
-      <!-- Mini radar -->
-      <div style="margin-left:auto;opacity:.9">${buildTeamRadar(_prevTeam, allGoals, 160)}</div>
-    </div>
-
-    <!-- Main grid -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px">
-
-      <!-- OFFENSIVE patterns -->
-      <div>
-        <div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#1a6e2e;margin-bottom:8px">⚔️ ${_lang==='en'?'How they score':'Comment ils marquent'} (${offGoals.length} ${_lang==='en'?'goals':'buts'})</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          ${card('🎭 '+(_lang==='en'?'Tactics':'Tactique'), topPatterns(offGoals,'tactique1',VDJ.tactique1,5), '#1a6e2e')}
-          ${card('📍 '+(_lang==='en'?'Zone':'Lieu du tir'), topPatterns(offGoals,'lieu',VDJ.lieu,3), '#1a6e2e')}
-          ${card('🏆 '+(_lang==='en'?'Top scorers':'Buteurs'), topPlayers(offGoals,5), '#1a6e2e')}
-        </div>
-      </div>
-
-      <!-- DEFENSIVE patterns -->
-      <div>
-        <div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#8b2020;margin-bottom:8px">🛡️ ${_lang==='en'?'How they concede':'Comment ils encaissent'} (${defGoals.length} ${_lang==='en'?'goals':'buts'})</div>
-        <div style="display:flex;flex-direction:column;gap:10px">
-          ${card('🎭 '+(_lang==='en'?'Tactics they concede':'Tactiques encaissées'), topPatterns(defGoals,'tactique1',VDJ.tactique1,5), '#8b2020')}
-          ${card('📍 '+(_lang==='en'?'Zones conceded':'Zones encaissées'), topPatterns(defGoals,'lieu',VDJ.lieu,3), '#8b2020')}
-          ${card('⚠️ '+(_lang==='en'?'Scorers against them':'Auteurs des buts'), topPlayers(defGoals,5), '#8b2020')}
-        </div>
-      </div>
-    </div>
-
-    <!-- Recent goals side by side -->
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
-      <div style="background:var(--card);border:1.5px solid #1a6e2e44;border-radius:10px;padding:12px">
-        <div style="font-size:.7em;font-weight:800;text-transform:uppercase;color:#1a6e2e;margin-bottom:8px">📋 ${_lang==='en'?'Their goals (last 8)':'Leurs buts (8 derniers)'}</div>
-        ${pillList(offGoals, 8)}
-      </div>
-      <div style="background:var(--card);border:1.5px solid #8b202044;border-radius:10px;padding:12px">
-        <div style="font-size:.7em;font-weight:800;text-transform:uppercase;color:#8b2020;margin-bottom:8px">📋 ${_lang==='en'?'Goals against them (last 8)':'Buts encaissés (8 derniers)'}</div>
-        ${pillList(defGoals, 8)}
-      </div>
-    </div>
-
-  </div>`;
-
-  el.innerHTML = html;
-}
 
 function renderComparateur(){
   loadData();
