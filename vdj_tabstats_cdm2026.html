@@ -1971,8 +1971,9 @@ function renderHome(){
       const goals = md.goals || [];
       if(!goals.length) return;
       // Build match label from goals
-      const domTeam = (md.dom || (goals[0] && (goals[0].match && goals[0].match.dom)) || '');
-      const extTeam = (md.ext || (goals[0] && (goals[0].match && goals[0].match.ext)) || '');
+      const _tlm = MATCHES.find(x => x.id == mid);
+      const domTeam = _tlm ? _tlm.dom : '';
+      const extTeam = _tlm ? _tlm.ext : '';
       // Count goals per team
       let domScore = 0, extScore = 0;
       goals.forEach(g => { if(g.team === domTeam) domScore++; else extScore++; });
