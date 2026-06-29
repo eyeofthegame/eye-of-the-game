@@ -5969,6 +5969,8 @@ function renderRecherche(){
       const score = _runningScore2(g);
       const tac = VDJ.tactique1[g.tactique1] ? VDJ.tactique1[g.tactique1].nom : '—';
       const tacCol = VDJ.tactique1[g.tactique1] ? '#'+VDJ.tactique1[g.tactique1].c1 : '#888';
+      const _tc = (hex)=>{ const h=hex.replace('#',''); const r=parseInt(h.slice(0,2),16),g2=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return (0.299*r+0.587*g2+0.114*b)>140?'#111':'#fff'; };
+      const tacTc = _tc(tacCol);
       const videoBtn = g.lien
         ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:.7em;cursor:pointer;flex-shrink:0">▶</button>`
         : '';
@@ -5980,7 +5982,7 @@ function renderRecherche(){
         <span style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></span>
         <span style="font-size:.65em;color:#666;flex-shrink:0">${venue}</span>
         <span style="flex:1;font-size:.72em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'—'} <span style="font-weight:400;color:#777">${tf(g.team)}</span></span>
-        <span style="font-size:.65em;background:${tacCol};color:#fff;border-radius:2px;padding:1px 4px;white-space:nowrap;flex-shrink:0">${tac}</span>
+        <span style="font-size:.65em;background:${tacCol};color:${tacTc};border-radius:2px;padding:1px 4px;white-space:nowrap;flex-shrink:0;font-weight:600">${tac}</span>
         <span style="font-size:.7em;font-weight:800;color:${col};white-space:nowrap">${score}</span>
         <span style="font-size:.68em;color:#888;white-space:nowrap">${g.minute}'</span>
         ${videoBtn}
