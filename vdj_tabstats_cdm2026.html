@@ -1960,78 +1960,132 @@ function renderHome(){
   if(goals.length===0){
     html += `<div class="no-data">${_lang==='en'?'No goals encoded yet.<br>Encode matches in the VDJ encoding page to see statistics here.':'Aucun but encodé pour le moment.<br>Encodez des matchs dans la page d\'encodage VDJ pour voir les statistiques ici.'}</div>`;
   }
-  // ── Match Timelines ──────────────────────────────────────────────────
-  const matchIds = Object.keys(data).filter(k => data[k].goals && data[k].goals.length > 0);
-  if(matchIds.length > 0){
+  // ── Timeline : histogramme + browser filtré ──────────────────────────
+  const _tlMatchIds = Object.keys(data).filter(k => data[k].goals && data[k].goals.length > 0);
+  if(_tlMatchIds.length > 0){
     const GC_DOM = '#2a7d4f', GC_EXT = '#c0392b';
-    const MAX_MIN = 120;
-    let timelines = '';
-    matchIds.forEach(mid => {
+    const BUCKETS = ['1-15','16-30','31-45','46-60','61-75','76-90','90+'];
+    const BUCKET_MAX = [15,30,45,60,75,90,200];
+
+    // ── A. Histogramme global ─────────────────────────────────────────
+    const allGoalsForTL = getAllGoals();
+    const bucketCounts = BUCKETS.map((_,bi) => allGoalsForTL.filter(g => {
+      const m = parseInt(g.minute)||0;
+      return m > (bi===0?0:BUCKET_MAX[bi-1]) && m <= BUCKET_MAX[bi];
+    }).length);
+    const maxB = Math.max(...bucketCounts, 1);
+    const BAR_H = 44;
+    const barSvg = BUCKETS.map((label, bi) => {
+      const cnt = bucketCounts[bi];
+      const barH = Math.round((cnt/maxB)*BAR_H);
+      const x = bi*(100/BUCKETS.length);
+      const w = 100/BUCKETS.length;
+      const col = bi >= 5 ? '#8b2020' : bi >= 3 ? '#c07020' : '#2a7d4f';
+      return '<g>'
+        +'<rect x="'+(x+1).toFixed(1)+'%" y="'+(BAR_H-barH)+'" width="'+(w-2).toFixed(1)+'%" height="'+barH+'" rx="2" fill="'+col+'" opacity="0.85"/>'
+        +(cnt>0?'<text x="'+(x+w/2).toFixed(1)+'%" y="'+(BAR_H-barH-3)+'" text-anchor="middle" font-size="8" fill="var(--text)" font-weight="700">'+cnt+'</text>':'')
+        +'<text x="'+(x+w/2).toFixed(1)+'%" y="'+(BAR_H+10)+'" text-anchor="middle" font-size="7.5" fill="var(--muted)">'+label+"'</text>"
+        +'</g>';
+    }).join('');
+
+    html += '<h2 style="color:var(--accent);font-size:1em;text-transform:uppercase;letter-spacing:.06em;margin:1.4em 0 .5em">⏱ '+(_lang==='en'?'Goal Timing':'Chronologie des buts')+'</h2>'
+      +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:10px 14px 4px">'
+      +'<div style="display:flex;gap:12px;font-size:.7em;font-weight:700;margin-bottom:6px">'
+      +'<span style="color:'+GC_DOM+'">⬤ '+(_lang==='en'?'1st half':'1ère mi-temps')+'</span>'
+      +'<span style="color:#c07020">⬤ '+(_lang==='en'?'2nd half':'2ème mi-temps')+'</span>'
+      +'<span style="color:'+GC_EXT+'">⬤ '+(_lang==='en'?'Extra time':'Prolongations')+'</span>'
+      +'<span style="margin-left:auto;color:var(--muted)">'+allGoalsForTL.length+' '+(_lang==='en'?'goals':'buts')+'</span>'
+      +'</div>'
+      +'<svg viewBox="0 0 100 '+(BAR_H+14)+'" preserveAspectRatio="none" width="100%" height="'+(BAR_H+14)+'px" style="display:block;overflow:visible">'+barSvg+'</svg>'
+      +'</div>';
+
+    // ── B. Browser filtré (accordéon) ────────────────────────────────
+    // Collect phases
+    const _tlPhases = [...new Set(_tlMatchIds.map(k=>{const m=MATCHES.find(x=>x.id==k);return m?m.phase||m.group||'':''}).filter(Boolean))];
+    const _tlTeams  = [...new Set(_tlMatchIds.flatMap(k=>{const m=MATCHES.find(x=>x.id==k);return m?[m.dom,m.ext]:[]}))].sort();
+
+    // Phase filter pills
+    const phasePills = [(_lang==='en'?'All phases':'Toutes phases'), ..._tlPhases].map((p,pi) => {
+      const val = pi===0?'':p;
+      const active = _tlPhase === val;
+      return '<button onclick="_tlPhase=\''+val.replace(/'/g,"\\'")+"';renderHome()\" style=\"padding:3px 9px;border-radius:10px;font-size:.72em;font-weight:"+(active?'700':'400')+";cursor:pointer;border:1.5px solid "+(active?'var(--accent)':'#ccc')+";background:"+(active?'var(--accent)':'transparent')+";color:"+(active?'#fff':'var(--text)')+";\">"+p+'</button>';
+    }).join('');
+
+    // Team dropdown
+    const teamOpts = '<option value="">'+(_lang==='en'?'All teams':'Toutes équipes')+'</option>'
+      + _tlTeams.map(t=>'<option value="'+t.replace(/"/g,'&quot;')+'"'+(t===_tlTeam?' selected':'')+'>'+(_lang==='en'?(TEAM_NAME_EN[t]||t):t)+'</option>').join('');
+
+    // Filter + paginate matches
+    const filtered_tl = _tlMatchIds.filter(k=>{
+      const m = MATCHES.find(x=>x.id==k);
+      if(!m) return false;
+      if(_tlTeam && m.dom!==_tlTeam && m.ext!==_tlTeam) return false;
+      if(_tlPhase && (m.phase||m.group||'')!==_tlPhase) return false;
+      return true;
+    });
+    const MAX_SHOWN = 12;
+    const shown_tl = filtered_tl.slice(0, MAX_SHOWN);
+
+    // Build timelines
+    let tlRows = '';
+    shown_tl.forEach(mid => {
       const md = data[mid];
-      const goals = md.goals || [];
-      if(!goals.length) return;
-      // Build match label from goals
-      const _tlm = MATCHES.find(x => x.id == mid);
-      const domTeam = _tlm ? _tlm.dom : '';
-      const extTeam = _tlm ? _tlm.ext : '';
-      // Count goals per team
-      let domScore = 0, extScore = 0;
-      goals.forEach(g => { if(g.team === domTeam) domScore++; else extScore++; });
-      const scoreStr = domScore + ' — ' + extScore;
+      const m  = MATCHES.find(x=>x.id==mid);
+      if(!m) return;
+      const domTeam = m.dom, extTeam = m.ext;
+      const goals2  = md.goals || [];
+      let domScore=0, extScore=0;
+      goals2.forEach(g=>{ if(g.team===domTeam) domScore++; else extScore++; });
 
-      // Dots SVG
-      const W2 = 420, H2 = 28, PAD = 36, dotR = 6;
-      const minToX = m => PAD + (Math.min(parseInt(m)||90, MAX_MIN) / MAX_MIN) * (W2 - PAD*2);
-
-      // Markers at 45' and 90'
-      const markers = [45, 90].map(m => {
-        const x = minToX(m);
-        return '<line x1="'+x+'" y1="4" x2="'+x+'" y2="'+(H2-4)+'" stroke="rgba(255,255,255,.25)" stroke-width="1" stroke-dasharray="2,2"/>'
-          +'<text x="'+x+'" y="'+(H2+10)+'" text-anchor="middle" font-size="7" fill="var(--muted)">'+m+"'</text>";
+      const W2=400, H2=22, PAD=30, dotR=5, MAX_MIN=120;
+      const minToX = mn => PAD + (Math.min(parseInt(mn)||90, MAX_MIN)/MAX_MIN)*(W2-PAD*2);
+      const markers = [45,90].map(mn=>{
+        const x=minToX(mn);
+        return '<line x1="'+x+'" y1="2" x2="'+x+'" y2="'+(H2-2)+'" stroke="rgba(128,128,128,.3)" stroke-width="1" stroke-dasharray="2,2"/>';
       }).join('');
-
-      const dots2 = goals.map((g, gi) => {
-        const min = parseInt(g.minute) || 0;
-        const isHome = g.team === domTeam;
-        const col = isHome ? GC_DOM : GC_EXT;
-        const x = minToX(min);
-        const y = isHome ? H2*0.32 : H2*0.68;
-        const scorer = (g.buteur || '?') + ' ' + min + "'";
-        const tipId = 'tl-tip-' + mid;
-        const esc2 = scorer.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
-        return '<g class="tl-dot" data-tip="' + esc2 + '" data-tipid="' + tipId + '" style="cursor:pointer"'
-          +' onmouseenter="_tlShowTip(this)" onmouseleave="_tlHideTip(this)">'
-          +'<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+dotR+'" fill="'+col+'" stroke="rgba(255,255,255,.6)" stroke-width="1.2" opacity="0.95"/>'
-          +'<text x="'+x.toFixed(1)+'" y="'+(y+3).toFixed(1)+'" text-anchor="middle" font-size="6.5" fill="#fff" font-weight="700">'+min+"'</text>"
+      const dots3 = goals2.map(g=>{
+        const mn=parseInt(g.minute)||0;
+        const isHome=g.team===domTeam;
+        const col=isHome?GC_DOM:GC_EXT;
+        const x=minToX(mn), y=H2/2;
+        const lbl=(g.buteur||'?')+' '+mn+"'";
+        const esc=lbl.replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+        return '<g class="tl-dot" data-tip="'+esc+'" data-tipid="tl-tip-'+mid+'" onmouseenter="_tlShowTip(this)" onmouseleave="_tlHideTip(this)" style="cursor:pointer">'
+          +'<circle cx="'+x.toFixed(1)+'" cy="'+y.toFixed(1)+'" r="'+dotR+'" fill="'+col+'" stroke="rgba(255,255,255,.7)" stroke-width="1"/>'
           +'</g>';
       }).join('');
 
-      timelines += '<div style="display:flex;align-items:center;gap:10px;padding:8px 12px;border-bottom:1px solid var(--border)">'
-        +'<div style="min-width:90px;text-align:right;font-size:.7em;font-weight:700;color:'+GC_DOM+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+((_lang==='en'?TEAM_NAME_EN[domTeam]:null)||domTeam||'DOM')+'</div>'
+      const domN = (_lang==='en'?(TEAM_NAME_EN[domTeam]||domTeam):domTeam);
+      const extN = (_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam);
+      tlRows += '<div style="display:flex;align-items:center;gap:8px;padding:5px 12px;border-bottom:1px solid var(--border);font-size:.72em">'
+        +'<div style="width:100px;text-align:right;font-weight:700;color:'+GC_DOM+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+domN+'">'+domN+'</div>'
+        +'<div style="font-weight:900;color:var(--text);white-space:nowrap;min-width:38px;text-align:center">'+domScore+' — '+extScore+'</div>'
         +'<div style="flex:1;position:relative">'
-        +'<svg viewBox="0 0 '+W2+' '+(H2+14)+'" width="100%" style="display:block;overflow:visible">'
-        +'<rect x="'+PAD+'" y="'+(H2/2-1)+'" width="'+(W2-PAD*2)+'" height="2" rx="1" fill="rgba(128,128,128,.3)"/>'
-        +markers+dots2
-        +'</svg>'
-        +'<div id="tl-tip-'+mid+'" style="position:absolute;top:-24px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:3px 8px;border-radius:4px;font-size:.72em;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10"></div>'
+        +'<svg viewBox="0 0 '+W2+' '+H2+'" width="100%" height="22" style="display:block;overflow:visible"><rect x="'+PAD+'" y="'+(H2/2-1)+'" width="'+(W2-PAD*2)+'" height="2" rx="1" fill="rgba(128,128,128,.2)"/>'+markers+dots3+'</svg>'
+        +'<div id="tl-tip-'+mid+'" style="position:absolute;top:-22px;left:50%;transform:translateX(-50%);background:rgba(0,0,0,.82);color:#fff;padding:2px 7px;border-radius:4px;font-size:.7em;white-space:nowrap;pointer-events:none;opacity:0;transition:opacity .15s;z-index:10"></div>'
         +'</div>'
-        +'<div style="min-width:90px;text-align:left;font-size:.7em;font-weight:700;color:'+GC_EXT+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis">'+((_lang==='en'?TEAM_NAME_EN[extTeam]:null)||extTeam||'EXT')+'</div>'
-        +'<div style="min-width:52px;text-align:center;font-size:.75em;font-weight:900;color:var(--text);font-variant-numeric:tabular-nums;white-space:nowrap">'+scoreStr+'</div>'
+        +'<div style="width:100px;font-weight:700;color:'+GC_EXT+';white-space:nowrap;overflow:hidden;text-overflow:ellipsis" title="'+extN+'">'+extN+'</div>'
         +'</div>';
     });
 
-    if(timelines){
-      html += '<h2 style="color:var(--accent);font-size:1em;text-transform:uppercase;letter-spacing:.06em;margin:1.4em 0 .6em">⏱ '+(_lang==='en'?'Match Timelines':'Chronologie des matchs')+'</h2>'
-        +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden;padding-bottom:4px">'
-        +'<div style="padding:8px 12px 0;display:flex;gap:12px;font-size:.7em;font-weight:700;text-transform:uppercase;letter-spacing:.05em">'
-        +'<span style="color:'+GC_DOM+'">⬤ '+(_lang==='en'?'Home goal':'But domicile')+'</span>'
-        +'<span style="color:'+GC_EXT+'">⬤ '+(_lang==='en'?'Away goal':'But extérieur')+'</span>'
-        +'</div>'
-        +timelines
-        +'</div>';
-    }
-  }
+    const moreCount = filtered_tl.length - shown_tl.length;
 
+    html += '<div style="margin-top:10px;border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+      +'<div onclick="_tlOpen=!_tlOpen;renderHome()" style="display:flex;align-items:center;gap:8px;padding:9px 14px;background:var(--card);cursor:pointer;user-select:none">'
+      +'<span style="font-size:.82em;font-weight:700;color:var(--accent)">📋 '+(_lang==='en'?'Match Browser':'Explorateur de matchs')+'</span>'
+      +'<span style="font-size:.75em;color:var(--muted)">'+filtered_tl.length+' '+(_lang==='en'?'matches':'matchs')+'</span>'
+      +'<span style="margin-left:auto;font-size:.85em;color:var(--muted)">'+(_tlOpen?'▲':'▼')+'</span>'
+      +'</div>'
+      +(_tlOpen ? '<div>'
+        +'<div style="padding:8px 12px;border-bottom:1px solid var(--border);display:flex;gap:6px;align-items:center;flex-wrap:wrap">'
+        +'<select onchange="_tlTeam=this.value;renderHome()" style="font-size:.76em;padding:4px 8px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text)">'+teamOpts+'</select>'
+        +'<div style="display:flex;gap:4px;flex-wrap:wrap">'+phasePills+'</div>'
+        +'</div>'
+        +tlRows
+        +(moreCount>0?'<div style="padding:6px 12px;font-size:.72em;color:var(--muted);text-align:center">+'+moreCount+' '+(_lang==='en'?'more matches — use filters above':'autres matchs — affinez les filtres')+'</div>':'')
+        +'</div>' : '')
+      +'</div>';
+  }
   document.getElementById('view-home').innerHTML = html;
 }
 
@@ -3465,6 +3519,7 @@ function renderOverUnder(){
 // CARTE DES TIRS
 // ==============================================
 let smTeam = [], smType = 'both', smTac1 = '', smViewMode = 'dots';
+let _tlTeam = '', _tlPhase = '', _tlOpen = false;
 let smLegendFilter = ['scored','conceded','assist','assist-centre','assist-pa'];
 
 function smToggleLegend(k){
