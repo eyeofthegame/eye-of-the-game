@@ -36,6 +36,38 @@
   --vdj-font-sans: 'Montserrat', system-ui, sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
+
+/* ── Dark mode ─────────────────────────────────────────────────────── */
+body.dark-mode{
+  --bg:#0f1117;
+  --card:#181c27;
+  --border:#2a3050;
+  --accent:#7b9fd4;
+  --accent2:#5c7fb8;
+  --green:#5c7fb8;
+  --red:#e07050;
+  --text:#ddd8d0;
+  --muted:#6e7d96;
+  --highlight:#1a2035;
+  --sidebar-bg:#090b10;
+  --sidebar-text:#b8c4d8;
+  --sidebar-active:#e8eaf6;
+  --sidebar-section:#7b9fd4;
+  --total-bg:#2a3050;
+  --total-text:#e8e6e0;
+  --dark:#ddd8d0;
+  --vdj-parchment:#181c27;
+  --vdj-stone:#0f1117;
+  --vdj-line:#2a3050;
+}
+body.dark-mode .topbar img,
+body.dark-mode header img{
+  filter:brightness(.85) contrast(1.1);
+}
+/* smooth transition on theme switch */
+body{transition:background .25s,color .25s}
+.card,.main-card,[class*="card"]{transition:background .25s,border-color .25s}
+
 body{
   font-family:'Segoe UI',system-ui,-apple-system,sans-serif;
   background:var(--bg);
@@ -566,10 +598,13 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 
 <nav class="sidebar">
 
-<div id="lang-toggle" style="margin:8px 12px 4px;display:flex;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.3);flex-shrink:0">
-  <button id="lang-btn-fr" onclick="if(_lang!=='fr')toggleLang()" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:rgba(255,255,255,.25);color:#fff;letter-spacing:.04em">🇫🇷 FR</button>
-  <div style="width:1px;background:rgba(255,255,255,.25)"></div>
-  <button id="lang-btn-en" onclick="if(_lang!=='en')toggleLang()" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em">🇬🇧 EN</button>
+<div style="margin:8px 12px 4px;display:flex;gap:6px;align-items:center">
+  <div id="lang-toggle" style="display:flex;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.3);flex:1">
+    <button id="lang-btn-fr" onclick="if(_lang!=='fr')toggleLang()" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:rgba(255,255,255,.25);color:#fff;letter-spacing:.04em">🇫🇷 FR</button>
+    <div style="width:1px;background:rgba(255,255,255,.25)"></div>
+    <button id="lang-btn-en" onclick="if(_lang!=='en')toggleLang()" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em">🇬🇧 EN</button>
+  </div>
+  <button id="dark-toggle" onclick="toggleDarkMode()" title="Mode sombre" style="padding:5px 9px;font-size:.88em;border:1px solid rgba(255,255,255,.3);border-radius:6px;background:transparent;color:rgba(255,255,255,.7);cursor:pointer;flex-shrink:0;line-height:1;transition:background .2s">🌙</button>
 </div>
 
 <h3 id="sb-h-overview">🏠 Vue d'ensemble</h3>
@@ -8183,7 +8218,7 @@ function renderFicheMatch(){
   <div style="margin:16px 0 24px">
     <select onchange="_fmMatchId=Number(this.value)||null;renderFicheMatch()"
       style="padding:8px 14px;font-size:1.08em;border:1.5px solid var(--border);border-radius:8px;
-             background:#fff;color:var(--dark);font-family:inherit;cursor:pointer;min-width:360px">
+             background:#fff;color:var(--text);font-family:inherit;cursor:pointer;min-width:360px">
       ${optionsHtml}
     </select>
   </div>`;
@@ -8233,7 +8268,7 @@ function renderFicheMatch(){
       const fg  = '#' + VDJ.tactique1[k].c2;
       const barW = Math.max(pct, pct > 0 ? 4 : 0);
       bars += `<div style="display:flex;align-items:center;gap:6px;margin-bottom:4px">
-        <div style="width:140px;font-size:.72em;color:var(--dark);text-align:right;flex-shrink:0;line-height:1.2">${nom}</div>
+        <div style="width:140px;font-size:.72em;color:var(--text);text-align:right;flex-shrink:0;line-height:1.2">${nom}</div>
         <div style="flex:1;background:#eee;border-radius:4px;height:18px;position:relative;min-width:80px">
           <div style="width:${barW}%;height:100%;background:${bg};border-radius:4px;transition:width .3s"></div>
           ${v > 0 ? `<span style="position:absolute;left:6px;top:1px;font-size:.7em;font-weight:700;color:${fg==='#ffffff'?'#fff':'#333'};mix-blend-mode:${fg==='#ffffff'?'normal':'multiply'}">${v} (${pct}%)</span>` : ''}
@@ -8287,7 +8322,7 @@ function renderFicheMatch(){
       const isSecond = i >= 3;
       const bg = isSecond ? '#003399' : '#27ae60';
       bars += `<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
-        <div style="font-size:.62em;font-weight:700;color:${v>0?'var(--dark)':'transparent'}">${v>0?v:''}</div>
+        <div style="font-size:.62em;font-weight:700;color:${v>0?'var(--text)':'transparent'}">${v>0?v:''}</div>
         <div style="width:100%;height:${h}px;background:${bg};border-radius:3px 3px 0 0;min-height:${v>0?3:0}px"></div>
       </div>`;
     });
@@ -8297,7 +8332,7 @@ function renderFicheMatch(){
       bars += `<div style="flex:1;text-align:center;font-size:.62em;color:var(--muted)">${b.label}${b.addTime?'+':''}</div>`;
     });
     bars += `</div>`;
-    bars += `<div style="font-size:.76em;color:var(--dark);border-left:3px solid var(--accent);padding-left:8px">${tendency}</div>`;
+    bars += `<div style="font-size:.76em;color:var(--text);border-left:3px solid var(--accent);padding-left:8px">${tendency}</div>`;
 
     // Early goal danger
     const early = counts[0]; // 0-15
@@ -8434,7 +8469,7 @@ function renderFicheMatch(){
       rows += `<div style="display:grid;grid-template-columns:1fr 28px 1fr;gap:4px;align-items:center;margin-bottom:6px">
         <!-- Attaque : barre vers la droite -->
         <div style="display:flex;flex-direction:column;align-items:flex-end;gap:1px">
-          <div style="font-size:.68em;color:var(--dark);text-align:right;line-height:1.2">${vAtt > 0 ? vAtt+' '+(_lang==='en'?'goal'+(vAtt>1?'s':''):'but'+(vAtt>1?'s':''))+' · '+pctAtt+'%' : ''}</div>
+          <div style="font-size:.68em;color:var(--text);text-align:right;line-height:1.2">${vAtt > 0 ? vAtt+' '+(_lang==='en'?'goal'+(vAtt>1?'s':''):'but'+(vAtt>1?'s':''))+' · '+pctAtt+'%' : ''}</div>
           <div style="width:100%;background:#eee;border-radius:4px 0 0 4px;height:14px;display:flex;justify-content:flex-end">
             <div style="width:${pctAtt}%;height:100%;background:${bg};border-radius:4px 0 0 4px;min-width:${pctAtt>0?2:0}px"></div>
           </div>
@@ -8443,7 +8478,7 @@ function renderFicheMatch(){
         <div style="text-align:center;font-size:.9em;line-height:1">${fire || `<span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:${bg}"></span>`}</div>
         <!-- Défense : barre vers la gauche -->
         <div style="display:flex;flex-direction:column;align-items:flex-start;gap:1px">
-          <div style="font-size:.68em;color:var(--dark);text-align:left;line-height:1.2">${vConc > 0 ? vConc+' '+(_lang==='en'?'goal'+(vConc>1?'s':''):'but'+(vConc>1?'s':''))+' · '+pctConc+'%' : ''}</div>
+          <div style="font-size:.68em;color:var(--text);text-align:left;line-height:1.2">${vConc > 0 ? vConc+' '+(_lang==='en'?'goal'+(vConc>1?'s':''):'but'+(vConc>1?'s':''))+' · '+pctConc+'%' : ''}</div>
           <div style="width:100%;background:#eee;border-radius:0 4px 4px 0;height:14px">
             <div style="width:${pctConc}%;height:100%;background:${bg};border-radius:0 4px 4px 0;min-width:${pctConc>0?2:0}px;opacity:.65"></div>
           </div>
@@ -8562,7 +8597,7 @@ function renderFicheMatch(){
   function kpiBox(label, val, sub, color){
     return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:10px 14px;text-align:center;min-width:90px;flex:1">
       <div style="font-size:1.6em;font-weight:800;color:${color||'var(--accent)'}">${val}</div>
-      <div style="font-size:.72em;font-weight:700;color:var(--dark);margin-top:2px">${label}</div>
+      <div style="font-size:.72em;font-weight:700;color:var(--text);margin-top:2px">${label}</div>
       ${sub ? `<div style="font-size:.68em;color:var(--muted);margin-top:1px">${sub}</div>` : ''}
     </div>`;
   }
@@ -9163,6 +9198,13 @@ function _applySidebar(d){
   });
 }
 
+
+function toggleDarkMode(){
+  const isDark = document.body.classList.toggle('dark-mode');
+  localStorage.setItem('_vdj_dark', isDark ? '1' : '');
+  const btn = document.getElementById('dark-toggle');
+  if(btn) btn.textContent = isDark ? '☀️' : '🌙';
+}
 function toggleLang(){
   _lang = _lang==='fr' ? 'en' : 'fr';
   var isEN = _lang==='en';
@@ -9231,6 +9273,15 @@ function toggleLang(){
     }
   } catch(e){ console.warn('toggleLang re-render:', e); }
 }
+
+// Init dark mode button emoji on page load
+(function(){
+  if(localStorage.getItem('_vdj_dark')){
+    document.body.classList.add('dark-mode');
+    var b = document.getElementById('dark-toggle');
+    if(b) b.textContent = '☀️';
+  }
+})();
 
 </script>
 </body>
