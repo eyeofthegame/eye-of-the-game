@@ -2964,19 +2964,7 @@ function buildDirectGoalForm(idx, g, m){
   const acId = `ac-direct-${idx}`;
   const acAssistId = `ac-assist-direct-${idx}`;
 
-  // --- VDJ grid (with ordered options and proper color styling) ---
-  let vdjHtml = '';
-  VDJ_DISPLAY_ORDER.forEach(v=>{
-    const table = v.key==='tactique2b' ? VDJ.tactique2 : VDJ[v.key];
-    if(!table) return;
-    const order = ORDER[v.key];
-    const keys = (order ? order.filter(k=>table[k]) : Object.keys(table).map(Number).filter(k=>table[k])).sort((a,b)=>{const na=table[a]?.nom||'',nb=table[b]?.nom||'';if(na==='-'||na==='—')return -1;if(nb==='-'||nb==='—')return 1;return na.localeCompare(nb,'fr',{sensitivity:'base'});});
-    const curVal = g[v.key];
-    const curName = table[curVal] ? table[curVal].nom : '—';
-    let opts = '<option value="">— Choisir —</option>';
-    keys.forEach(k=>{ if(!table[k])return; const o=table[k]; const sel=curVal==k?' selected':''; opts+=`<option value="${k}" style="background:#${o.c1};color:#${o.c2}"${sel}>${o.nom}</option>`; });
-    vdjHtml += `<div class="vdj-item"><label>${v.label}</label><div class="current-val">${curName}</div><select class="wide" onchange="directUpdateGoal(${idx},'${v.key}',parseInt(this.value))">${opts}</select></div>`;
-  });
+  // --- VDJ panels (new pill system, same as main encoder) ---
 
   // --- Pitch SVGs with 'd' suffix on IDs to avoid conflicts with main encoder ---
   const shotSvg = buildPitchSVG(`${idx}d`, g.pitchX??null, g.pitchY??null, 'shot')
@@ -3007,7 +2995,7 @@ function buildDirectGoalForm(idx, g, m){
   <div class="row" style="flex-wrap:wrap;gap:12px;margin-top:6px">
     <label>Assist :</label>${buildDirectAcInput(idx, 'assist', g.assist||'', false)}
   </div>
-  <div class="vdj-grid" style="margin-top:10px">${vdjHtml}</div>
+  <div id="direct-vdj-pills-${idx}" style="margin-top:10px">${buildDirectVDJPillsSection(idx, g)}</div>
   ${buildGoalSchemaSection(idx, g, true)}
   <div class="row" style="margin-top:10px">
     <label>Valeur : <select onchange="directUpdateGoal(${idx},'valeur',parseInt(this.value))">${[1,2,3,4,5].map(v=>`<option value="${v}"${g.valeur===v?' selected':''}>${v}</option>`).join('')}</select></label>
@@ -3939,6 +3927,108 @@ function buildSuggestionPanel(goalIdx, team){
     + '</div>'
     + '<div style="display:flex;flex-wrap:wrap;gap:6px">' + btnHtml + '</div>'
     + '</div>';
+}
+
+
+// ── Direct mode VDJ pill system ───────────────────────────────────────────
+function directUpdateGoalPill(idx, field, val){
+  const md = getMatchData(_directMatchId);
+  if(!md || !md.goals[idx]) return;
+  md.goals[idx][field] = val;
+  saveData();
+  directRefreshSummary(idx);
+  const container = document.getElementById('direct-vdj-pills-' + idx);
+  if(container) container.innerHTML = buildDirectVDJPillsSection(idx, md.goals[idx]);
+}
+
+function directVdjPillHtml(idx, field, curVal, pills){
+  return pills.map(p=>{
+    const active = curVal == p.val;
+    const bg = active ? p.c1 : '#fff'; const col = active ? p.c2 : '#555'; const bc = active ? p.c1 : '#ccc';
+    return '<span class="vdj-pill" data-c1="'+p.c1+'" data-c2="'+p.c2+'"'
+      +' style="background:'+bg+';color:'+col+';border-color:'+bc+'"'
+      +' onclick="directUpdateGoalPill('+idx+',' + "'"+field+"'" + ','+p.val+')">'+p.label+'</span>';
+  }).join('');
+}
+
+function directVdjSelectHtml(idx, field, curVal, tableKey, orderedKeys){
+  const tbl = tableKey==='tactique2b' ? VDJ.tactique2 : VDJ[tableKey];
+  const keys = orderedKeys || ORDER[tableKey] || Object.keys(tbl).map(Number);
+  let opts = '<option value="">— Choisir —</option>';
+  keys.forEach(function(k){
+    if(!tbl[k]) return;
+    const sel = curVal==k ? ' selected' : '';
+    opts += '<option value="'+k+'" style="background:#'+tbl[k].c1+';color:#'+tbl[k].c2+'"'+sel+'>'+tbl[k].nom+'</option>';
+  });
+  return '<div style="display:flex;align-items:center;gap:4px;width:100%">'
+    +'<select class="vdj-step-select" onchange="directUpdateGoalPill('+idx+",'"+field+"'"+',parseInt(this.value))">'+opts+'</select>'
+    +'<button type="button" onclick="vdjCycleNextDirect(this)" title="Option suivante" style="flex-shrink:0;padding:3px 8px;font-size:.75em;cursor:pointer;border-radius:4px;border:1px solid #bbb;background:#f0f0f0;color:#333;line-height:1;white-space:nowrap">⟳</button></div>';
+}
+
+function vdjCycleNextDirect(btn){
+  const sel = btn.previousElementSibling;
+  if(!sel || sel.tagName!=='SELECT') return;
+  const opts = Array.from(sel.options);
+  let ci = sel.selectedIndex;
+  if(ci < opts.length - 1) sel.selectedIndex = ci + 1;
+  else sel.selectedIndex = 0;
+  sel.dispatchEvent(new Event('change'));
+}
+
+function buildDirectVDJPillsSection(idx, g){
+  const t1 = g.tactique1;
+  const isPA = t1==5, isPEN = t1==6;
+
+  const ori1pills = VDJ_PILLS.origine1.map(function(p){
+    const dimmed = (isPA && !p.pa) || (isPEN && p.val!=7) || (!isPA && !isPEN && p.pa) ? ' dimmed' : '';
+    const active = g.origine1 == p.val;
+    const bg = active ? p.c1 : '#fff'; const col = active ? p.c2 : '#555'; const bc = active ? p.c1 : '#ccc';
+    const sep = p.val==5 ? '<span style="width:1px;height:22px;background:#ccc;display:inline-block;margin:0 3px;align-self:center"></span>' : '';
+    return sep+'<span class="vdj-pill'+dimmed+'" data-c1="'+p.c1+'" data-c2="'+p.c2+'"'
+      +' style="background:'+bg+';color:'+col+';border-color:'+bc+'"'
+      +' onclick="directUpdateGoalPill('+idx+",'origine1',"+p.val+')">'+p.label+'</span>';
+  }).join('');
+
+  function rowCls(val){ return (val && val!=0 && val!='') ? 'vdj-step-row vdj-done' : 'vdj-step-row'; }
+
+  return '<div class="vdj-pills-section">'
+  +'<div class="'+rowCls(t1)+'" id="dvdj-row-'+idx+'-tac">'
+    +'<div class="vdj-step-num">1</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Tactique</div>'
+    +'<div class="vdj-pills">'+directVdjPillHtml(idx,'tactique1',t1,VDJ_PILLS.tactique1)+'</div></div></div>'
+  +'<div class="'+rowCls(g.origine3!=1?g.origine3:'')+'" id="dvdj-row-'+idx+'-dec">'
+    +'<div class="vdj-step-num">2</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Déclenchement</div>'
+    +'<div class="vdj-pills">'+directVdjPillHtml(idx,'origine3',g.origine3,VDJ_PILLS.origine3)+'</div></div></div>'
+  +'<div class="'+rowCls(g.origine2!=1?g.origine2:'')+'" id="dvdj-row-'+idx+'-int">'
+    +'<div class="vdj-step-num">3</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Intention</div>'
+    +'<div class="vdj-pills">'+directVdjPillHtml(idx,'origine2',g.origine2,VDJ_PILLS.origine2)+'</div></div></div>'
+  +'<div class="'+rowCls(g.origine1)+'" id="dvdj-row-'+idx+'-ori">'
+    +'<div class="vdj-step-num">4</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Origine du but</div>'
+    +'<div class="vdj-pills" style="display:flex;flex-wrap:wrap;gap:4px;align-items:center">'+ori1pills+'</div></div></div>'
+  +'<div class="'+rowCls(g.actions)+'" id="dvdj-row-'+idx+'-act">'
+    +'<div class="vdj-step-num">5</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Action</div>'
+    +directVdjSelectHtml(idx,'actions',g.actions,'actions',ORDER.actions)+'</div></div>'
+  +'<div class="'+rowCls(g.lieu)+'" id="dvdj-row-'+idx+'-lieu">'
+    +'<div class="vdj-step-num">6</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Lieu</div>'
+    +'<div class="vdj-pills">'+directVdjPillHtml(idx,'lieu',g.lieu,VDJ_PILLS.lieu)+'</div></div></div>'
+  +'<div class="'+rowCls(g.tactique2!=1?g.tactique2:'')+'" id="dvdj-row-'+idx+'-d1">'
+    +'<div class="vdj-step-num">7</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Descriptif principal</div>'
+    +directVdjSelectHtml(idx,'tactique2',g.tactique2,'tactique2',ORDER.tactique2)+'</div></div>'
+  +'<div class="'+rowCls(g.tactique2b!=1?g.tactique2b:'')+'" id="dvdj-row-'+idx+'-d2">'
+    +'<div class="vdj-step-num">8</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Descriptif secondaire</div>'
+    +directVdjSelectHtml(idx,'tactique2b',g.tactique2b,'tactique2b',ORDER.tactique2b)+'</div></div>'
+  +'<div class="'+rowCls(g.tactique3!=0?g.tactique3:'')+'" id="dvdj-row-'+idx+'-nat">'
+    +'<div class="vdj-step-num">9</div>'
+    +'<div style="flex:1"><div class="vdj-step-label">Nature du but</div>'
+    +'<div class="vdj-pills">'+directVdjPillHtml(idx,'tactique3',g.tactique3,VDJ_PILLS.tactique3)+'</div></div></div>'
+  +'</div>';
 }
 
 function buildVDJPillsSection(idx, g){
