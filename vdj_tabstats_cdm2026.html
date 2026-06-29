@@ -1809,6 +1809,7 @@ function renderPenalties(){
 function showView(name){
   currentView = name;
   currentKey = null;
+  history.replaceState(null,'','#'+name);
   document.querySelectorAll('main > div').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
   const navEl = document.getElementById('nav-'+name);
@@ -1842,6 +1843,7 @@ function showView(name){
 function showAnalysis(key, opts={}){
   currentView = 'analysis';
   currentKey = key;
+  history.replaceState(null,'','#analysis:'+key+(opts.filter?':'+opts.filter:''));
   document.querySelectorAll('main > div').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
   const dataKey = opts.filter==='pa' ? 'pa' : key;
@@ -7406,7 +7408,16 @@ function printRapport(team){
 }
 
 
-showView('home');
+(function(){
+  const hash = window.location.hash.replace('#','');
+  if(!hash){ showView('home'); return; }
+  if(hash.startsWith('analysis:')){
+    const parts = hash.split(':');
+    showAnalysis(parts[1], parts[2]?{filter:parts[2]}:{});
+  } else {
+    showView(hash);
+  }
+})();
 
 // ── LIVE SYNC ──────────────────────────────────────────
 // Re-render automatiquement quand l'encodage sauvegarde dans localStorage
