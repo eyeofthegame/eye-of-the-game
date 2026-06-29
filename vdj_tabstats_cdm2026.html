@@ -576,6 +576,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 
 <h3 id="sb-h-players">👤 Joueurs</h3>
 <a href="#" onclick="showView('scorerprofile')" id="nav-scorerprofile" data-i18n="nav-scorerprofile">⚡ Profil buteur</a>
+<a href="#" onclick="showView('recherche')" id="nav-recherche">🔬 Recherche personnalisée</a>
 <a href="#" onclick="showView('topscorers')" id="nav-topscorers" data-i18n="nav-topscorers">Meilleurs buteurs</a>
 <a href="#" onclick="showView('assists')" id="nav-assists" data-i18n="nav-assists">Passes décisives</a>
 
@@ -629,6 +630,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <div id="view-tete" style="display:none"></div>
 <div id="view-evolution" style="display:none"></div>
 <div id="view-scorerprofile" style="display:none"></div>
+<div id="view-recherche" style="display:none"></div>
 <div id="view-ficheMatch" style="display:none"></div>
 <div id="view-results" style="display:none"></div>
 <div id="view-penalties" style="display:none"></div>
@@ -1824,6 +1826,7 @@ function showView(name){
   else if(name==='gpn') renderGPN();
   else if(name==='evolution') renderEvolution();
   else if(name==='scorerprofile') renderScorerProfile();
+  else if(name==='recherche') renderRecherche();
   else if(name==='ficheMatch') renderFicheMatch();
   else if(name==='comparateur') renderComparateur();
   else if(name==='sankey') renderSankey();
@@ -5743,6 +5746,302 @@ function calcAge(dob){
 }
 
 let _spSelected = null; // {name, team}
+
+
+// ═══════════════════════════════════════════════════════════════════════
+// RECHERCHE PERSONNALISÉE — Goal Explorer
+// ═══════════════════════════════════════════════════════════════════════
+let _rechActiveGoals = new Set();
+let _rechPillsId = 'rech-pills';
+
+function renderRecherche(){
+  loadData();
+  const allGoals = getAllGoals().filter(g=>!isCsc(g));
+  const teams = getTeams();
+
+  // ── Read filter state (preserve across re-renders) ──────────────────
+  const fTeam   = document.getElementById('rech-team')?.value   || '';
+  const fButeur = (document.getElementById('rech-buteur')?.value || '').trim().toLowerCase();
+  const fTac1   = document.getElementById('rech-tac1')?.value   || '';
+  const fNat    = document.getElementById('rech-nat')?.value    || '';
+  const fOri1   = document.getElementById('rech-ori1')?.value   || '';
+  const fOri2   = document.getElementById('rech-ori2')?.value   || '';
+  const fAct    = document.getElementById('rech-act')?.value    || '';
+  const fLieu   = document.getElementById('rech-lieu')?.value   || '';
+  const fVenue  = document.getElementById('rech-venue')?.value  || '';
+  const fMin    = document.getElementById('rech-min')?.value    || '';
+  const fFin    = document.getElementById('rech-fin')?.value    || '';
+
+  // ── Filter goals ────────────────────────────────────────────────────
+  const goals = allGoals.filter(g=>{
+    if(fTeam   && g.team !== fTeam) return false;
+    if(fButeur && !(g.buteur||'').toLowerCase().includes(fButeur)) return false;
+    if(fTac1   && String(g.tactique1) !== fTac1) return false;
+    if(fNat    && String(g.tactique3) !== fNat)  return false;
+    if(fOri1   && String(g.origine1)  !== fOri1) return false;
+    if(fOri2   && String(g.origine2)  !== fOri2) return false;
+    if(fAct    && String(g.actions)   !== fAct)  return false;
+    if(fLieu   && String(g.lieu)      !== fLieu) return false;
+    if(fFin    && String(g.finitions) !== fFin)  return false;
+    if(fVenue){
+      const isHome = g.team === g.match.dom;
+      if(fVenue==='dom' && !isHome) return false;
+      if(fVenue==='ext' && isHome) return false;
+    }
+    if(fMin){
+      const _s=String(g.minute||''),_i=parseInt(_s)||1;
+      const bk=_s.includes('45+')?9:_s.includes('90+')?8:_i===45?4:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();
+      if(String(bk)!==fMin) return false;
+    }
+    return true;
+  });
+
+  // ── Build dropdown options ──────────────────────────────────────────
+  function mo(tbl, ord, lbl){ return makeOptions(tbl, ord, lbl); }
+  const teamOptsR  = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>`+teams.map(t=>`<option value="${t}"${t===fTeam?' selected':''}>${tf(t)}</option>`).join('');
+  const tac1OptsR  = mo(VDJ.tactique1, ORDER.tactique1||[1,2,3,4,5,6], _lang==='en'?'All tactics':'Toutes les tactiques');
+  const natOptsR   = mo(VDJ.tactique3,  [1,2,3,4],              _lang==='en'?'All types':'Toute nature du but');
+  const ori1OptsR  = mo(VDJ.origine1,   ORDER.origine1,          _lang==='en'?'All origins':'Toutes les origines');
+  const ori2OptsR  = mo(VDJ.origine2,   ORDER.origine2||[4,3,2], _lang==='en'?'All intentions':'Toutes les intentions');
+  const actOptsR   = mo(VDJ.actions,    ORDER.actions,           _lang==='en'?'All actions':'Toutes les actions');
+  const lieuOptsR  = mo(VDJ.lieu,       [1,2,3],                 _lang==='en'?'All locations':'Tous les lieux');
+  const minOptsR   = mo(VDJ.minutes,    ORDER.minutes,           _lang==='en'?'All periods':'Toutes les périodes');
+  const finOptsR   = mo(VDJ.finitions,  [1,2,3,4,5,6],          _lang==='en'?'All finishes':'Toutes les finitions');
+  const venueOptsR = `<option value="">${_lang==='en'?'Home/Away':'Domicile/Extérieur'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠 ${_lang==='en'?'Home':'Domicile'}</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️ ${_lang==='en'?'Away':'Extérieur'}</option>`;
+
+  function sel(id, opts, cur, label){
+    return `<select id="${id}" onchange="renderRecherche()" style="font-size:.8em;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--card)${cur?' font-weight:bold;border-color:var(--accent)':''}" title="${label}">
+      ${opts.replace(`value="${cur}"`, `value="${cur}" selected`)}
+    </select>`;
+  }
+
+  const selStyle = 'font-size:.8em;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--card)';
+
+  const filterBar = `
+  <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 14px;margin-bottom:12px">
+    <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🔬 ${_lang==='en'?'Filters':'Filtres'}</div>
+    <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+      <select id="rech-team"  onchange="renderRecherche()" style="${selStyle}${fTeam?' font-weight:bold;border-color:var(--accent)':''}">${teamOptsR}</select>
+      <input  id="rech-buteur" type="text" placeholder="🔍 ${_lang==='en'?'Player':'Joueur'}…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="renderRecherche()" style="${selStyle};min-width:130px">
+      <select id="rech-tac1"  onchange="renderRecherche()" style="${selStyle}${fTac1?' font-weight:bold;border-color:var(--accent)':''}">${tac1OptsR.replace(`value="${fTac1}"`,`value="${fTac1}" selected`)}</select>
+      <select id="rech-nat"   onchange="renderRecherche()" style="${selStyle}${fNat?' font-weight:bold;border-color:var(--accent)':''}">${natOptsR.replace(`value="${fNat}"`,`value="${fNat}" selected`)}</select>
+      <select id="rech-ori1"  onchange="renderRecherche()" style="${selStyle}${fOri1?' font-weight:bold;border-color:var(--accent)':''}">${ori1OptsR.replace(`value="${fOri1}"`,`value="${fOri1}" selected`)}</select>
+      <select id="rech-ori2"  onchange="renderRecherche()" style="${selStyle}${fOri2?' font-weight:bold;border-color:var(--accent)':''}">${ori2OptsR.replace(`value="${fOri2}"`,`value="${fOri2}" selected`)}</select>
+      <select id="rech-act"   onchange="renderRecherche()" style="${selStyle}${fAct?' font-weight:bold;border-color:var(--accent)':''}">${actOptsR.replace(`value="${fAct}"`,`value="${fAct}" selected`)}</select>
+      <select id="rech-lieu"  onchange="renderRecherche()" style="${selStyle}${fLieu?' font-weight:bold;border-color:var(--accent)':''}">${lieuOptsR.replace(`value="${fLieu}"`,`value="${fLieu}" selected`)}</select>
+      <select id="rech-fin"   onchange="renderRecherche()" style="${selStyle}${fFin?' font-weight:bold;border-color:var(--accent)':''}">${finOptsR.replace(`value="${fFin}"`,`value="${fFin}" selected`)}</select>
+      <select id="rech-min"   onchange="renderRecherche()" style="${selStyle}${fMin?' font-weight:bold;border-color:var(--accent)':''}">${minOptsR.replace(`value="${fMin}"`,`value="${fMin}" selected`)}</select>
+      <select id="rech-venue" onchange="renderRecherche()" style="${selStyle}${fVenue?' font-weight:bold;border-color:var(--accent)':''}">${venueOptsR}</select>
+      <button onclick="rechReset()" style="font-size:.8em;padding:3px 10px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕ ${_lang==='en'?'Reset':'Réinitialiser'}</button>
+    </div>
+  </div>`;
+
+  // ── Result count badge ──────────────────────────────────────────────
+  const hasFilter = fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue;
+  const countBadge = `<div style="font-size:.82em;color:var(--muted);margin-bottom:8px">
+    ${hasFilter
+      ? `<b style="color:var(--accent)">${goals.length}</b> but${goals.length!==1?'s':''} trouvé${goals.length!==1?'s':''} sur <b>${allGoals.length}</b>`
+      : `<b>${allGoals.length}</b> buts encodés — ${_lang==='en'?'Apply a filter to explore':'Appliquez un filtre pour explorer'}`
+    }
+  </div>`;
+
+  // ── Pitch SVG ───────────────────────────────────────────────────────
+  const _GOAL_COLORS = ['#e63946','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#ff5722','#8bc34a','#f06292','#ffd600'];
+  const M=8, W=220, H=Math.round(220*105/68), sx=W/68, sy=H/105;
+  const TW=W+M*2, TH=H+M*2;
+
+  function _pitchBase(){
+    const paW=40.32*sx,paH=16.5*sy,paX=M+(W-40.32*sx)/2;
+    const saW=18.32*sx,saH=5.5*sy,saX=M+(W-18.32*sx)/2;
+    const gW=7.32*sx,gX=M+(W-7.32*sx)/2;
+    const cx=M+W/2,cy=M+H/2,ccR=9.15*Math.min(sx,sy);
+    return `<rect width="${TW}" height="${TH}" fill="#c8cdd4" rx="4"/>
+      <rect x="${M}" y="${M}" width="${W}" height="${H}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width="1"/>
+      <line x1="${M}" y1="${cy.toFixed(1)}" x2="${M+W}" y2="${cy.toFixed(1)}" stroke="rgba(74,96,127,.65)" stroke-width=".8"/>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${ccR.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.65)" stroke-width=".8"/>
+      <circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="2" fill="rgba(74,96,127,.65)"/>
+      <rect x="${paX.toFixed(1)}" y="${M}" width="${paW.toFixed(1)}" height="${paH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.90)" stroke-width=".8"/>
+      <rect x="${saX.toFixed(1)}" y="${M}" width="${saW.toFixed(1)}" height="${saH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.90)" stroke-width=".8"/>
+      <rect x="${gX.toFixed(1)}" y="${M-5}" width="${gW.toFixed(1)}" height="5" fill="rgba(255,255,255,.25)" stroke="rgba(74,96,127,.65)" stroke-width=".8"/>
+      <rect x="${paX.toFixed(1)}" y="${(M+H-paH).toFixed(1)}" width="${paW.toFixed(1)}" height="${paH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.90)" stroke-width=".8"/>
+      <rect x="${saX.toFixed(1)}" y="${(M+H-saH).toFixed(1)}" width="${saW.toFixed(1)}" height="${saH.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.90)" stroke-width=".8"/>
+      <rect x="${gX.toFixed(1)}" y="${M+H}" width="${gW.toFixed(1)}" height="5" fill="rgba(255,255,255,.25)" stroke="rgba(74,96,127,.65)" stroke-width=".8"/>
+      <circle cx="${cx.toFixed(1)}" cy="${(M+11*sy).toFixed(1)}" r="1.5" fill="rgba(74,96,127,.65)"/>
+      <circle cx="${cx.toFixed(1)}" cy="${(M+(105-11)*sy).toFixed(1)}" r="1.5" fill="rgba(74,96,127,.65)"/>`;
+  }
+
+  function _arrow(x1,y1,x2,y2,col,curve,dash,sw){
+    const c=curve||0,sw2=sw||1.8;
+    if(Math.abs(x2-x1)<2&&Math.abs(y2-y1)<2) return '';
+    const dx=x2-x1,dy=y2-y1,len=Math.sqrt(dx*dx+dy*dy);
+    if(len<3) return '';
+    const ds=dash?`stroke-dasharray="${dash}"`:'';
+    if(c!==0){
+      const nx=-dy/len,ny=dx/len,mag=c*50,mx=(x1+x2)/2,my=(y1+y2)/2;
+      const cpx=mx+nx*mag,cpy=my+ny*mag;
+      const tdx=x2-cpx,tdy=y2-cpy,tlen=Math.sqrt(tdx*tdx+tdy*tdy);
+      const tux=tdx/tlen,tuy=tdy/tlen,tipX=x2-tux*6,tipY=y2-tuy*6,hx=-tuy*4,hy=tux*4;
+      return `<path d="M${x1.toFixed(1)},${y1.toFixed(1)} Q${cpx.toFixed(1)},${cpy.toFixed(1)} ${tipX.toFixed(1)},${tipY.toFixed(1)}" fill="none" stroke="${col}" stroke-width="${sw2}" ${ds}/>
+        <polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(tipX+hx).toFixed(1)},${(tipY+hy).toFixed(1)} ${(tipX-hx).toFixed(1)},${(tipY-hy).toFixed(1)}" fill="${col}"/>`;
+    }
+    const ux=dx/len,uy=dy/len,tipX=x2-ux*6,tipY=y2-uy*6,hx=-uy*4,hy=ux*4;
+    return `<line x1="${x1.toFixed(1)}" y1="${y1.toFixed(1)}" x2="${tipX.toFixed(1)}" y2="${tipY.toFixed(1)}" stroke="${col}" stroke-width="${sw2}" ${ds}/>
+      <polygon points="${x2.toFixed(1)},${y2.toFixed(1)} ${(tipX+hx).toFixed(1)},${(tipY+hy).toFixed(1)} ${(tipX-hx).toFixed(1)},${(tipY-hy).toFixed(1)}" fill="${col}"/>`;
+  }
+
+  function _goalPaths(g, col){
+    const steps=g.goalSteps||[];
+    if(!steps.length) return '';
+    let svg='';
+    for(let si=1;si<steps.length;si++){
+      const prev=steps[si-1],cur=steps[si];
+      const x1=M+prev.x*W,y1=M+prev.y*H,x2=M+cur.x*W,y2=M+cur.y*H;
+      const isCarry=cur.type===6,isRelay=cur.type===7;
+      svg+=_arrow(x1,y1,x2,y2,col,cur.curve||0,isCarry?null:(isRelay?'3,3':'5,3'),isCarry?2.5:1.8);
+    }
+    steps.forEach((s,si)=>{
+      const px=(M+s.x*W).toFixed(1),py=(M+s.y*H).toFixed(1);
+      const hasBut10=steps.some(ss=>ss.type===10);
+      if(s.type===10||(si===steps.length-1&&!hasBut10)){
+        svg+=`<circle cx="${px}" cy="${py}" r="8" fill="${col}" stroke="#4b607f" stroke-width="1.5"/>
+          <text x="${px}" y="${(parseFloat(py)+4).toFixed(1)}" text-anchor="middle" font-size="9">⚽</text>`;
+      } else if(s.type===5){
+        let sPts='';for(let i=0;i<10;i++){const a=Math.PI/5*i-Math.PI/2,rr=i%2===0?7:3;sPts+=(parseFloat(px)+rr*Math.cos(a)).toFixed(1)+','+(parseFloat(py)+rr*Math.sin(a)).toFixed(1)+' ';}
+        svg+=`<polygon points="${sPts.trim()}" fill="${col}" stroke="#4b607f" stroke-width="1.2"/>`;
+      } else {
+        svg+=`<circle cx="${px}" cy="${py}" r="6" fill="${col}" stroke="#4b607f" stroke-width="1.2"/>
+          <text x="${px}" y="${(parseFloat(py)+3.5).toFixed(1)}" text-anchor="middle" font-size="7.5" font-weight="bold" fill="white">${si+1}</text>`;
+      }
+    });
+    return svg;
+  }
+
+  // Build paths SVG
+  const MAX_DISPLAY = 50;
+  const displayGoals = goals.slice(0, MAX_DISPLAY);
+  let allPathsSvg = '';
+  displayGoals.forEach((g,gi)=>{
+    const col = _GOAL_COLORS[gi % _GOAL_COLORS.length];
+    const paths = _goalPaths(g, col);
+    if(paths) allPathsSvg += `<g id="rg-goal-${gi}" data-gi="${gi}" data-venue="${g.team===g.match.dom?'dom':'ext'}">${paths}</g>`;
+  });
+
+  const pitchSvg = `
+  <svg id="rech-pitch-svg" viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="display:block;border-radius:6px;flex-shrink:0">
+    ${_pitchBase()}
+    ${allPathsSvg || `<text x="${TW/2}" y="${TH/2}" text-anchor="middle" font-size="11" fill="rgba(74,96,127,.5)">${_lang==='en'?'No goals match':'Aucun but trouvé'}</text>`}
+  </svg>`;
+
+  // ── Goal pills ──────────────────────────────────────────────────────
+  function _runningScore2(g){
+    const matchGoals = allGoals.filter(gg=>gg.matchId===g.matchId)
+      .sort((a,b)=>(parseInt(a.minute)||0)-(parseInt(b.minute)||0));
+    let h=0,e=0;
+    for(const gg of matchGoals){
+      if(!isCsc(gg)) gg.team===g.match.dom ? h++ : e++;
+      else gg.team===g.match.dom ? e++ : h++;
+      if(gg===g) break;
+    }
+    return `${h}-${e}`;
+  }
+
+  let pillsHtml = '';
+  if(!displayGoals.length){
+    pillsHtml = `<div style="padding:20px;text-align:center;color:var(--muted);font-size:.85em">${_lang==='en'?'No goals match the selected filters.':'Aucun but ne correspond aux filtres sélectionnés.'}</div>`;
+  } else {
+    pillsHtml = displayGoals.map((g,gi)=>{
+      const col = _GOAL_COLORS[gi % _GOAL_COLORS.length];
+      const matchStr = `${tf(g.match.dom)} – ${tf(g.match.ext)}`;
+      const score = _runningScore2(g);
+      const tac = VDJ.tactique1[g.tactique1] ? VDJ.tactique1[g.tactique1].nom : '—';
+      const tacCol = VDJ.tactique1[g.tactique1] ? '#'+VDJ.tactique1[g.tactique1].c1 : '#888';
+      const videoBtn = g.lien
+        ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:.7em;cursor:pointer;flex-shrink:0">▶</button>`
+        : '';
+      const hasSteps = (g.goalSteps||[]).length > 0;
+      const venue = g.team===g.match.dom ? '🏠' : '✈️';
+      return `<div class="rech-pill" data-gi="${gi}" onclick="rechToggleGoal(this,${gi})"
+        style="display:flex;align-items:center;gap:5px;padding:5px 8px;border-radius:6px;cursor:pointer;
+        border:2px solid ${col};background:#fff;transition:all .1s;opacity:${hasSteps?1:0.65}">
+        <span style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0"></span>
+        <span style="font-size:.65em;color:#666;flex-shrink:0">${venue}</span>
+        <span style="flex:1;font-size:.72em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'—'} <span style="font-weight:400;color:#777">${tf(g.team)}</span></span>
+        <span style="font-size:.65em;background:${tacCol};color:#fff;border-radius:2px;padding:1px 4px;white-space:nowrap;flex-shrink:0">${tac}</span>
+        <span style="font-size:.7em;font-weight:800;color:${col};white-space:nowrap">${score}</span>
+        <span style="font-size:.68em;color:#888;white-space:nowrap">${g.minute}'</span>
+        ${videoBtn}
+      </div>`;
+    }).join('');
+  }
+
+  if(goals.length > MAX_DISPLAY){
+    pillsHtml += `<div style="font-size:.75em;color:var(--muted);text-align:center;padding:6px">${_lang==='en'?`Showing first ${MAX_DISPLAY} of ${goals.length} goals`:`Affichage des ${MAX_DISPLAY} premiers buts sur ${goals.length}`}</div>`;
+  }
+
+  const html = `
+  <div style="padding:1.2em 1.5em">
+    <h2 style="margin-bottom:.7em;color:var(--accent)">🔬 ${_lang==='en'?'Custom Search':'Recherche personnalisée'}</h2>
+    ${filterBar}
+    ${countBadge}
+    <div style="display:flex;gap:14px;align-items:flex-start">
+      <!-- Terrain -->
+      <div style="flex-shrink:0">
+        ${pitchSvg}
+        <div style="display:flex;gap:5px;margin-top:6px">
+          <button onclick="rechResetPills()" style="flex:1;padding:3px 8px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer">✕ ${_lang==='en'?'Show all':'Tout afficher'}</button>
+          <button onclick="rechHideAll()" style="flex:1;padding:3px 8px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer">◻ ${_lang==='en'?'Hide all':'Tout masquer'}</button>
+        </div>
+      </div>
+      <!-- Liste des buts -->
+      <div style="flex:1;min-width:0;max-height:${TH+30}px;overflow-y:auto;display:flex;flex-direction:column;gap:4px" id="${_rechPillsId}">
+        ${pillsHtml}
+      </div>
+    </div>
+  </div>`;
+
+  document.getElementById('view-recherche').innerHTML = html;
+  _rechActiveGoals.clear();
+}
+
+function rechReset(){
+  ['rech-team','rech-tac1','rech-nat','rech-ori1','rech-ori2','rech-act','rech-lieu','rech-fin','rech-min','rech-venue'].forEach(id=>{
+    const el=document.getElementById(id); if(el) el.value='';
+  });
+  const b=document.getElementById('rech-buteur'); if(b) b.value='';
+  renderRecherche();
+}
+
+function rechToggleGoal(pill, gi){
+  if(_rechActiveGoals.has(gi)){
+    _rechActiveGoals.delete(gi);
+    pill.style.background='#fff';
+    pill.classList.remove('rech-active');
+  } else {
+    _rechActiveGoals.add(gi);
+    const col=pill.querySelector('span').style.background;
+    pill.style.background=col+'22';
+    pill.classList.add('rech-active');
+  }
+  _rechApplyOpacity();
+}
+
+function rechResetPills(){
+  _rechActiveGoals.clear();
+  document.querySelectorAll('[id^="rg-goal-"]').forEach(g=>{ g.style.opacity='1'; });
+  const c=document.getElementById(_rechPillsId);
+  if(c) c.querySelectorAll('.rech-pill').forEach(p=>{ p.style.display='flex'; p.style.background='#fff'; p.classList.remove('rech-active'); });
+}
+
+function rechHideAll(){
+  document.querySelectorAll('[id^="rg-goal-"]').forEach(g=>{ g.style.opacity='0.06'; });
+}
+
+function _rechApplyOpacity(){
+  document.querySelectorAll('[id^="rg-goal-"]').forEach(g=>{
+    const gi=parseInt(g.getAttribute('data-gi'));
+    g.style.opacity=(_rechActiveGoals.size===0||_rechActiveGoals.has(gi))?'1':'0.08';
+  });
+}
 
 function renderScorerProfile(){
   loadData();
