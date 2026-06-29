@@ -6582,7 +6582,7 @@ function animateGoalPath(gi, pfx){
   const group = document.getElementById(pfx+'-goal-'+gi);
   if(!group) return;
 
-  const SEG_DUR = 300, OVERLAP = 0.4;
+  const SEG_DUR = 480, OVERLAP = 0.3;
   const segs  = Array.from(group.querySelectorAll('line, path'));
   const heads = Array.from(group.querySelectorAll('polygon'));
   const dots  = Array.from(group.querySelectorAll('circle, text'));
@@ -6598,7 +6598,7 @@ function animateGoalPath(gi, pfx){
   if(!segs.length){
     dots.forEach((d,i)=>{
       setTimeout(()=>{
-        d.style.animation = 'rech-pop 400ms cubic-bezier(.34,1.56,.64,1) both';
+        d.style.animation = 'rech-pop 550ms cubic-bezier(.34,1.56,.64,1) both';
         d.style.opacity = '1';
       }, i*60);
     });
@@ -6635,7 +6635,7 @@ function animateGoalPath(gi, pfx){
   // Step markers pop in after all segments
   dots.forEach((d,i)=>{
     setTimeout(()=>{
-      d.style.animation = 'rech-pop 380ms cubic-bezier(.34,1.56,.64,1) both';
+      d.style.animation = 'rech-pop 520ms cubic-bezier(.34,1.56,.64,1) both';
       d.style.opacity = '1';
     }, cursor+60+i*80);
   });
