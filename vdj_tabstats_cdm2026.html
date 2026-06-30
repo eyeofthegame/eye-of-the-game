@@ -1118,8 +1118,8 @@ const MATCHES = [
   {id:72,date:"27/06/2026",heure:"17:00",group:"Groupe L",dom:"Croatie",ext:"Ghana",ville:"Philadelphie",stade:"Lincoln Financial Field",phase:"Phase de groupes"},
   {id:73,date:"28/06/2026",heure:"15:00",group:"16e",dom:"Afrique du Sud",ext:"Canada",ville:"Inglewood",stade:"SoFi Stadium",phase:"16e de finale"},
   {id:74,date:"29/06/2026",heure:"13:00",group:"16e",dom:"Brésil",ext:"Japon",ville:"Houston",stade:"NRG Stadium",phase:"16e de finale"},
-  {id:75,date:"29/06/2026",heure:"16:30",group:"16e",dom:"Allemagne",ext:"Paraguay",ville:"Foxborough",stade:"Gillette Stadium",phase:"16e de finale"},
-  {id:76,date:"29/06/2026",heure:"21:00",group:"16e",dom:"Pays-Bas",ext:"Maroc",ville:"Monterrey",stade:"Estadio BBVA",phase:"16e de finale"},
+  {id:75,date:"29/06/2026",heure:"16:30",group:"16e",dom:"Allemagne",ext:"Paraguay",ville:"Foxborough",stade:"Gillette Stadium",phase:"16e de finale",tab:"4-3",tabWin:"Paraguay"},
+  {id:76,date:"29/06/2026",heure:"21:00",group:"16e",dom:"Pays-Bas",ext:"Maroc",ville:"Monterrey",stade:"Estadio BBVA",phase:"16e de finale",tab:"3-2",tabWin:"Maroc"},
   {id:77,date:"30/06/2026",heure:"13:00",group:"16e",dom:"Côte d'Ivoire",ext:"Norvège",ville:"Arlington",stade:"AT&T Stadium",phase:"16e de finale"},
   {id:78,date:"30/06/2026",heure:"17:00",group:"16e",dom:"France",ext:"Suède",ville:"East Rutherford",stade:"MetLife Stadium",phase:"16e de finale"},
   {id:79,date:"30/06/2026",heure:"21:00",group:"16e",dom:"Mexique",ext:"Équateur",ville:"Mexico City",stade:"Estadio Azteca",phase:"16e de finale"},
@@ -1411,7 +1411,8 @@ function renderResults(){
       let scoreHtml;
       if(hasScore){
         const scoreColor = isValidated ? '#2e7d32' : '#e65100';
-        scoreHtml = `<span style="font-weight:900;font-size:1.1em;min-width:44px;text-align:center;color:${scoreColor}">${scoreDom} — ${scoreExt}</span>`;
+        const tabBadge = m.tab ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(t.a.b. ${m.tab})</div>` : '';
+        scoreHtml = `<span style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center"><span style="font-weight:900;font-size:1.1em;color:${scoreColor}">${scoreDom} — ${scoreExt}</span>${tabBadge}</span>`;
       } else {
         scoreHtml = `<span style="font-weight:400;font-size:.9em;min-width:44px;text-align:center;color:var(--muted)">${m.heure}</span>`;
       }
