@@ -7428,10 +7428,11 @@ function renderPreview(){
     return;
   }
 
-  const offGoals = allGoals.filter(g => g.team === _prevTeam);
+  const offGoals = allGoals.filter(g => g.team === _prevTeam)
+    .sort((a,b) => b.matchId - a.matchId || (parseInt(b.minute)||0) - (parseInt(a.minute)||0));
   const defGoals = allGoals.filter(g =>
     (g.match.dom === _prevTeam || g.match.ext === _prevTeam) && g.team !== _prevTeam
-  );
+  ).sort((a,b) => b.matchId - a.matchId || (parseInt(b.minute)||0) - (parseInt(a.minute)||0));
 
   function topPatterns(goals, field, tbl, n){
     if(!goals.length) return '<em style="color:var(--muted);font-size:.8em">—</em>';
