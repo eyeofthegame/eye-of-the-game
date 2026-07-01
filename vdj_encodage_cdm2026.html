@@ -3151,6 +3151,7 @@ function toggleGoalTeam(idx){
   const md = getMatchData(currentMatchId);
   const g = md.goals[idx];
   g.team = (g.team === m.dom) ? m.ext : m.dom;
+  g.opponent = (g.team === m.dom) ? m.ext : m.dom; // opponent = l'autre équipe
   saveData();
   renderGoalForms(idx);
 }
