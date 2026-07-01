@@ -2545,6 +2545,10 @@ function renderJeuPoints(){
   var el=document.getElementById('view-jeupoints');
   if(!el) return;
 
+  function netColor(n){return n>0?'#1a7a1a':n<0?'#cc2222':'#888';}
+  function gainColor(n){return n>0?'#1a7a1a':'#888';}
+  function costColor(n){return n>0?'#cc2222':'#888';}
+
   var filterFn = _jpCurrentFilter().fn;
 
   var btns=_JP_FILTERS.map(function(f){
