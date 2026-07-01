@@ -679,6 +679,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <a href="#" onclick="showView('setpieces')" id="nav-setpieces" data-i18n="nav-setpieces">🗺 Schémas PA</a>
 <a href="#" onclick="showView('penalties')" id="nav-penalties" data-i18n="nav-penalties">🎯 Carte des penalties</a>
 <a href="#" onclick="showView('papoints')" id="nav-papoints">📊 Valeur PA en points</a>
+<a href="#" onclick="showView('jeupoints')" id="nav-jeupoints">📊 Valeur Styles en points</a>
 
 <h3 id="sb-h-context">📊 Contexte de match</h3>
 <a href="#" onclick="showView('gpn')" id="nav-gpn" data-i18n="nav-gpn">GPN — Qui mène</a>
@@ -731,6 +732,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <div id="view-evolutionphase" style="display:none"></div>
 <div id="view-rapport" style="display:none"></div>
 <div id="view-papoints" style="display:none"></div>
+<div id="view-jeupoints" style="display:none"></div>
 </main>
 </div>
 
@@ -2150,6 +2152,7 @@ function showView(name){
   else if(name==='penalties') renderPenalties();
   else if(name==='setpieces') renderSetpieces();
   else if(name==='papoints') renderPaPoints();
+  else if(name==='jeupoints') renderJeuPoints();
 
   document.getElementById('view-'+name).style.display='block';
 }
@@ -2482,6 +2485,198 @@ function renderRadar(team){
   if(el2) el2.innerHTML=buildRadarSVG('conceded');
 }
 
+
+
+// ═══════════════════════════════════════════════════════════════════
+// 📊 VALEUR STYLES DE JEU EN POINTS — Impact but de plein jeu
+// ═══════════════════════════════════════════════════════════════════
+var _jpFilter = 'trans';   // clé de filtre actif
+var _jpPhase  = 'all';
+
+var _JP_FILTERS = [
+  { key:'all',   label:'Tout jeu ouvert',          fn:function(g){return g.tactique1>=1&&g.tactique1<=4;} },
+  { key:'dom',   label:'Jeu Dominant (1+2)',        fn:function(g){return g.tactique1===1||g.tactique1===2;} },
+  { key:'jdp',   label:'⬛ JD Placé',              fn:function(g){return g.tactique1===1;} },
+  { key:'jdr',   label:'⚡ JD Rapide',             fn:function(g){return g.tactique1===2;} },
+  { key:'trans', label:'Transitions (3+4)',         fn:function(g){return g.tactique1===3||g.tactique1===4;} },
+  { key:'tr',    label:'🔀 Transition rapide',     fn:function(g){return g.tactique1===3;} },
+  { key:'rr',    label:'↩️ Reconversion rapide',  fn:function(g){return g.tactique1===4;} }
+];
+
+function _jpCurrentFilter(){
+  return _JP_FILTERS.find(function(f){return f.key===_jpFilter;})||_JP_FILTERS[0];
+}
+
+function renderJeuPoints(){
+  loadData();
+  var el=document.getElementById('view-jeupoints');
+  if(!el) return;
+
+  var filterFn = _jpCurrentFilter().fn;
+  var phases=['all','Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Finale'];
+  var phLabels={'all':'Toutes les phases','Phase de groupes':'Phase de groupes','16e de finale':'16e de finale','8e de finale':'8e de finale','Quart de finale':'Quart de finale','Demi-finale':'Demi-finale','Finale':'Finale'};
+
+  var teams=getTeams();
+  var stats={};
+  teams.forEach(function(t){
+    stats[t]={goalsScored:0,goalsConceded:0,actualPts:0,matchesPlayed:0,gainScoring:0,gainConceding:0,matchDetails:[]};
+  });
+
+  MATCHES.forEach(function(m){
+    var md=data[m.id];
+    if(!md||!md.validated) return;
+    if(_jpPhase!=='all'&&m.phase!==_jpPhase) return;
+
+    var matchGoals=[];
+    (md.goals||[]).forEach(function(g){
+      if(!g||!g.team) return;
+      var opp=g.opponent;
+      if(opp===g.team) opp=(g.team===m.dom)?m.ext:m.dom;
+      matchGoals.push(Object.assign({},g,{opponent:opp,matchId:m.id,match:m}));
+    });
+
+    var domAll =matchGoals.filter(function(g){return g.team===m.dom;}).length;
+    var extAll =matchGoals.filter(function(g){return g.team===m.ext;}).length;
+    var domSty =matchGoals.filter(function(g){return g.team===m.dom&&filterFn(g);}).length;
+    var extSty =matchGoals.filter(function(g){return g.team===m.ext&&filterFn(g);}).length;
+
+    [m.dom,m.ext].forEach(function(t){
+      if(!teams.includes(t)) return;
+      var s=stats[t];
+      var myAll=t===m.dom?domAll:extAll;
+      var opAll=t===m.dom?extAll:domAll;
+      var mySty=t===m.dom?domSty:extSty;
+      var opSty=t===m.dom?extSty:domSty;
+
+      var actual   =_paPts(myAll,opAll);
+      var simOwn   =_paPts(Math.max(0,myAll-mySty),opAll);
+      var simOpp   =_paPts(myAll,Math.max(0,opAll-opSty));
+      var gainSc   =actual-simOwn;
+      var gainCo   =actual-simOpp;
+
+      s.matchesPlayed++;
+      s.goalsScored   +=mySty;
+      s.goalsConceded +=opSty;
+      s.actualPts     +=actual;
+      s.gainScoring   +=gainSc;
+      s.gainConceding +=gainCo;
+
+      if(mySty>0||opSty>0){
+        var opp2=t===m.dom?m.ext:m.dom;
+        s.matchDetails.push({
+          matchLabel:tf(t)+' '+myAll+'-'+opAll+' '+tf(opp2),
+          phase:m.phase,
+          mySty:mySty,opSty:opSty,
+          actual:actual,gainSc:gainSc,gainCo:gainCo
+        });
+      }
+    });
+  });
+
+  var rows=teams.map(function(t){
+    var s=stats[t];
+    return {
+      team:t,
+      goalsScored:s.goalsScored,goalsConceded:s.goalsConceded,
+      actualPts:s.actualPts,
+      gainScoring:s.gainScoring,
+      costConceding:-s.gainConceding,
+      netImpact:s.gainScoring+s.gainConceding,
+      matchDetails:s.matchDetails,
+      matchesPlayed:s.matchesPlayed
+    };
+  }).filter(function(r){return r.matchesPlayed>0;})
+    .sort(function(a,b){return b.netImpact-a.netImpact;});
+
+  function netColor(n){return n>0?'#1a7a1a':n<0?'#cc2222':'#888';}
+  function gainColor(n){return n>0?'#1a7a1a':'#888';}
+  function costColor(n){return n>0?'#cc2222':'#888';}
+
+  // Filtre boutons dropdown-style (2 lignes : catégories principales + sous-catégories)
+  var btns=_JP_FILTERS.map(function(f){
+    var active=_jpFilter===f.key;
+    return '<button onclick="_jpFilter=\''+f.key+'\';renderJeuPoints()" style="padding:5px 13px;border-radius:6px;border:1.5px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'var(--accent)':'transparent')+';color:'+(active?'#fff':'var(--text)')+';font-size:.8em;font-weight:'+(active?'800':'600')+';cursor:pointer;white-space:nowrap">'+f.label+'</button>';
+  }).join('');
+
+  var phaseSelect='<select onchange="_jpPhase=this.value;renderJeuPoints()" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82em;background:var(--card);color:var(--text)">'+phases.map(function(p){return '<option value="'+p+'"'+(_jpPhase===p?' selected':'')+'>'+phLabels[p]+'</option>';}).join('')+'</select>';
+
+  var totalGoals=rows.reduce(function(s,r){return s+r.goalsScored;},0);
+  var totalGain =rows.reduce(function(s,r){return s+r.gainScoring;},0);
+  var totalCost =rows.reduce(function(s,r){return s+r.costConceding;},0);
+
+  var tableRows=rows.map(function(r,i){
+    var detailId='jpdet-'+i;
+    var hasDetail=r.matchDetails.length>0;
+    var detailHtml='';
+    if(hasDetail){
+      detailHtml='<tr id="'+detailId+'" style="display:none"><td colspan="8" style="padding:0 8px 12px 36px;background:var(--bg)">'
+        +'<table style="width:100%;border-collapse:collapse;font-size:.78em">'
+        +'<tr style="color:var(--muted);font-size:.85em"><th style="text-align:left;padding:4px 8px;font-weight:600">Match</th><th style="text-align:left;padding:4px 8px;font-weight:600">Phase</th><th style="text-align:center;padding:4px 8px">Style ⚽</th><th style="text-align:center;padding:4px 8px">Style vs</th><th style="text-align:center;padding:4px 8px">Pts réels</th><th style="text-align:center;padding:4px 8px">Gain offensif</th><th style="text-align:center;padding:4px 8px">Coût défensif</th></tr>'
+        +r.matchDetails.map(function(d){
+          return '<tr style="border-top:1px solid var(--border)">'
+            +'<td style="padding:5px 8px">'+d.matchLabel+'</td>'
+            +'<td style="padding:5px 8px;color:var(--muted)">'+d.phase+'</td>'
+            +'<td style="text-align:center;padding:5px 8px;font-weight:700;color:#2255ff">'+d.mySty+'</td>'
+            +'<td style="text-align:center;padding:5px 8px;font-weight:700;color:#e63030">'+d.opSty+'</td>'
+            +'<td style="text-align:center;padding:5px 8px">'+d.actual+'</td>'
+            +'<td style="text-align:center;padding:5px 8px;font-weight:700;color:'+gainColor(d.gainSc)+'">'+_paSign(d.gainSc)+'</td>'
+            +'<td style="text-align:center;padding:5px 8px;font-weight:700;color:'+costColor(-d.gainCo)+'">'+_paSign(d.gainCo)+'</td>'
+            +'</tr>';
+          }).join('')
+        +'</table></td></tr>';
+    }
+    return '<tr style="border-top:1px solid var(--border);cursor:'+(hasDetail?'pointer':'default')+'" '
+      +(hasDetail?'onclick="var d=document.getElementById(\''+detailId+'\');d.style.display=d.style.display===\'none\'?\'table-row\':\'none\'"':'')+'>'
+      +'<td style="padding:10px 12px;font-weight:700">'+tf(r.team)+'</td>'
+      +'<td style="text-align:center;padding:10px 8px"><span style="background:#ddeeff;color:#2255ff;border-radius:12px;padding:2px 10px;font-weight:800;font-size:.95em">'+r.goalsScored+'</span></td>'
+      +'<td style="text-align:center;padding:10px 8px"><span style="background:#ffeedd;color:#c04000;border-radius:12px;padding:2px 10px;font-weight:800;font-size:.95em">'+r.goalsConceded+'</span></td>'
+      +'<td style="text-align:center;padding:10px 8px;font-weight:700">'+r.actualPts+'</td>'
+      +'<td style="text-align:center;padding:10px 8px;font-size:1.05em;font-weight:800;color:'+gainColor(r.gainScoring)+'">'+_paSign(r.gainScoring)+'</td>'
+      +'<td style="text-align:center;padding:10px 8px;font-size:1.05em;font-weight:800;color:'+costColor(r.costConceding)+'">'+_paSign(-r.costConceding)+'</td>'
+      +'<td style="text-align:center;padding:10px 8px"><span style="background:'+(r.netImpact>0?'#e6f4e6':r.netImpact<0?'#fde8e8':'#f0f0f0')+';color:'+netColor(r.netImpact)+';border-radius:6px;padding:3px 12px;font-weight:900;font-size:1.05em">'+_paSign(r.netImpact)+'</span></td>'
+      +'<td style="text-align:center;padding:10px 8px;color:var(--muted);font-size:.85em">'+(hasDetail?'▼':'')+' '+r.matchesPlayed+'j</td>'
+      +'</tr>'+detailHtml;
+  }).join('');
+
+  var currentLabel=_jpCurrentFilter().label;
+
+  el.innerHTML=''
+    +'<div style="max-width:1000px">'
+    +'<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">📊 Analyse tactique</div>'
+    +'<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 6px">Valeur des styles de jeu en points</h2>'
+    +'<p style="font-size:.84em;color:var(--muted);margin:0 0 16px;line-height:1.5">Simulation : si ces buts n\'avaient pas été marqués (ou encaissés), quel aurait été le résultat ? Impact mesuré en points de classement.</p>'
+
+    +'<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">'+btns+'</div>'
+    +'<div style="margin-bottom:18px">'+phaseSelect+'</div>'
+
+    +'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px">'
+    +'<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center"><div style="font-size:1.5em;font-weight:900;color:#2255ff">'+totalGoals+'</div><div style="font-size:.72em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Buts '+currentLabel+'</div></div>'
+    +'<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center"><div style="font-size:1.5em;font-weight:900;color:#1a7a1a">+'+totalGain+'</div><div style="font-size:.72em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pts gagnés</div></div>'
+    +'<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center"><div style="font-size:1.5em;font-weight:900;color:#cc2222">'+_paSign(-totalCost)+'</div><div style="font-size:.72em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">Pts perdus</div></div>'
+    +'</div>'
+
+    +'<div style="font-size:.77em;color:var(--muted);margin-bottom:10px;display:flex;flex-wrap:wrap;gap:16px">'
+    +'<span>📊 <strong>Gain offensif</strong> : pts supplémentaires grâce à ce style</span>'
+    +'<span>🛡️ <strong>Coût défensif</strong> : pts perdus face à ce style adverse</span>'
+    +'<span>▼ Cliquer sur une équipe pour le détail</span>'
+    +'</div>'
+
+    +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden">'
+    +'<table style="width:100%;border-collapse:collapse">'
+    +'<thead><tr style="background:var(--bg);font-size:.77em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">'
+    +'<th style="text-align:left;padding:10px 12px;font-weight:700">Équipe</th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700">Buts ⚽<br><span style="font-weight:400;text-transform:none">marqués</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700">Buts 🛡️<br><span style="font-weight:400;text-transform:none">encaissés</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700">Pts<br><span style="font-weight:400;text-transform:none">réels</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a">Gain<br><span style="font-weight:400;text-transform:none">offensif</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222">Coût<br><span style="font-weight:400;text-transform:none">défensif</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700">Impact<br><span style="font-weight:400;text-transform:none">net</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:400">Matchs</th>'
+    +'</tr></thead>'
+    +'<tbody>'+tableRows+'</tbody>'
+    +'</table></div>'
+    +'</div>';
+}
 
 // ═══════════════════════════════════════════════════════════════════
 // 🧬 ADN DE JEU — Empreinte Tactique multi-équipes
