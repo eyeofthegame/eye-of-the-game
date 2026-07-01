@@ -1209,8 +1209,13 @@ function getPlayerTeamMap(){ return _playerTeamMap; }
 
 // Returns true if buteur actually plays for g.opponent (= but contre son camp)
 function isCsc(g){
-  // Seul l'encodage explicite (g.csc === true) fait foi — pas d'auto-détection
-  return g.csc === true;
+  if(g.csc === true) return true;   // encodage explicite : CSC
+  if(g.csc === false) return false; // encodage explicite : PAS CSC (override)
+  if(!g.buteur || !g.opponent) return false;
+  const map = getPlayerTeamMap();
+  const playerTeam = map[g.buteur.toLowerCase().trim()];
+  if(!playerTeam) return false;
+  return playerTeam === g.opponent; // auto-détection par nationalité du buteur
 }
 
 function getAllGoals(){

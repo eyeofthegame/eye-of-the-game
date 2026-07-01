@@ -2990,7 +2990,7 @@ function buildDirectGoalForm(idx, g, m){
   <div class="row" style="flex-wrap:wrap;gap:12px">
     <label>Buteur :</label>
     ${buildDirectAcInput(idx, 'buteur', g.buteur||'', g.csc)}
-    <label><input type="checkbox" ${g.csc?'checked':''} onchange="directUpdateGoal(${idx},'csc',this.checked)"> CSC</label>
+    <label><input type="checkbox" ${g.csc===true?'checked':''} onchange="directUpdateGoal(${idx},'csc',this.checked||undefined)"> CSC</label>
     <label><input type="checkbox" ${g.intention?'checked':''} onchange="directUpdateGoal(${idx},'intention',this.checked)"> ≠ intention</label>
   </div>
   <div class="row" style="flex-wrap:wrap;gap:12px;margin-top:6px">
