@@ -2276,97 +2276,155 @@ let _adnState = { teams:['','','',''], n:2, key:'tactique1', side:'scored', phas
 
 function _adnGetCt(){
   loadData();
-  const phaseF = _adnState.phase !== 'all' ? _adnState.phase : null;
-  return buildCrossTab(_adnState.key, { venueFilter: _adnState.venue, goalFilter: phaseF ? (g=>g.match&&g.match.phase===phaseF) : null });
+  var phaseF = _adnState.phase !== 'all' ? _adnState.phase : null;
+  return buildCrossTab(_adnState.key, { venueFilter: _adnState.venue, goalFilter: phaseF ? function(g){ return g.match && g.match.phase === phaseF; } : null });
+}
+
+function _adnPts(sk, ang, getV, totFn, R, cx, cy, MAX){
+  var pts = [];
+  for(var i=0;i<sk.length;i++){
+    var v=getV(sk[i]); var tot=totFn(); var pct=tot>0?Math.min(v/tot*100,MAX):0;
+    var r=pct/MAX*R;
+    pts.push((cx+r*Math.cos(ang[i])).toFixed(1)+','+(cy+r*Math.sin(ang[i])).toFixed(1));
+  }
+  return pts.join(' ');
 }
 
 function _adnOverlaySVG(teams, side, ct){
-  const key=_adnState.key, isSc=side==='scored';
-  const sk=(key==='origine2'||key==='origine3')?[3,2,4].filter(k=>ct.catKeys.includes(k)):ct.catKeys;
-  if(sk.length<2) return '<p style="color:#aab;padding:16px">Pas assez de données</p>';
-  const n=sk.length,cx=240,cy=195,R=125,MAX=50;
-  const ang=sk.map((_,i)=>-Math.PI/2+2*Math.PI*i/n);
-  let s='';
-  [10,20,30,40,50].forEach(p=>{const r=(p/MAX)*R;s+=`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none" stroke="#dde" stroke-width="${p===50?1.2:.7}" stroke-dasharray="${p===50?'':'3,3'}"/><text x="${cx+4}" y="${(cy-r+4).toFixed(1)}" font-size="9" fill="#bbc">${p}%</text>`;});
-  ang.forEach((a,i)=>{
-    const k=sk[i];
-    s+=`<line x1="${cx}" y1="${cy}" x2="${(cx+R*Math.cos(a)).toFixed(1)}" y2="${(cy+R*Math.sin(a)).toFixed(1)}" stroke="#ccd" stroke-width="1"/>`;
-    const lx=cx+(R+34)*Math.cos(a),ly=cy+(R+34)*Math.sin(a);
-    const anc=Math.cos(a)>.15?'start':Math.cos(a)<-.15?'end':'middle';
-    const nom=ct.table[k]?ct.table[k].nom:String(k),ws=nom.split(' '),dy0=(-((ws.length-1)/2*1.25)).toFixed(2)+'em';
-    s+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" text-anchor="${anc}" fill="#334" dominant-baseline="middle" font-weight="600">${ws.map((w,wi)=>`<tspan x="${lx.toFixed(1)}" dy="${wi===0?dy0:'1.25em'}">${w}</tspan>`).join('')}</text>`;
-  });
-  const totAll=sk.reduce((a,k)=>a+(isSc?(ct.totalScored[k]||0):(ct.totalConceded[k]||0)),0);
-  s+=`<polygon points="${sk.map((k,i)=>{const v=isSc?(ct.totalScored[k]||0):(ct.totalConceded[k]||0);const r=(totAll>0?Math.min(v/totAll*100,MAX):0)/MAX*R;return `${(cx+r*Math.cos(ang[i])).toFixed(1)},${(cy+r*Math.sin(ang[i])).toFixed(1)}`;}).join(' ')}" fill="none" stroke="#aab" stroke-width="1.5" stroke-dasharray="5,4" opacity=".75"/>`;
-  teams.filter(t=>t).forEach((t,ti)=>{
-    const col=ADN_COLORS[ti],fill=ADN_FILLS[ti],tot=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);
-    s+=`<polygon points="${sk.map((k,i)=>{const v=isSc?((ct.scored[k]&&ct.scored[k][t])||0):((ct.conceded[k]&&ct.conceded[k][t])||0);const r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;return `${(cx+r*Math.cos(ang[i])).toFixed(1)},${(cy+r*Math.sin(ang[i])).toFixed(1)}`;}).join(' ')}" fill="${fill}" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>`;
-    sk.forEach((k,i)=>{const v=isSc?((ct.scored[k]&&ct.scored[k][t])||0):((ct.conceded[k]&&ct.conceded[k][t])||0);if(!v)return;const r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;const px=(cx+r*Math.cos(ang[i])).toFixed(1),py=(cy+r*Math.sin(ang[i])).toFixed(1);s+=`<circle cx="${px}" cy="${py}" r="8" fill="${col}" stroke="white" stroke-width="2"/><text x="${px}" y="${py}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="white" font-weight="700">${v}</text>`;});
-  });
-  return `<svg viewBox="0 0 480 390" width="480" height="390" style="display:block;overflow:visible;max-width:100%">${s}</svg>`;
+  try{
+    var key=_adnState.key, isSc=side==='scored';
+    var sk=(key==='origine2'||key==='origine3')?[3,2,4].filter(function(k){return ct.catKeys.indexOf(k)>=0;}):ct.catKeys;
+    if(sk.length<2) return '<p style="color:#aab;padding:16px">Pas assez de données</p>';
+    var n=sk.length,cx=240,cy=195,R=125,MAX=50;
+    var ang=[]; for(var i=0;i<n;i++) ang.push(-Math.PI/2+2*Math.PI*i/n);
+    var s='';
+    // Grille
+    [10,20,30,40,50].forEach(function(p){
+      var r=(p/MAX)*R;
+      s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(1)+'" fill="none" stroke="#dde" stroke-width="'+(p===50?1.2:.7)+'" stroke-dasharray="'+(p===50?'':'3,3')+'"/>';
+      s+='<text x="'+(cx+4)+'" y="'+(cy-r+4).toFixed(1)+'" font-size="9" fill="#bbc">'+p+'%</text>';
+    });
+    // Axes + labels
+    for(var i=0;i<n;i++){
+      var a=ang[i], k=sk[i];
+      s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+R*Math.cos(a)).toFixed(1)+'" y2="'+(cy+R*Math.sin(a)).toFixed(1)+'" stroke="#ccd" stroke-width="1"/>';
+      var lx=cx+(R+34)*Math.cos(a), ly=cy+(R+34)*Math.sin(a);
+      var anc=Math.cos(a)>.15?'start':Math.cos(a)<-.15?'end':'middle';
+      var nom=ct.table[k]?ct.table[k].nom:String(k);
+      var ws=nom.split(' ');
+      var dy0=(-((ws.length-1)/2*1.25)).toFixed(2)+'em';
+      var tsp='';
+      for(var wi=0;wi<ws.length;wi++) tsp+='<tspan x="'+lx.toFixed(1)+'" dy="'+(wi===0?dy0:'1.25em')+'">'+ws[wi]+'</tspan>';
+      s+='<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" font-size="11" text-anchor="'+anc+'" fill="#334" dominant-baseline="middle" font-weight="600">'+tsp+'</text>';
+    }
+    // Moyenne tournoi
+    var totAll=0; for(var i=0;i<sk.length;i++) totAll+=(isSc?(ct.totalScored[sk[i]]||0):(ct.totalConceded[sk[i]]||0));
+    var avgPts=[];
+    for(var i=0;i<sk.length;i++){
+      var v=isSc?(ct.totalScored[sk[i]]||0):(ct.totalConceded[sk[i]]||0);
+      var r=(totAll>0?Math.min(v/totAll*100,MAX):0)/MAX*R;
+      avgPts.push((cx+r*Math.cos(ang[i])).toFixed(1)+','+(cy+r*Math.sin(ang[i])).toFixed(1));
+    }
+    s+='<polygon points="'+avgPts.join(' ')+'" fill="none" stroke="#aab" stroke-width="1.5" stroke-dasharray="5,4" opacity=".75"/>';
+    // Polygones équipes
+    var activeTeams=teams.filter(function(t){return !!t;});
+    for(var ti=0;ti<activeTeams.length;ti++){
+      var t=activeTeams[ti], col=ADN_COLORS[ti], fill=ADN_FILLS[ti];
+      var tot=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);
+      var pts=[];
+      for(var i=0;i<sk.length;i++){
+        var v=isSc?((ct.scored[sk[i]]&&ct.scored[sk[i]][t])||0):((ct.conceded[sk[i]]&&ct.conceded[sk[i]][t])||0);
+        var r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;
+        pts.push((cx+r*Math.cos(ang[i])).toFixed(1)+','+(cy+r*Math.sin(ang[i])).toFixed(1));
+      }
+      s+='<polygon points="'+pts.join(' ')+'" fill="'+fill+'" stroke="'+col+'" stroke-width="2.5" stroke-linejoin="round"/>';
+      for(var i=0;i<sk.length;i++){
+        var v=isSc?((ct.scored[sk[i]]&&ct.scored[sk[i]][t])||0):((ct.conceded[sk[i]]&&ct.conceded[sk[i]][t])||0);
+        if(!v) continue;
+        var r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;
+        var px=(cx+r*Math.cos(ang[i])).toFixed(1), py=(cy+r*Math.sin(ang[i])).toFixed(1);
+        s+='<circle cx="'+px+'" cy="'+py+'" r="8" fill="'+col+'" stroke="white" stroke-width="2"/>';
+        s+='<text x="'+px+'" y="'+py+'" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="white" font-weight="700">'+v+'</text>';
+      }
+    }
+    return '<svg viewBox="0 0 480 390" width="480" height="390" style="display:block;overflow:visible;max-width:100%">'+s+'</svg>';
+  }catch(e){ return '<p style="color:red;padding:12px">Erreur radar: '+e.message+'</p>'; }
 }
 
 function _adnSingleSVG(team, side, ct){
-  const key=_adnState.key,isSc=side==='scored';
-  const sk=(key==='origine2'||key==='origine3')?[3,2,4].filter(k=>ct.catKeys.includes(k)):ct.catKeys;
-  if(sk.length<2) return '';
-  const n=sk.length,cx=175,cy=150,R=100,MAX=50;
-  const ang=sk.map((_,i)=>-Math.PI/2+2*Math.PI*i/n);
-  let s='';
-  [10,20,30,40,50].forEach(p=>{const r=(p/MAX)*R;s+=`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none" stroke="#dde" stroke-width=".7" stroke-dasharray="3,3"/>`;});
-  ang.forEach((a,i)=>{
-    const k=sk[i];s+=`<line x1="${cx}" y1="${cy}" x2="${(cx+R*Math.cos(a)).toFixed(1)}" y2="${(cy+R*Math.sin(a)).toFixed(1)}" stroke="#ccd" stroke-width="1"/>`;
-    const lx=cx+(R+26)*Math.cos(a),ly=cy+(R+26)*Math.sin(a),anc=Math.cos(a)>.15?'start':Math.cos(a)<-.15?'end':'middle';
-    const nom=ct.table[k]?ct.table[k].nom:String(k),ws=nom.split(' '),dy0=(-((ws.length-1)/2*1.1)).toFixed(2)+'em';
-    s+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="9" text-anchor="${anc}" fill="#334" dominant-baseline="middle" font-weight="600">${ws.map((w,wi)=>`<tspan x="${lx.toFixed(1)}" dy="${wi===0?dy0:'1.1em'}">${w}</tspan>`).join('')}</text>`;
-  });
-  const totAll=sk.reduce((a,k)=>a+(isSc?(ct.totalScored[k]||0):(ct.totalConceded[k]||0)),0);
-  s+=`<polygon points="${sk.map((k,i)=>{const v=isSc?(ct.totalScored[k]||0):(ct.totalConceded[k]||0);const r=(totAll>0?Math.min(v/totAll*100,MAX):0)/MAX*R;return `${(cx+r*Math.cos(ang[i])).toFixed(1)},${(cy+r*Math.sin(ang[i])).toFixed(1)}`;}).join(' ')}" fill="none" stroke="#aab" stroke-width="1.2" stroke-dasharray="4,3" opacity=".75"/>`;
-  const tot=isSc?(ct.teamScored[team]||0):(ct.teamConceded[team]||0),col=isSc?'#2255ff':'#d95f02',fill=isSc?'rgba(34,85,255,.13)':'rgba(217,95,2,.13)';
-  s+=`<polygon points="${sk.map((k,i)=>{const v=isSc?((ct.scored[k]&&ct.scored[k][team])||0):((ct.conceded[k]&&ct.conceded[k][team])||0);const r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;return `${(cx+r*Math.cos(ang[i])).toFixed(1)},${(cy+r*Math.sin(ang[i])).toFixed(1)}`;}).join(' ')}" fill="${fill}" stroke="${col}" stroke-width="2.5" stroke-linejoin="round"/>`;
-  sk.forEach((k,i)=>{const v=isSc?((ct.scored[k]&&ct.scored[k][team])||0):((ct.conceded[k]&&ct.conceded[k][team])||0);if(!v)return;const r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;const px=(cx+r*Math.cos(ang[i])).toFixed(1),py=(cy+r*Math.sin(ang[i])).toFixed(1);s+=`<circle cx="${px}" cy="${py}" r="7" fill="${col}" stroke="white" stroke-width="1.5"/><text x="${px}" y="${py}" font-size="7.5" text-anchor="middle" dominant-baseline="middle" fill="white" font-weight="700">${v}</text>`;});
-  return `<svg viewBox="0 0 350 285" width="320" height="260" style="display:block;overflow:visible">${s}</svg>`;
+  try{
+    var key=_adnState.key, isSc=side==='scored';
+    var sk=(key==='origine2'||key==='origine3')?[3,2,4].filter(function(k){return ct.catKeys.indexOf(k)>=0;}):ct.catKeys;
+    if(sk.length<2) return '';
+    var n=sk.length,cx=175,cy=150,R=100,MAX=50;
+    var ang=[]; for(var i=0;i<n;i++) ang.push(-Math.PI/2+2*Math.PI*i/n);
+    var s='';
+    [10,20,30,40,50].forEach(function(p){var r=(p/MAX)*R;s+='<circle cx="'+cx+'" cy="'+cy+'" r="'+r.toFixed(1)+'" fill="none" stroke="#dde" stroke-width=".7" stroke-dasharray="3,3"/>';});
+    for(var i=0;i<n;i++){
+      var a=ang[i],k=sk[i];
+      s+='<line x1="'+cx+'" y1="'+cy+'" x2="'+(cx+R*Math.cos(a)).toFixed(1)+'" y2="'+(cy+R*Math.sin(a)).toFixed(1)+'" stroke="#ccd" stroke-width="1"/>';
+      var lx=cx+(R+26)*Math.cos(a),ly=cy+(R+26)*Math.sin(a),anc=Math.cos(a)>.15?'start':Math.cos(a)<-.15?'end':'middle';
+      var nom=ct.table[k]?ct.table[k].nom:String(k),ws=nom.split(' '),dy0=(-((ws.length-1)/2*1.1)).toFixed(2)+'em';
+      var tsp=''; for(var wi=0;wi<ws.length;wi++) tsp+='<tspan x="'+lx.toFixed(1)+'" dy="'+(wi===0?dy0:'1.1em')+'">'+ws[wi]+'</tspan>';
+      s+='<text x="'+lx.toFixed(1)+'" y="'+ly.toFixed(1)+'" font-size="9" text-anchor="'+anc+'" fill="#334" dominant-baseline="middle" font-weight="600">'+tsp+'</text>';
+    }
+    var totAll=0; for(var i=0;i<sk.length;i++) totAll+=(isSc?(ct.totalScored[sk[i]]||0):(ct.totalConceded[sk[i]]||0));
+    var avgPts=[];
+    for(var i=0;i<sk.length;i++){var v=isSc?(ct.totalScored[sk[i]]||0):(ct.totalConceded[sk[i]]||0);var r=(totAll>0?Math.min(v/totAll*100,MAX):0)/MAX*R;avgPts.push((cx+r*Math.cos(ang[i])).toFixed(1)+','+(cy+r*Math.sin(ang[i])).toFixed(1));}
+    s+='<polygon points="'+avgPts.join(' ')+'" fill="none" stroke="#aab" stroke-width="1.2" stroke-dasharray="4,3" opacity=".75"/>';
+    var tot=isSc?(ct.teamScored[team]||0):(ct.teamConceded[team]||0),col=isSc?'#2255ff':'#d95f02',fill=isSc?'rgba(34,85,255,.13)':'rgba(217,95,2,.13)';
+    var pts=[]; for(var i=0;i<sk.length;i++){var v=isSc?((ct.scored[sk[i]]&&ct.scored[sk[i]][team])||0):((ct.conceded[sk[i]]&&ct.conceded[sk[i]][team])||0);var r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;pts.push((cx+r*Math.cos(ang[i])).toFixed(1)+','+(cy+r*Math.sin(ang[i])).toFixed(1));}
+    s+='<polygon points="'+pts.join(' ')+'" fill="'+fill+'" stroke="'+col+'" stroke-width="2.5" stroke-linejoin="round"/>';
+    for(var i=0;i<sk.length;i++){var v=isSc?((ct.scored[sk[i]]&&ct.scored[sk[i]][team])||0):((ct.conceded[sk[i]]&&ct.conceded[sk[i]][team])||0);if(!v)continue;var r=(tot>0?Math.min(v/tot*100,MAX):0)/MAX*R;var px=(cx+r*Math.cos(ang[i])).toFixed(1),py=(cy+r*Math.sin(ang[i])).toFixed(1);s+='<circle cx="'+px+'" cy="'+py+'" r="7" fill="'+col+'" stroke="white" stroke-width="1.5"/><text x="'+px+'" y="'+py+'" font-size="7.5" text-anchor="middle" dominant-baseline="middle" fill="white" font-weight="700">'+v+'</text>';}
+    return '<svg viewBox="0 0 350 285" width="320" height="260" style="display:block;overflow:visible">'+s+'</svg>';
+  }catch(e){return '<p style="color:red">Err:'+e.message+'</p>';}
 }
 
 function _adnUpdateRadars(){
-  const ct=_adnGetCt(),teams=_adnState.teams.slice(0,_adnState.n).filter(t=>t);
-  const container=document.getElementById('adn-radars');
-  if(!container) return;
-  if(!teams.length){container.innerHTML='<div style="color:#aab;font-size:.9em;padding:30px;text-align:center">Sélectionnez au moins une équipe</div>';return;}
-  const sides=_adnState.side==='both'?['scored','conceded']:[_adnState.side];
-  let html='';
-  sides.forEach(side=>{
-    const isSc=side==='scored',sCol=isSc?'#2255ff':'#e63030',sLbl=isSc?'Buts marqués':'Buts encaissés';
-    html+=`<div style="margin-bottom:${sides.length>1?'28px':'0'}"><div style="font-size:.72em;font-weight:800;color:${sCol};text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">${sLbl}</div>`;
-    if(_adnState.mode==='overlay'){
-      html+=`<div style="overflow-x:auto">${_adnOverlaySVG(teams,side,ct)}</div>`;
-      html+='<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;align-items:center">';
-      teams.forEach((t,ti)=>{const g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);html+=`<span style="display:flex;align-items:center;gap:6px"><span style="width:24px;height:3px;background:${ADN_COLORS[ti]};border-radius:2px;display:inline-block"></span><strong style="font-size:.83em">${tf(t)}</strong><span style="font-size:.78em;color:#888">(${g} buts)</span></span>`;});
-      html+=`<span style="display:flex;align-items:center;gap:6px"><span style="width:24px;border-top:2px dashed #aab;display:inline-block"></span><span style="font-size:.78em;color:#888">Moy. tournoi</span></span></div>`;
-    } else {
-      html+='<div style="display:flex;flex-wrap:wrap;gap:16px">';
-      teams.forEach((t,ti)=>{const g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);html+=`<div><div style="font-size:.8em;font-weight:800;color:${ADN_COLORS[ti]};margin-bottom:4px;text-align:center">${tf(t)} — ${g} buts</div>${_adnSingleSVG(t,side,ct)}</div>`;});
-      html+=`</div><div style="font-size:.75em;color:#888;margin-top:8px;display:flex;align-items:center;gap:6px"><span style="width:18px;border-top:2px dashed #aab;display:inline-block"></span>Moy. tournoi</div>`;
-    }
-    html+='</div>';
-  });
-  container.innerHTML=html;
+  try{
+    var ct=_adnGetCt(), teams=_adnState.teams.slice(0,_adnState.n).filter(function(t){return !!t;});
+    var container=document.getElementById('adn-radars');
+    if(!container) return;
+    if(!teams.length){container.innerHTML='<div style="color:#aab;font-size:.9em;padding:30px;text-align:center">Sélectionnez au moins une équipe</div>';return;}
+    var sides=_adnState.side==='both'?['scored','conceded']:[_adnState.side];
+    var html='';
+    sides.forEach(function(side){
+      var isSc=side==='scored',sCol=isSc?'#2255ff':'#e63030',sLbl=isSc?'Buts marqués':'Buts encaissés';
+      html+='<div style="margin-bottom:'+(sides.length>1?'28px':'0')+'">';
+      html+='<div style="font-size:.72em;font-weight:800;color:'+sCol+';text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">'+sLbl+'</div>';
+      if(_adnState.mode==='overlay'){
+        html+='<div style="overflow-x:auto">'+_adnOverlaySVG(teams,side,ct)+'</div>';
+        html+='<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;align-items:center">';
+        teams.forEach(function(t,ti){var g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);html+='<span style="display:flex;align-items:center;gap:6px"><span style="width:24px;height:3px;background:'+ADN_COLORS[ti]+';border-radius:2px;display:inline-block"></span><strong style="font-size:.83em">'+tf(t)+'</strong><span style="font-size:.78em;color:#888">('+g+' buts)</span></span>';});
+        html+='<span style="display:flex;align-items:center;gap:6px"><span style="width:24px;border-top:2px dashed #aab;display:inline-block"></span><span style="font-size:.78em;color:#888">Moy. tournoi</span></span></div>';
+      } else {
+        html+='<div style="display:flex;flex-wrap:wrap;gap:16px">';
+        teams.forEach(function(t,ti){var g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);html+='<div><div style="font-size:.8em;font-weight:800;color:'+ADN_COLORS[ti]+';margin-bottom:4px;text-align:center">'+tf(t)+' — '+g+' buts</div>'+_adnSingleSVG(t,side,ct)+'</div>';});
+        html+='</div><div style="font-size:.75em;color:#888;margin-top:8px;display:flex;align-items:center;gap:6px"><span style="width:18px;border-top:2px dashed #aab;display:inline-block"></span>Moy. tournoi</div>';
+      }
+      html+='</div>';
+    });
+    container.innerHTML=html;
+  }catch(e){var c=document.getElementById('adn-radars');if(c)c.innerHTML='<p style="color:red;padding:16px">Erreur: '+e.message+'</p>';}
 }
 
 function adnPreset(type){
-  loadData(); const ct=_adnGetCt(),teams=ct.teams; let sel=[];
-  if(type==='topscorers') sel=[...teams].sort((a,b)=>(ct.teamScored[b]||0)-(ct.teamScored[a]||0)).slice(0,4);
-  else if(type==='topdefs') sel=[...teams].filter(t=>(ct.teamConceded[t]||0)>0).sort((a,b)=>(ct.teamConceded[a]||0)-(ct.teamConceded[b]||0)).slice(0,4);
-  else if(type==='tournament'){
-    const phO=['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'],tp={};
-    MATCHES.forEach(m=>{const md=data[m.id];if(!md||!md.validated)return;const pi=phO.indexOf(m.phase);if(pi<0)return;if(tp[m.dom]===undefined||pi>tp[m.dom])tp[m.dom]=pi;if(tp[m.ext]===undefined||pi>tp[m.ext])tp[m.ext]=pi;});
-    sel=Object.entries(tp).sort((a,b)=>b[1]-a[1]).slice(0,4).map(e=>e[0]);
-  }
-  _adnState.n=Math.min(sel.length,4)||2; for(let i=0;i<4;i++) _adnState.teams[i]=sel[i]||'';
-  renderAdnJeu();
+  try{
+    loadData(); var ct=_adnGetCt(), teams=ct.teams, sel=[];
+    if(type==='topscorers') sel=teams.slice().sort(function(a,b){return (ct.teamScored[b]||0)-(ct.teamScored[a]||0);}).slice(0,4);
+    else if(type==='topdefs') sel=teams.filter(function(t){return (ct.teamConceded[t]||0)>0;}).sort(function(a,b){return (ct.teamConceded[a]||0)-(ct.teamConceded[b]||0);}).slice(0,4);
+    else if(type==='tournament'){
+      var phO=['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'],tp={};
+      MATCHES.forEach(function(m){var md=data[m.id];if(!md||!md.validated)return;var pi=phO.indexOf(m.phase);if(pi<0)return;if(tp[m.dom]===undefined||pi>tp[m.dom])tp[m.dom]=pi;if(tp[m.ext]===undefined||pi>tp[m.ext])tp[m.ext]=pi;});
+      sel=Object.entries(tp).sort(function(a,b){return b[1]-a[1];}).slice(0,4).map(function(e){return e[0];});
+    }
+    _adnState.n=Math.min(sel.length,4)||2;
+    for(var i=0;i<4;i++) _adnState.teams[i]=sel[i]||'';
+    renderAdnJeu();
+  }catch(e){alert('Preset erreur: '+e.message);}
 }
 
-function adnSetN(n){_adnState.n=n;for(let i=n;i<4;i++)_adnState.teams[i]='';renderAdnJeu();}
+function adnSetN(n){_adnState.n=n;for(var i=n;i<4;i++)_adnState.teams[i]='';renderAdnJeu();}
 function adnSetTeam(i,v){_adnState.teams[i]=v;_adnUpdateRadars();}
 function adnSetKey(v){_adnState.key=v;_adnUpdateRadars();}
 function adnSetSide(v){_adnState.side=v;_adnUpdateRadars();}
@@ -2375,34 +2433,37 @@ function adnSetVenue(v){_adnState.venue=v;_adnUpdateRadars();}
 function adnSetMode(v){_adnState.mode=v;_adnUpdateRadars();}
 
 function renderAdnJeu(){
-  loadData(); const ct=_adnGetCt(),teams=ct.teams;
-  const sel=(id,opts,fn)=>`<select id="${id}" onchange="${fn}(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">${opts}</select>`;
-  const opt=(v,l,cur)=>`<option value="${v}"${cur===v?' selected':''}>${l}</option>`;
-  const keyOpts=[['tactique1','Style de jeu'],['origine1','Origine générale'],['origine2','Intention de jeu'],['origine3','Zone'],['actions','Action de tir'],['tactique3','Nature du but'],['mitemps','Mi-temps'],['minutes','Minutes (15min)']].map(([v,l])=>opt(v,l,_adnState.key)).join('');
-  const sideOpts=[['scored','⚽ Buts marqués'],['conceded','🛡️ Buts encaissés'],['both','Les deux']].map(([v,l])=>opt(v,l,_adnState.side)).join('');
-  const phaseOpts=[['all','Toutes les phases'],['Phase de groupes','Phase de groupes'],['16e de finale','16e de finale'],['8e de finale','8e de finale'],['Quart de finale','Quart de finale'],['Demi-finale','Demi-finale'],['Finale','Finale']].map(([v,l])=>opt(v,l,_adnState.phase)).join('');
-  const venueOpts=[['all','Dom. + Ext.'],['home','🏠 Domicile'],['away','✈️ Extérieur']].map(([v,l])=>opt(v,l,_adnState.venue)).join('');
-  const modeOpts=[['overlay','🔀 Superposé'],['sidebyside','▥ Côte à côte']].map(([v,l])=>opt(v,l,_adnState.mode)).join('');
-  const nBtn=n=>`<button onclick="adnSetN(${n})" style="padding:5px 14px;border-radius:5px;border:1.5px solid ${_adnState.n===n?'var(--accent)':'var(--border)'};background:${_adnState.n===n?'var(--accent)':'transparent'};color:${_adnState.n===n?'#fff':'var(--text)'};font-size:.82em;font-weight:700;cursor:pointer">${n} équipes</button>`;
-  const preset=(label,fn,tt)=>`<button onclick="${fn}" title="${tt}" style="padding:5px 13px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.8em;cursor:pointer;white-space:nowrap">${label}</button>`;
-  let teamSlots='<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">';
-  for(let i=0;i<_adnState.n;i++){
-    const tOpts='<option value="">— Équipe —</option>'+teams.map(t=>`<option value="${t}"${_adnState.teams[i]===t?' selected':''}>${tf(t)}</option>`).join('');
-    teamSlots+=`<div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:${ADN_COLORS[i]};display:inline-block;flex-shrink:0"></span><select id="adn-team-${i}" onchange="adnSetTeam(${i},this.value)" style="padding:6px 10px;border:2px solid ${ADN_COLORS[i]};border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">${tOpts}</select></div>`;
+  try{
+    loadData(); var ct=_adnGetCt(), teams=ct.teams;
+    var keyOpts=[['tactique1','Style de jeu'],['origine1','Origine générale'],['origine2','Intention de jeu'],['origine3','Zone'],['actions','Action de tir'],['tactique3','Nature du but'],['mitemps','Mi-temps'],['minutes','Minutes (15min)']].map(function(a){return '<option value="'+a[0]+'"'+(_adnState.key===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var sideOpts=[['scored','⚽ Buts marqués'],['conceded','🛡️ Buts encaissés'],['both','Les deux']].map(function(a){return '<option value="'+a[0]+'"'+(_adnState.side===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var phaseOpts=[['all','Toutes les phases'],['Phase de groupes','Phase de groupes'],['16e de finale','16e de finale'],['8e de finale','8e de finale'],['Quart de finale','Quart de finale'],['Demi-finale','Demi-finale'],['Finale','Finale']].map(function(a){return '<option value="'+a[0]+'"'+(_adnState.phase===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var venueOpts=[['all','Dom. + Ext.'],['home','🏠 Domicile'],['away','✈️ Extérieur']].map(function(a){return '<option value="'+a[0]+'"'+(_adnState.venue===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var modeOpts=[['overlay','🔀 Superposé'],['sidebyside','▥ Côte à côte']].map(function(a){return '<option value="'+a[0]+'"'+(_adnState.mode===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var selHtml=function(id,opts,fn){return '<select id="'+id+'" onchange="'+fn+'(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">'+opts+'</select>';};
+    var nBtns=[2,3,4].map(function(n){return '<button onclick="adnSetN('+n+')" style="padding:5px 14px;border-radius:5px;border:1.5px solid '+(_adnState.n===n?'var(--accent)':'var(--border)')+';background:'+(_adnState.n===n?'var(--accent)':'transparent')+';color:'+(_adnState.n===n?'#fff':'var(--text)')+';font-size:.82em;font-weight:700;cursor:pointer">'+n+' équipes</button>';}).join('');
+    var presetBtn=function(l,fn,tt){return '<button onclick="'+fn+'" title="'+tt+'" style="padding:5px 13px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.8em;cursor:pointer;white-space:nowrap">'+l+'</button>';};
+    var teamSlots='<div style="display:flex;flex-wrap:wrap;gap:10px;align-items:center">';
+    for(var i=0;i<_adnState.n;i++){
+      var tOpts='<option value="">— Équipe —</option>'+teams.map(function(t){return '<option value="'+t+'"'+(_adnState.teams[i]===t?' selected':'')+'>'+tf(t)+'</option>';}).join('');
+      teamSlots+='<div style="display:flex;align-items:center;gap:5px"><span style="width:10px;height:10px;border-radius:50%;background:'+ADN_COLORS[i]+';display:inline-block;flex-shrink:0"></span><select id="adn-team-'+i+'" onchange="adnSetTeam('+i+',this.value)" style="padding:6px 10px;border:2px solid '+ADN_COLORS[i]+';border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">'+tOpts+'</select></div>';
+    }
+    teamSlots+='</div>';
+    var html='<div style="max-width:1100px">'
+      +'<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">🧬 Empreinte Tactique</div>'
+      +'<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 18px">ADN de Jeu — Comparateur</h2>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">'+selHtml('adn-key',keyOpts,'adnSetKey')+' '+selHtml('adn-side',sideOpts,'adnSetSide')+' '+selHtml('adn-phase',phaseOpts,'adnSetPhase')+' '+selHtml('adn-venue',venueOpts,'adnSetVenue')+' '+selHtml('adn-mode',modeOpts,'adnSetMode')+'</div>'
+      +'<div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap"><span style="font-size:.78em;font-weight:700;color:var(--muted)">Nb équipes :</span>'+nBtns+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"><span style="font-size:.78em;font-weight:700;color:var(--muted)">Présélections :</span>'+presetBtn("🏆 Avancement tournoi","adnPreset('tournament')","Les 4 allées le plus loin")+' '+presetBtn("⚽ Top buteurs","adnPreset('topscorers')","4 équipes avec le plus de buts")+' '+presetBtn("🛡️ Meilleures défenses","adnPreset('topdefs')","4 équipes ayant le moins encaissé")+'</div>'
+      +'<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px"><div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Équipes à comparer</div>'+teamSlots+'</div>'
+      +'<div id="adn-radars" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 24px"><div style="color:#aab;font-size:.9em;text-align:center;padding:30px">Sélectionnez au moins une équipe</div></div>'
+      +'</div>';
+    document.getElementById('view-adn').innerHTML=html;
+    setTimeout(function(){_adnUpdateRadars();},0);
+  }catch(e){
+    var el=document.getElementById('view-adn');
+    if(el) el.innerHTML='<div style="padding:20px;color:red;font-family:monospace">Erreur ADN: '+e.message+'<br>'+e.stack+'</div>';
   }
-  teamSlots+='</div>';
-  const html=`<div style="max-width:1100px">
-    <div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">🧬 Empreinte Tactique</div>
-    <h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 18px">ADN de Jeu — Comparateur</h2>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">${sel('adn-key',keyOpts,'adnSetKey')} ${sel('adn-side',sideOpts,'adnSetSide')} ${sel('adn-phase',phaseOpts,'adnSetPhase')} ${sel('adn-venue',venueOpts,'adnSetVenue')} ${sel('adn-mode',modeOpts,'adnSetMode')}</div>
-    <div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap"><span style="font-size:.78em;font-weight:700;color:var(--muted)">Nb équipes :</span>${[2,3,4].map(n=>nBtn(n)).join('')}</div>
-    <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"><span style="font-size:.78em;font-weight:700;color:var(--muted)">Présélections :</span>${preset("🏆 Avancement tournoi","adnPreset('tournament')","4 équipes allées le plus loin dans le tournoi")} ${preset("⚽ Top buteurs","adnPreset('topscorers')","4 équipes avec le plus de buts marqués")} ${preset("🛡️ Meilleures défenses","adnPreset('topdefs')","4 équipes ayant le moins encaissé")}</div>
-    <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px">
-      <div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">Équipes à comparer</div>${teamSlots}</div>
-    <div id="adn-radars" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 24px"><div style="color:#aab;font-size:.9em;text-align:center;padding:30px">Sélectionnez au moins une équipe</div></div>
-  </div>`;
-  document.getElementById('view-adn').innerHTML=html;
-  setTimeout(()=>_adnUpdateRadars(),0);
 }
 
 
