@@ -1503,7 +1503,7 @@ function renderPaPoints() {
   teams.forEach(function(t) {
     stats[t] = {
       paScored: 0, paConceded: 0,
-      actualPts: 0, matchesPlayed: 0,
+      actualPts: 0, simBothPts: 0, matchesPlayed: 0,
       gainScoring: 0, gainConceding: 0,
       matchDetails: []
     };
@@ -1531,16 +1531,18 @@ function renderPaPoints() {
       var actual      = _paPts(myAll, opAll);
       var simOwnPA    = _paPts(Math.max(0, myAll - myPA), opAll);   // sans mes PA offensives
       var simOppPA    = _paPts(myAll, Math.max(0, opAll - opPA));   // sans les PA adverses
+      var simBoth     = _paPts(Math.max(0, myAll - myPA), Math.max(0, opAll - opPA)); // sans aucune PA
 
-      var gainSc = actual - simOwnPA;    // pts gagnés grâce à mes PA (peut être 0, 1, 2)
-      var gainCo = actual - simOppPA;    // pts perdus à cause des PA adverses (négatif = perte)
+      var gainSc = actual - simOwnPA;
+      var gainCo = actual - simOppPA;
 
       s.matchesPlayed++;
       s.paScored   += myPA;
       s.paConceded += opPA;
       s.actualPts  += actual;
+      s.simBothPts += simBoth;
       s.gainScoring   += gainSc;
-      s.gainConceding += gainCo;  // stocké négatif si l'adversaire nous a coûté des points
+      s.gainConceding += gainCo;
 
       if(myPA > 0 || opPA > 0) {
         var opp = t===m.dom ? m.ext : m.dom;
@@ -1564,7 +1566,9 @@ function renderPaPoints() {
       paConceded:  s.paConceded,
       actualPts:   s.actualPts,
       gainScoring: s.gainScoring,
-      costConceding: -s.gainConceding,  // positif = points perdus à cause des PA adverses
+      costConceding: -s.gainConceding,
+      simBothPts:  s.simBothPts,
+      deltaBoth:   s.actualPts - s.simBothPts,  // > 0 = PA ont rapporté des pts nets
       netImpact:   s.gainScoring + s.gainConceding,
       matchDetails: s.matchDetails,
       matchesPlayed: s.matchesPlayed
@@ -1619,6 +1623,8 @@ function renderPaPoints() {
       +'<td style="text-align:center;padding:10px 8px"><span style="background:#ddeeff;color:#2255ff;border-radius:12px;padding:2px 10px;font-weight:800;font-size:.95em">'+r.paScored+'</span></td>'
       +'<td style="text-align:center;padding:10px 8px"><span style="background:#ffeedd;color:#c04000;border-radius:12px;padding:2px 10px;font-weight:800;font-size:.95em">'+r.paConceded+'</span></td>'
       +'<td style="text-align:center;padding:10px 8px;font-weight:700">'+r.actualPts+'</td>'
+      +'<td style="text-align:center;padding:10px 8px;font-weight:800;color:#7a4a00">'+r.simBothPts+'</td>'
+      +'<td style="text-align:center;padding:10px 8px"><span style="background:'+(r.deltaBoth>0?'#e6f4e6':r.deltaBoth<0?'#fde8e8':'#f0f0f0')+';color:'+(r.deltaBoth>0?'#1a7a1a':r.deltaBoth<0?'#cc2222':'#888')+';border-radius:4px;padding:2px 8px;font-weight:800;font-size:.95em">'+_paSign(r.deltaBoth)+'</span></td>'
       +'<td style="text-align:center;padding:10px 8px;font-size:1.05em;font-weight:800;color:'+gainColor(r.gainScoring)+'">'+_paSign(r.gainScoring)+'</td>'
       +'<td style="text-align:center;padding:10px 8px;font-size:1.05em;font-weight:800;color:'+costColor(r.costConceding)+'">'+_paSign(-r.costConceding)+'</td>'
       +'<td style="text-align:center;padding:10px 8px"><span style="background:'+(r.netImpact>0?'#e6f4e6':r.netImpact<0?'#fde8e8':'#f0f0f0')+';color:'+netColor(r.netImpact)+';border-radius:6px;padding:3px 12px;font-weight:900;font-size:1.05em">'+_paSign(r.netImpact)+'</span></td>'
@@ -1660,6 +1666,8 @@ function renderPaPoints() {
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">PA ⚽<br><span style="font-weight:400;text-transform:none">marquées</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">PA 🛡️<br><span style="font-weight:400;text-transform:none">encaissées</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">Pts<br><span style="font-weight:400;text-transform:none">réels</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#7a4a00">Pts<br><span style="font-weight:400;text-transform:none">sans PA</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#555">Δ<br><span style="font-weight:400;text-transform:none">impact</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a">Gain<br><span style="font-weight:400;text-transform:none">offensif</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222">Coût<br><span style="font-weight:400;text-transform:none">défensif</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">Impact<br><span style="font-weight:400;text-transform:none">net</span></th>'
@@ -2576,6 +2584,8 @@ function renderJeuPoints(){
       +'<td style="text-align:center;padding:10px 8px"><span style="background:#ddeeff;color:#2255ff;border-radius:12px;padding:2px 10px;font-weight:800;font-size:.95em">'+r.goalsScored+'</span></td>'
       +'<td style="text-align:center;padding:10px 8px"><span style="background:#ffeedd;color:#c04000;border-radius:12px;padding:2px 10px;font-weight:800;font-size:.95em">'+r.goalsConceded+'</span></td>'
       +'<td style="text-align:center;padding:10px 8px;font-weight:700">'+r.actualPts+'</td>'
+      +'<td style="text-align:center;padding:10px 8px;font-weight:800;color:#7a4a00">'+r.simBothPts+'</td>'
+      +'<td style="text-align:center;padding:10px 8px"><span style="background:'+(r.deltaBoth>0?'#e6f4e6':r.deltaBoth<0?'#fde8e8':'#f0f0f0')+';color:'+(r.deltaBoth>0?'#1a7a1a':r.deltaBoth<0?'#cc2222':'#888')+';border-radius:4px;padding:2px 8px;font-weight:800;font-size:.95em">'+_paSign(r.deltaBoth)+'</span></td>'
       +'<td style="text-align:center;padding:10px 8px;font-size:1.05em;font-weight:800;color:'+gainColor(r.gainScoring)+'">'+_paSign(r.gainScoring)+'</td>'
       +'<td style="text-align:center;padding:10px 8px;font-size:1.05em;font-weight:800;color:'+costColor(r.costConceding)+'">'+_paSign(-r.costConceding)+'</td>'
       +'<td style="text-align:center;padding:10px 8px"><span style="background:'+(r.netImpact>0?'#e6f4e6':r.netImpact<0?'#fde8e8':'#f0f0f0')+';color:'+netColor(r.netImpact)+';border-radius:6px;padding:3px 12px;font-weight:900;font-size:1.05em">'+_paSign(r.netImpact)+'</span></td>'
@@ -2613,6 +2623,8 @@ function renderJeuPoints(){
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">Buts ⚽<br><span style="font-weight:400;text-transform:none">marqués</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">Buts 🛡️<br><span style="font-weight:400;text-transform:none">encaissés</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">Pts<br><span style="font-weight:400;text-transform:none">réels</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#7a4a00">Pts<br><span style="font-weight:400;text-transform:none">sans PA</span></th>'
+    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#555">Δ<br><span style="font-weight:400;text-transform:none">impact</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a">Gain<br><span style="font-weight:400;text-transform:none">offensif</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222">Coût<br><span style="font-weight:400;text-transform:none">défensif</span></th>'
     +'<th style="text-align:center;padding:10px 8px;font-weight:700">Impact<br><span style="font-weight:400;text-transform:none">net</span></th>'
