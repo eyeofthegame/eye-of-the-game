@@ -3821,8 +3821,13 @@ function getAllEncodedGoals(){
     Object.keys(d).forEach(matchId => {
       const md = d[matchId];
       if(!md || !Array.isArray(md.goals)) return;
+      const mEntry = MATCHES.find(x=>x.id==matchId);
       md.goals.forEach(g => {
-        if(g && g.team && g.tactique1) goals.push(Object.assign({}, g, {matchId}));
+        if(g && g.team && g.tactique1){
+          let opponent = g.opponent;
+          if(mEntry && opponent === g.team) opponent = (g.team === mEntry.dom) ? mEntry.ext : mEntry.dom;
+          goals.push(Object.assign({}, g, {opponent, matchId}));
+        }
       });
     });
   } catch(e){}

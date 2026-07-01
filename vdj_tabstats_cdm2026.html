@@ -1228,7 +1228,10 @@ function getAllGoals(){
     if(md.validated){
       // Match finalisé : tous les buts
       md.goals.forEach(g=>{
-        goals.push({...g, matchId:parseInt(matchId), match:m});
+        // Correction données corrompues : si team === opponent, recalculer opponent
+        let opponent = g.opponent;
+        if(opponent === g.team) opponent = (g.team === m.dom) ? m.ext : m.dom;
+        goals.push({...g, opponent, matchId:parseInt(matchId), match:m});
       });
     } else {
       // Match en cours (direct live) : uniquement les buts déjà validés individuellement
