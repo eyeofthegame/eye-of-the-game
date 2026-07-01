@@ -4342,7 +4342,10 @@ async function lsPoll(){
   try {
     const resp = await lsFetch('https://v3.football.api-sports.io/fixtures/events?fixture='+_lsFixtureId, { headers:{'x-apisports-key':key} });
     const data = await resp.json();
-    const events = (data.response || []).filter(e => e.type === 'Goal');
+    const allEvts = data.response || [];
+    const types = [...new Set(allEvts.map(e => e.type))];
+    lsLog('🔍 Debug: '+allEvts.length+' events — types: ['+types.join(', ')+']'+(allEvts.length>0?' — ex: '+JSON.stringify(allEvts[0]).slice(0,150):''));
+    const events = allEvts.filter(e => e.type === 'Goal');
     let newCount = 0;
     events.forEach(e => {
       const uid = e.time.elapsed + '-' + e.player.name + '-' + e.team.name;
