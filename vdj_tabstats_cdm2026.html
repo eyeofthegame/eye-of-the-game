@@ -1209,13 +1209,8 @@ function getPlayerTeamMap(){ return _playerTeamMap; }
 
 // Returns true if buteur actually plays for g.opponent (= but contre son camp)
 function isCsc(g){
-  if(g.csc === true) return true;  // explicit flag wins
-  if(!g.buteur || !g.opponent) return false;
-  const map = getPlayerTeamMap();
-  const playerTeam = map[g.buteur.toLowerCase().trim()];
-  if(!playerTeam) return false;
-  // If player's real team is the conceding team (opponent), it's a CSC
-  return playerTeam === g.opponent;
+  // Seul l'encodage explicite (g.csc === true) fait foi — pas d'auto-détection
+  return g.csc === true;
 }
 
 function getAllGoals(){
