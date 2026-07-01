@@ -2290,7 +2290,7 @@ function _adnPts(sk, ang, getV, totFn, R, cx, cy, MAX){
   return pts.join(' ');
 }
 
-function _adnOverlaySVG(teams, side, ct){
+function _adnOverlaySVG(teams, side, ct, colorOffset){
   try{
     var key=_adnState.key, isSc=side==='scored';
     var sk=(key==='origine2'||key==='origine3')?[3,2,4].filter(function(k){return ct.catKeys.indexOf(k)>=0;}):ct.catKeys;
@@ -2328,8 +2328,9 @@ function _adnOverlaySVG(teams, side, ct){
     s+='<polygon points="'+avgPts.join(' ')+'" fill="none" stroke="#aab" stroke-width="1.5" stroke-dasharray="5,4" opacity=".75"/>';
     // Polygones équipes
     var activeTeams=teams.filter(function(t){return !!t;});
+    var _co=colorOffset||0;
     for(var ti=0;ti<activeTeams.length;ti++){
-      var t=activeTeams[ti], col=ADN_COLORS[ti], fill=ADN_FILLS[ti];
+      var t=activeTeams[ti], col=ADN_COLORS[ti+_co]||ADN_COLORS[ti], fill=ADN_FILLS[ti+_co]||ADN_FILLS[ti];
       var tot=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);
       var pts=[];
       for(var i=0;i<sk.length;i++){
@@ -2390,17 +2391,26 @@ function _adnUpdateRadars(){
     var html='';
     sides.forEach(function(side){
       var isSc=side==='scored',sCol=isSc?'#2255ff':'#e63030',sLbl=isSc?'Buts marqués':'Buts encaissés';
-      html+='<div style="margin-bottom:'+(sides.length>1?'28px':'0')+'">';
-      html+='<div style="font-size:.72em;font-weight:800;color:'+sCol+';text-transform:uppercase;letter-spacing:.08em;margin-bottom:12px">'+sLbl+'</div>';
+      html+='<div style="margin-bottom:'+(sides.length>1?'36px':'0')+'">';
+      html+='<div style="font-size:.72em;font-weight:800;color:'+sCol+';text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px">'+sLbl+'</div>';
       if(_adnState.mode==='overlay'){
+        // Mode superposé : toutes les équipes sur un seul grand radar
         html+='<div style="overflow-x:auto">'+_adnOverlaySVG(teams,side,ct)+'</div>';
         html+='<div style="display:flex;flex-wrap:wrap;gap:14px;margin-top:10px;align-items:center">';
         teams.forEach(function(t,ti){var g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);html+='<span style="display:flex;align-items:center;gap:6px"><span style="width:24px;height:3px;background:'+ADN_COLORS[ti]+';border-radius:2px;display:inline-block"></span><strong style="font-size:.83em">'+tf(t)+'</strong><span style="font-size:.78em;color:#888">('+g+' buts)</span></span>';});
         html+='<span style="display:flex;align-items:center;gap:6px"><span style="width:24px;border-top:2px dashed #aab;display:inline-block"></span><span style="font-size:.78em;color:#888">Moy. tournoi</span></span></div>';
       } else {
-        html+='<div style="display:flex;flex-wrap:wrap;gap:16px">';
-        teams.forEach(function(t,ti){var g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);html+='<div><div style="font-size:.8em;font-weight:800;color:'+ADN_COLORS[ti]+';margin-bottom:4px;text-align:center">'+tf(t)+' — '+g+' buts</div>'+_adnSingleSVG(t,side,ct)+'</div>';});
-        html+='</div><div style="font-size:.75em;color:#888;margin-top:8px;display:flex;align-items:center;gap:6px"><span style="width:18px;border-top:2px dashed #aab;display:inline-block"></span>Moy. tournoi</div>';
+        // Mode côte à côte : chaque équipe sur son propre grand radar (même style que overlay)
+        html+='<div style="display:flex;flex-wrap:wrap;gap:28px;align-items:flex-start">';
+        teams.forEach(function(t,ti){
+          var g=isSc?(ct.teamScored[t]||0):(ct.teamConceded[t]||0);
+          html+='<div style="min-width:0">';
+          html+='<div style="font-size:.83em;font-weight:800;color:'+ADN_COLORS[ti]+';margin-bottom:6px;text-align:center">'+tf(t)+'&nbsp;—&nbsp;'+g+' buts</div>';
+          html+=_adnOverlaySVG([t],side,ct,ti);
+          html+='</div>';
+        });
+        html+='</div>';
+        html+='<div style="font-size:.75em;color:#888;margin-top:10px;display:flex;align-items:center;gap:6px"><span style="width:18px;border-top:2px dashed #aab;display:inline-block"></span>Moy. tournoi</div>';
       }
       html+='</div>';
     });
