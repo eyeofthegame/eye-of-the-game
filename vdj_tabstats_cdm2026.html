@@ -2552,6 +2552,53 @@ function renderJeuPoints(){
     return '<button onclick="_jpFilter=\''+f.key+'\';renderJeuPoints()" style="padding:5px 13px;border-radius:6px;border:1.5px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'var(--accent)':'transparent')+';color:'+(active?'#fff':'var(--text)')+';font-size:.8em;font-weight:'+(active?'800':'600')+';cursor:pointer;white-space:nowrap">'+f.label+'</button>';
   }).join('');
 
+  var teams=getTeams();
+  var stats={};
+  teams.forEach(function(t){
+    stats[t]={goalsScored:0,goalsConceded:0,actualPts:0,matchesPlayed:0,gainScoring:0,gainConceding:0,matchDetails:[]};
+  });
+
+  MATCHES.forEach(function(m){
+    var md=data[m.id];
+    if(!md||!md.validated) return;
+    if(_jpPhases.length>0&&!_jpPhases.includes(m.phase)) return;
+    var matchGoals=[];
+    (md.goals||[]).forEach(function(g){
+      if(!g||!g.team) return;
+      var opp=g.opponent;
+      if(opp===g.team) opp=(g.team===m.dom)?m.ext:m.dom;
+      matchGoals.push(Object.assign({},g,{opponent:opp,matchId:m.id,match:m}));
+    });
+    var domAll=matchGoals.filter(function(g){return g.team===m.dom;}).length;
+    var extAll=matchGoals.filter(function(g){return g.team===m.ext;}).length;
+    var domSty=matchGoals.filter(function(g){return g.team===m.dom&&filterFn(g);}).length;
+    var extSty=matchGoals.filter(function(g){return g.team===m.ext&&filterFn(g);}).length;
+    [m.dom,m.ext].forEach(function(t){
+      if(!teams.includes(t)) return;
+      var s=stats[t];
+      var myAll=t===m.dom?domAll:extAll;
+      var opAll=t===m.dom?extAll:domAll;
+      var mySty=t===m.dom?domSty:extSty;
+      var opSty=t===m.dom?extSty:domSty;
+      var actual=_paPts(myAll,opAll);
+      var simOwn=_paPts(Math.max(0,myAll-mySty),opAll);
+      var simOpp=_paPts(myAll,Math.max(0,opAll-opSty));
+      var gainSc=actual-simOwn;
+      var gainCo=actual-simOpp;
+      s.matchesPlayed++;
+      s.goalsScored+=mySty; s.goalsConceded+=opSty;
+      s.actualPts+=actual; s.gainScoring+=gainSc; s.gainConceding+=gainCo;
+      if(mySty>0||opSty>0){
+        var opp2=t===m.dom?m.ext:m.dom;
+        s.matchDetails.push({matchLabel:tf(t)+' '+myAll+'-'+opAll+' '+tf(opp2),phase:m.phase,mySty:mySty,opSty:opSty,actual:actual,gainSc:gainSc,gainCo:gainCo});
+      }
+    });
+  });
+
+  var rows=teams.map(function(t){
+    var s=stats[t];
+    return {team:t,goalsScored:s.goalsScored,goalsConceded:s.goalsConceded,actualPts:s.actualPts,gainScoring:s.gainScoring,costConceding:-s.gainConceding,netImpact:s.gainScoring+s.gainConceding,matchDetails:s.matchDetails,matchesPlayed:s.matchesPlayed};
+  }).filter(function(r){return r.matchesPlayed>0;}).sort(function(a,b){return b.netImpact-a.netImpact;});
 
   var totalGoals=rows.reduce(function(s,r){return s+r.goalsScored;},0);
   var totalGain =rows.reduce(function(s,r){return s+r.gainScoring;},0);
