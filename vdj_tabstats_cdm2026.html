@@ -1584,7 +1584,7 @@ function renderSetpieces(){
       return `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72em"><span style="background:${act.color};color:#fff;border-radius:50%;width:14px;height:14px;display:inline-flex;align-items:center;justify-content:center;font-weight:700">${si+1}</span>${label}</span>`;
     }).join('<span style="color:#ccc;margin:0 2px">→</span>');
 
-    const cscBadge = g.csc ? `<span style="background:#ff2244;color:#fff;font-size:.7em;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px">CSC</span>` : '';
+    const cscBadge = isCsc(g) ? `<span style="background:#ff2244;color:#fff;font-size:.7em;font-weight:700;padding:1px 6px;border-radius:8px;margin-left:5px">CSC</span>` : '';
     const assistLine = (g.assist && !g.noAssist) ? `<div style="font-size:.72em;color:#aad4aa;margin-top:1px">🅰 ${g.assist}</div>` : `<div style="font-size:.72em;margin-top:1px">&nbsp;</div>`;
     const PA_COLORS = {1:'#e67e00',2:'#2980b9',3:'#27ae60',4:'#8e44ad'};
     const paTypeInt = parseInt(g.paType)||0;
@@ -6233,7 +6233,7 @@ function renderRecherche(){
         ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:.7em;cursor:pointer;flex-shrink:0">▶</button>`
         : '';
       const hasSteps = (g.goalSteps||[]).length > 0;
-      const isCscGoal = g.csc === true;
+      const isCscGoal = isCsc(g);
       const venue = g.team===g.match.dom ? '🏠' : '✈️';
       const displayTeam = isCscGoal ? tf(g.opponent) : tf(g.team);
       const displayFlag = isCscGoal ? (TEAM_FLAGS[g.opponent]||'') : (TEAM_FLAGS[g.team]||'');
@@ -6759,7 +6759,7 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
     pillsHtml=disp.map((g,gi)=>{
       const col=_GC[gi%_GC.length];
       const matchStr=`${tf(g.match.dom)} – ${tf(g.match.ext)}`;
-      const isCscGoal=g.csc===true;
+      const isCscGoal=isCsc(g);
       const displayTeam=isCscGoal?tf(g.opponent):tf(g.team);
       const displayFlag=isCscGoal?(TEAM_FLAGS[g.opponent]||''):(TEAM_FLAGS[g.team]||'');
       const cscBadge=isCscGoal?'<span style="background:#cc0000;color:#fff;font-size:.6em;font-weight:900;padding:1px 4px;border-radius:3px">CSC</span>':'';
@@ -7479,8 +7479,8 @@ function renderPreview(){
       const col=GC[gi%GC.length];
       const tac=VDJ.tactique1[g.tactique1]?VDJ.tactique1[g.tactique1].nom:'—';
       const tacBg=VDJ.tactique1[g.tactique1]?'#'+VDJ.tactique1[g.tactique1].c1:'#888';
-      const isCsc=g.csc===true;
-      const cscBadge=isCsc?'<span style="background:#cc0000;color:#fff;font-size:.6em;padding:1px 4px;border-radius:2px;margin-right:2px">CSC</span>':'';
+      const _isCsc=isCsc(g);
+      const cscBadge=_isCsc?'<span style="background:#cc0000;color:#fff;font-size:.6em;padding:1px 4px;border-radius:2px;margin-right:2px">CSC</span>':'';
       const vid=g.lien?'<button onclick="event.stopPropagation();openVideoModal(\''+g.lien+'\')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 5px;font-size:.6em;cursor:pointer">▶</button>':'';
       const ori=VDJ.origine1[g.origine1]?VDJ.origine1[g.origine1].nom:'';
       return '<div style="display:flex;align-items:center;gap:4px;padding:4px 7px;border-radius:5px;border-left:3px solid '+col+';background:#fff;margin-bottom:3px">'
