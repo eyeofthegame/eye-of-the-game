@@ -274,6 +274,16 @@ table.tableau th[style*="background"]{
   top:0;
   z-index:2;
 }
+/* Sticky header pour toutes les tables (pas seulement .tableau) */
+table:not(.tableau) th{
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:#f0f1f7;
+}
+table:not(.tableau) th[style*="background"]{
+  background:unset;
+}
 table.tableau tbody tr:nth-child(even) td:not(.total):not(.pct){
   background:#fafbfd;
 }
@@ -1124,8 +1134,8 @@ const MATCHES = [
   {id:72,date:"27/06/2026",heure:"17:00",group:"Groupe L",dom:"Croatie",ext:"Ghana",ville:"Philadelphie",stade:"Lincoln Financial Field",phase:"Phase de groupes"},
   {id:73,date:"28/06/2026",heure:"15:00",group:"16e",dom:"Afrique du Sud",ext:"Canada",ville:"Inglewood",stade:"SoFi Stadium",phase:"16e de finale"},
   {id:74,date:"29/06/2026",heure:"13:00",group:"16e",dom:"Brésil",ext:"Japon",ville:"Houston",stade:"NRG Stadium",phase:"16e de finale"},
-  {id:75,date:"29/06/2026",heure:"16:30",group:"16e",dom:"Allemagne",ext:"Paraguay",ville:"Foxborough",stade:"Gillette Stadium",phase:"16e de finale",tab:"4-3",tabWin:"Paraguay"},
-  {id:76,date:"29/06/2026",heure:"21:00",group:"16e",dom:"Pays-Bas",ext:"Maroc",ville:"Monterrey",stade:"Estadio BBVA",phase:"16e de finale",tab:"3-2",tabWin:"Maroc"},
+  {id:75,date:"29/06/2026",heure:"16:30",group:"16e",dom:"Allemagne",ext:"Paraguay",ville:"Foxborough",stade:"Gillette Stadium",phase:"16e de finale",tab:"3-4",tabWin:"Paraguay"},
+  {id:76,date:"29/06/2026",heure:"21:00",group:"16e",dom:"Pays-Bas",ext:"Maroc",ville:"Monterrey",stade:"Estadio BBVA",phase:"16e de finale",tab:"2-3",tabWin:"Maroc"},
   {id:77,date:"30/06/2026",heure:"13:00",group:"16e",dom:"Côte d'Ivoire",ext:"Norvège",ville:"Arlington",stade:"AT&T Stadium",phase:"16e de finale"},
   {id:78,date:"30/06/2026",heure:"17:00",group:"16e",dom:"France",ext:"Suède",ville:"East Rutherford",stade:"MetLife Stadium",phase:"16e de finale"},
   {id:79,date:"30/06/2026",heure:"21:00",group:"16e",dom:"Mexique",ext:"Équateur",ville:"Mexico City",stade:"Estadio Azteca",phase:"16e de finale"},
