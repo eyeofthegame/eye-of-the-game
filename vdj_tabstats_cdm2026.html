@@ -1691,6 +1691,7 @@ function renderPaPoints() {
 
 // ──────────────────────────────────────────────────────────────
 let _spPaFilter = '__all__';
+let _spTeamFilter = '__all__';
 
 function renderSetpieces(){
   loadData();
@@ -2142,32 +2143,40 @@ function showView(name){
   if(navEl) navEl.classList.add('active');
   closeDetail();
 
-  if(name==='home') renderHome();
+  // Afficher le div avant le render — même si render plante, la vue est visible
+  const _vEl = document.getElementById('view-'+name);
+  if(_vEl) _vEl.style.display='block';
 
-  else if(name==='overunder') renderOverUnder();
-  else if(name==='shotmap') renderShotMap();
-  else if(name==='presszones') renderPressZones();
-  else if(name==='tete') renderTete();
-  else if(name==='topscorers') renderTopScorers();
-  else if(name==='assists') renderAssists();
-  else if(name==='gpn') renderGPN();
-  else if(name==='evolution') renderEvolution();
-  else if(name==='scorerprofile') renderScorerProfile();
-  else if(name==='recherche') renderRecherche();
-  else if(name==='preview') renderPreview();
-  else if(name==='ficheMatch') renderFicheMatch();
-  else if(name==='adn') renderAdnJeu();
-  else if(name==='comparateur') renderComparateur();
-  else if(name==='sankey') renderSankey();
-  else if(name==='evolutionphase') renderEvolutionPhase();
-  else if(name==='rapport') renderRapport();
-  else if(name==='results') renderResults();
-  else if(name==='penalties') renderPenalties();
-  else if(name==='setpieces') renderSetpieces();
-  else if(name==='papoints') renderPaPoints();
-  else if(name==='jeupoints') renderJeuPoints();
+  function _safeRender(fn){
+    try{ fn(); }
+    catch(err){
+      if(_vEl) _vEl.innerHTML='<div style="padding:30px;color:#cc0000;font-family:monospace;font-size:.85em"><b>⚠ Erreur dans '+name+':</b><br>'+err.message+'<br><pre>'+err.stack+'</pre></div>';
+    }
+  }
 
-  document.getElementById('view-'+name).style.display='block';
+  if(name==='home') _safeRender(renderHome);
+  else if(name==='overunder') _safeRender(renderOverUnder);
+  else if(name==='shotmap') _safeRender(renderShotMap);
+  else if(name==='presszones') _safeRender(renderPressZones);
+  else if(name==='tete') _safeRender(renderTete);
+  else if(name==='topscorers') _safeRender(renderTopScorers);
+  else if(name==='assists') _safeRender(renderAssists);
+  else if(name==='gpn') _safeRender(renderGPN);
+  else if(name==='evolution') _safeRender(renderEvolution);
+  else if(name==='scorerprofile') _safeRender(renderScorerProfile);
+  else if(name==='recherche') _safeRender(renderRecherche);
+  else if(name==='preview') _safeRender(renderPreview);
+  else if(name==='ficheMatch') _safeRender(renderFicheMatch);
+  else if(name==='adn') _safeRender(renderAdnJeu);
+  else if(name==='comparateur') _safeRender(renderComparateur);
+  else if(name==='sankey') _safeRender(renderSankey);
+  else if(name==='evolutionphase') _safeRender(renderEvolutionPhase);
+  else if(name==='rapport') _safeRender(renderRapport);
+  else if(name==='results') _safeRender(renderResults);
+  else if(name==='penalties') _safeRender(renderPenalties);
+  else if(name==='setpieces') _safeRender(renderSetpieces);
+  else if(name==='papoints') _safeRender(renderPaPoints);
+  else if(name==='jeupoints') _safeRender(renderJeuPoints);
 }
 
 function showAnalysis(key, opts={}){
