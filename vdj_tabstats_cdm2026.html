@@ -1132,16 +1132,16 @@ const MATCHES = [
   {id:70,date:"23/06/2026",heure:"19:00",group:"Groupe L",dom:"Panama",ext:"Croatie",ville:"Toronto",stade:"BMO Field",phase:"Phase de groupes"},
   {id:71,date:"27/06/2026",heure:"17:00",group:"Groupe L",dom:"Panama",ext:"Angleterre",ville:"East Rutherford",stade:"MetLife Stadium",phase:"Phase de groupes"},
   {id:72,date:"27/06/2026",heure:"17:00",group:"Groupe L",dom:"Croatie",ext:"Ghana",ville:"Philadelphie",stade:"Lincoln Financial Field",phase:"Phase de groupes"},
-  {id:73,date:"28/06/2026",heure:"15:00",group:"16e",dom:"Afrique du Sud",ext:"Canada",ville:"Inglewood",stade:"SoFi Stadium",phase:"16e de finale"},
-  {id:74,date:"29/06/2026",heure:"13:00",group:"16e",dom:"Brésil",ext:"Japon",ville:"Houston",stade:"NRG Stadium",phase:"16e de finale"},
-  {id:75,date:"29/06/2026",heure:"16:30",group:"16e",dom:"Allemagne",ext:"Paraguay",ville:"Foxborough",stade:"Gillette Stadium",phase:"16e de finale",tab:"3-4",tabWin:"Paraguay"},
-  {id:76,date:"29/06/2026",heure:"21:00",group:"16e",dom:"Pays-Bas",ext:"Maroc",ville:"Monterrey",stade:"Estadio BBVA",phase:"16e de finale",tab:"2-3",tabWin:"Maroc"},
-  {id:77,date:"30/06/2026",heure:"13:00",group:"16e",dom:"Côte d'Ivoire",ext:"Norvège",ville:"Arlington",stade:"AT&T Stadium",phase:"16e de finale"},
-  {id:78,date:"30/06/2026",heure:"17:00",group:"16e",dom:"France",ext:"Suède",ville:"East Rutherford",stade:"MetLife Stadium",phase:"16e de finale"},
-  {id:79,date:"30/06/2026",heure:"21:00",group:"16e",dom:"Mexique",ext:"Équateur",ville:"Mexico City",stade:"Estadio Azteca",phase:"16e de finale"},
-  {id:80,date:"01/07/2026",heure:"12:00",group:"16e",dom:"Angleterre",ext:"RD Congo",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"16e de finale"},
-  {id:81,date:"01/07/2026",heure:"16:00",group:"16e",dom:"Belgique",ext:"Sénégal",ville:"Seattle",stade:"Lumen Field",phase:"16e de finale"},
-  {id:82,date:"01/07/2026",heure:"20:00",group:"16e",dom:"États-Unis",ext:"Bosnie-Herzégovine",ville:"Santa Clara",stade:"Levi's Stadium",phase:"16e de finale"},
+  {id:73,date:"28/06/2026",heure:"15:00",group:"16e",dom:"Afrique du Sud",ext:"Canada",ville:"Inglewood",stade:"SoFi Stadium",phase:"16e de finale",score:{dom:0,ext:1}},
+  {id:74,date:"29/06/2026",heure:"13:00",group:"16e",dom:"Brésil",ext:"Japon",ville:"Houston",stade:"NRG Stadium",phase:"16e de finale",score:{dom:2,ext:1}},
+  {id:75,date:"29/06/2026",heure:"16:30",group:"16e",dom:"Allemagne",ext:"Paraguay",ville:"Foxborough",stade:"Gillette Stadium",phase:"16e de finale",tab:"3-4",tabWin:"Paraguay",score:{dom:1,ext:1}},
+  {id:76,date:"29/06/2026",heure:"21:00",group:"16e",dom:"Pays-Bas",ext:"Maroc",ville:"Monterrey",stade:"Estadio BBVA",phase:"16e de finale",tab:"2-3",tabWin:"Maroc",score:{dom:1,ext:1}},
+  {id:77,date:"30/06/2026",heure:"13:00",group:"16e",dom:"Côte d'Ivoire",ext:"Norvège",ville:"Arlington",stade:"AT&T Stadium",phase:"16e de finale",score:{dom:1,ext:2}},
+  {id:78,date:"30/06/2026",heure:"17:00",group:"16e",dom:"France",ext:"Suède",ville:"East Rutherford",stade:"MetLife Stadium",phase:"16e de finale",score:{dom:3,ext:0}},
+  {id:79,date:"30/06/2026",heure:"21:00",group:"16e",dom:"Mexique",ext:"Équateur",ville:"Mexico City",stade:"Estadio Azteca",phase:"16e de finale",score:{dom:2,ext:0}},
+  {id:80,date:"01/07/2026",heure:"12:00",group:"16e",dom:"Angleterre",ext:"RD Congo",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"16e de finale",score:{dom:2,ext:1}},
+  {id:81,date:"01/07/2026",heure:"16:00",group:"16e",dom:"Belgique",ext:"Sénégal",ville:"Seattle",stade:"Lumen Field",phase:"16e de finale",score:{dom:3,ext:2},aet:true},
+  {id:82,date:"01/07/2026",heure:"20:00",group:"16e",dom:"États-Unis",ext:"Bosnie-Herzégovine",ville:"Santa Clara",stade:"Levi's Stadium",phase:"16e de finale",score:{dom:2,ext:0}},
   {id:83,date:"02/07/2026",heure:"15:00",group:"16e",dom:"Espagne",ext:"Autriche",ville:"Inglewood",stade:"SoFi Stadium",phase:"16e de finale"},
   {id:84,date:"02/07/2026",heure:"19:00",group:"16e",dom:"Portugal",ext:"Croatie",ville:"Toronto",stade:"BMO Field",phase:"16e de finale"},
   {id:85,date:"02/07/2026",heure:"23:00",group:"16e",dom:"Suisse",ext:"Algérie",ville:"Vancouver",stade:"BC Place",phase:"16e de finale"},
@@ -1427,13 +1427,20 @@ function renderResults(){
       const scoreDom = hasScore ? md.score.dom : null;
       const scoreExt = hasScore ? md.score.ext : null;
       const isValidated = md && md.validated;
+      // Fallback: score dans le tableau MATCHES (sans encodage VDJ)
+      const hasFallback = !hasScore && m.score;
 
       // Score display
       let scoreHtml;
       if(hasScore){
         const scoreColor = isValidated ? '#2e7d32' : '#e65100';
         const tabBadge = m.tab ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(t.a.b. ${m.tab})</div>` : '';
-        scoreHtml = `<span style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center"><span style="font-weight:900;font-size:1.1em;color:${scoreColor}">${scoreDom} — ${scoreExt}</span>${tabBadge}</span>`;
+        const aetBadge = m.aet ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(a.p.)</div>` : '';
+        scoreHtml = `<span style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center"><span style="font-weight:900;font-size:1.1em;color:${scoreColor}">${scoreDom} — ${scoreExt}</span>${tabBadge}${aetBadge}</span>`;
+      } else if(hasFallback){
+        const tabBadge = m.tab ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(t.a.b. ${m.tab})</div>` : '';
+        const aetBadge = m.aet ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(a.p.)</div>` : '';
+        scoreHtml = `<span style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center"><span style="font-weight:900;font-size:1.1em;color:#888">${m.score.dom} — ${m.score.ext}</span>${tabBadge}${aetBadge}</span>`;
       } else {
         scoreHtml = `<span style="font-weight:400;font-size:.9em;min-width:44px;text-align:center;color:var(--muted)">${m.heure}</span>`;
       }
@@ -8488,13 +8495,19 @@ function renderCalendrier(){
       const domFlag = FLAG[m.dom] ? FLAG[m.dom]+' ' : '';
       const extFlag = FLAG[m.ext] ? FLAG[m.ext]+' ' : '';
 
+      const tabBadgeC = m.tab ? ` (t.a.b. ${m.tab})` : '';
+      const aetBadgeC = m.aet ? ' (a.p.)' : '';
       const scoreHtml = encoded
-        ? `<span style="font-weight:800;font-size:1em;color:var(--accent);min-width:44px;text-align:center">${domGoals} — ${extGoals}</span>`
-        : `<span style="color:var(--muted);font-size:.85em;min-width:44px;text-align:center">${m.heure}</span>`;
+        ? `<span style="font-weight:800;font-size:1em;color:var(--accent);min-width:44px;text-align:center">${domGoals} — ${extGoals}${aetBadgeC}</span>`
+        : m.score
+          ? `<span style="font-weight:800;font-size:1em;color:#888;min-width:44px;text-align:center">${m.score.dom} — ${m.score.ext}${tabBadgeC}${aetBadgeC}</span>`
+          : `<span style="color:var(--muted);font-size:.85em;min-width:44px;text-align:center">${m.heure}</span>`;
 
       const statusDot = encoded
         ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#27ae60;margin-right:6px" title="Encodé"></span>`
-        : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isPending?'#ccc':'#f39c12'};margin-right:6px" title="${isPending?'À confirmer':'Programmé'}"></span>`;
+        : m.score
+          ? `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#aaa;margin-right:6px" title="Score connu — non encodé VDJ"></span>`
+          : `<span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:${isPending?'#ccc':'#f39c12'};margin-right:6px" title="${isPending?'À confirmer':'Programmé'}"></span>`;
 
       html += `<div style="display:flex;align-items:center;background:var(--card);border:1px solid var(--border);border-radius:8px;padding:10px 16px;margin-bottom:6px;gap:8px">
         ${statusDot}
@@ -8535,10 +8548,10 @@ function renderSankey(){
 
   const total = goals.length || 1;
 
-  // Couleurs style
-  const TAC1_C = {1:'#27ae60',2:'#2980b9',4:'#f39c12',3:'#8e44ad',5:'#c0392b',6:'#e74c3c'};
-  const O2_C   = {4:'#16a085',3:'#34495e',2:'#d35400'};
+  // Couleurs VDJ (mêmes que les tableaux croisés)
   const hx = c => '#'+c;
+  const TAC1_C = Object.fromEntries(Object.entries(VDJ.tactique1).map(([k,v])=>[k,'#'+v.c1]));
+  const O2_C   = Object.fromEntries(Object.entries(VDJ.origine2).map(([k,v])=>[k,'#'+v.c1]));
 
   // Actions : top 10 par fréquence
   const actCnt = {};
@@ -8549,22 +8562,22 @@ function renderSankey(){
     {
       key:'tactique1', label:_lang==='en'?'Style':'Style',
       nodes:[1,2,4,3,5,6].filter(v=>goals.some(g=>g.tactique1===v))
-        .map(v=>({val:v, label:VDJ.tactique1[v].nom, color:TAC1_C[v]||'#888'}))
+        .map(v=>({val:v, label:VDJ.tactique1[v].nom, color:TAC1_C[v]||'#888', textColor:'#'+VDJ.tactique1[v].c2}))
     },
     {
       key:'origine2', label:_lang==='en'?'Laterality':'Latéralité',
       nodes:[4,3,2].filter(v=>goals.some(g=>g.origine2===v))
-        .map(v=>({val:v, label:VDJ.origine2[v].nom, color:O2_C[v]||'#888'}))
+        .map(v=>({val:v, label:VDJ.origine2[v].nom, color:O2_C[v]||'#888', textColor:'#'+VDJ.origine2[v].c2}))
     },
     {
       key:'origine1', label:_lang==='en'?'Origin':'Origine',
       nodes:[2,6,8,1,5,4,3,10,7,9].filter(v=>goals.some(g=>g.origine1===v))
-        .map(v=>({val:v, label:VDJ.origine1[v].nom, color:hx(VDJ.origine1[v].c1)}))
+        .map(v=>({val:v, label:VDJ.origine1[v].nom, color:hx(VDJ.origine1[v].c1), textColor:'#'+VDJ.origine1[v].c2}))
     },
     {
       key:'actions', label:_lang==='en'?'Action':'Action',
       nodes:topActs.filter(v=>VDJ.actions[v])
-        .map(v=>({val:v, label:VDJ.actions[v].nom, color:hx(VDJ.actions[v].c1)}))
+        .map(v=>({val:v, label:VDJ.actions[v].nom, color:hx(VDJ.actions[v].c1), textColor:'#'+VDJ.actions[v].c2}))
     }
   ];
 
@@ -8641,8 +8654,7 @@ function renderSankey(){
       const cnt=counts[n.val]||0; if(!cnt) return;
       const y=layout.positions[n.val], h=layout.heights[n.val];
       const pct=Math.round(cnt/total*100);
-      const isLight=['#ffff44','#ffcc88','#ccffff','#ffffff','#ffffcc','#cccc44','#88cc88'].includes(n.color);
-      const tc=isLight?'#222':'#fff';
+      const tc = n.textColor || (['#ffff44','#ffcc88','#ccffff','#ffffff','#ffffcc','#cccc44','#88cc88'].includes(n.color)?'#222':'#fff');
       const lbl=n.label.length>15?n.label.slice(0,14)+'…':n.label;
       svg+=`<rect x="${x}" y="${y}" width="${colW}" height="${h}" rx="4" fill="${n.color}" opacity="0.93"/>`;
       if(h>=16) svg+=`<text x="${x+colW/2}" y="${y+h/2-7}" text-anchor="middle" dominant-baseline="middle" fill="${tc}" font-size="10" font-weight="700">${lbl}</text>`;
