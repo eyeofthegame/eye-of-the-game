@@ -728,9 +728,9 @@ var MATCHES_CDM = [
   {id:89,date:"04/07/2026",heure:"13:00",group:"8e",dom:"Maroc",ext:"Canada",ville:"Houston",stade:"NRG Stadium",phase:"8e de finale"},
   {id:90,date:"04/07/2026",heure:"17:00",group:"8e",dom:"Paraguay",ext:"France",ville:"Philadelphie",stade:"Lincoln Financial Field",phase:"8e de finale"},
   {id:91,date:"05/07/2026",heure:"16:00",group:"8e",dom:"Brésil",ext:"Norvège",ville:"East Rutherford",stade:"MetLife Stadium",phase:"8e de finale"},
-  {id:92,date:"05/07/2026",heure:"20:00",group:"8e",dom:"Mexique",ext:"À déterminer",ville:"Mexico City",stade:"Estadio Azteca",phase:"8e de finale"},
+  {id:92,date:"05/07/2026",heure:"20:00",group:"8e",dom:"Mexique",ext:"Angleterre",ville:"Mexico City",stade:"Estadio Azteca",phase:"8e de finale"},
   {id:93,date:"06/07/2026",heure:"15:00",group:"8e",dom:"À déterminer",ext:"À déterminer",ville:"Arlington",stade:"AT&T Stadium",phase:"8e de finale"},
-  {id:94,date:"06/07/2026",heure:"20:00",group:"8e",dom:"À déterminer",ext:"À déterminer",ville:"Seattle",stade:"Lumen Field",phase:"8e de finale"},
+  {id:94,date:"06/07/2026",heure:"20:00",group:"8e",dom:"États-Unis",ext:"Belgique",ville:"Seattle",stade:"Lumen Field",phase:"8e de finale"},
   {id:95,date:"07/07/2026",heure:"12:00",group:"8e",dom:"À déterminer",ext:"À déterminer",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"8e de finale"},
   {id:96,date:"07/07/2026",heure:"16:00",group:"8e",dom:"À déterminer",ext:"À déterminer",ville:"Vancouver",stade:"BC Place",phase:"8e de finale"},
   {id:97,date:"09/07/2026",heure:"16:00",group:"Quart",dom:"À déterminer",ext:"À déterminer",ville:"Foxborough",stade:"Gillette Stadium",phase:"Quart de finale"},
@@ -2349,7 +2349,7 @@ function renderGoalForms(scrollToIdx){
     html += `<div class="goal-card" id="goal-${i}">
       <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:8px">
         <span style="display:flex;align-items:center;gap:8px">
-          <span style="font-weight:bold;font-size:1.05em">But ${i+1} — <button onclick="toggleGoalTeam(${i})" class="team-badge" style="background:#${getTeamColor(g.team)};color:#fff;border:none;cursor:pointer;border-radius:3px" title="Cliquer pour changer d'équipe">⇄ ${g.team}</button></span>
+          <span style="font-weight:bold;font-size:1.05em">But ${i+1} — <button onclick="toggleGoalTeam(${i})" class="team-badge" style="background:#${getTeamColor(g.team)};color:${getContrastColor(getTeamColor(g.team))};border:1px solid rgba(0,0,0,.2);cursor:pointer;border-radius:3px" title="Cliquer pour changer d'équipe">⇄ ${g.team}</button></span>
           <button onclick="deleteGoal(${i})" style="font-size:.72em;padding:2px 8px;border:1px solid #c00;background:#fff0f0;color:#c00;border-radius:4px;cursor:pointer" title="Supprimer ce but">🗑 Suppr.</button>
         </span>
         <label style="font-size:.85em;display:flex;align-items:center;gap:6px">
@@ -2668,6 +2668,15 @@ function getTeamColor(team){
     'RD Congo':'0066cc','Ouzbékistan':'0066cc'
   };
   return colors[team] || '666666';
+}
+
+function getContrastColor(hex){
+  // retourne '#222' pour fond clair, '#fff' pour fond foncé
+  var r = parseInt(hex.slice(0,2),16);
+  var g = parseInt(hex.slice(2,4),16);
+  var b = parseInt(hex.slice(4,6),16);
+  var lum = (0.299*r + 0.587*g + 0.114*b) / 255;
+  return lum > 0.55 ? '#222' : '#fff';
 }
 
 
