@@ -130,6 +130,10 @@ button.success:hover{background:var(--green);color:#fff}
 .ac-item .ac-name{font-weight:bold}
 .ac-item .ac-team{font-size:.78em;color:var(--muted);margin-left:8px;white-space:nowrap}
 .ac-hint{padding:7px 10px;font-size:.8em;color:var(--muted);font-style:italic}
+.ac-add-player{color:#4499ff;font-style:italic;border-top:1px dashed #cce}
+.ac-add-player:hover{background:#e8f0ff}
+.ac-input-invalid{border-color:#cc3300 !important;}
+.ac-invalid-hint{font-size:.75em;color:#cc3300;margin-top:2px;display:block}
 @media(max-width:800px){nav.sidebar{display:none}main{margin-left:0}}
 
 /* ── Typographie Manandah ─────────────────────────────────── */
@@ -237,6 +241,7 @@ nav.sidebar h3, nav.sidebar h4, nav.sidebar .section-title {
 </div>
 <div id="ls-countdown" style="font-size:.68em;color:#4b607f;margin-bottom:4px"></div>
 <button onclick="lsTogglePanel()" style="font-size:.72em;padding:3px 8px;width:100%;background:#4b607f;color:#e8d8c9;border:none;border-radius:4px;cursor:pointer;font-weight:600">⚙ Configurer…</button>
+<button onclick="showVDJPlayersModal()" style="font-size:.72em;padding:3px 8px;width:100%;background:#2a4a3a;color:#aaddbb;border:none;border-radius:4px;cursor:pointer;font-weight:600;margin-top:4px">👤 Base joueurs perso…</button>
 <h3 style="margin-top:1.2em">Vidéos</h3>
 <a href="#" onclick="showPage('missing-links')" id="nav-missing-links">🎬 URLs manquantes <span id="missing-links-count" style="background:#7700cc;color:#fff;border-radius:10px;padding:1px 6px;font-size:.75em;margin-left:3px"></span></a>
 <a href="#" onclick="showPage('all-videos')" id="nav-all-videos">🎥 Toutes les vidéos</a>
@@ -3046,7 +3051,9 @@ function acInputDirectMode(input, idx, field){
   const contains = JOUEURS_FLAT.filter(j=>!acNormalize(j.nom).startsWith(q) && acNormalize(j.nom).includes(q));
   const results = [...starts, ...contains].slice(0, 20);
   if(results.length === 0){
-    dd.innerHTML = '<div class="ac-hint">Aucun joueur trouvé</div>';
+    const qd=query.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    dd.innerHTML='<div class="ac-hint">Aucun joueur trouvé dans la liste</div>'
+      +'<div class="ac-item ac-add-player" onmousedown="openAddPlayerModal(event,'+idx+',\''+field+'\',\'direct\',\''+qd+'\')">➕ Ajouter <strong>'+query+'</strong> à la base joueurs</div>';
     dd.classList.add('open');
     return;
   }
@@ -3076,6 +3083,18 @@ function acBlurDirectMode(input, idx, field){
   setTimeout(()=>{
     const dd = document.getElementById('dac-'+idx+'-'+field+'-dd');
     if(dd){ dd.innerHTML=''; dd.classList.remove('open'); }
+    // Validation : le nom doit être connu
+    const val=input.value.trim();
+    if(val && !JOUEURS_FLAT.find(j=>j.nom===val)){
+      input.classList.add('ac-input-invalid');
+      let hint=input.parentNode.querySelector('.ac-invalid-hint');
+      if(!hint){hint=document.createElement('span');hint.className='ac-invalid-hint';input.parentNode.appendChild(hint);}
+      hint.textContent='⚠ Joueur inconnu — tapez à nouveau pour ajouter';
+    } else {
+      input.classList.remove('ac-input-invalid');
+      const hint=input.parentNode.querySelector('.ac-invalid-hint');
+      if(hint) hint.remove();
+    }
   }, 200);
 }
 
@@ -3095,7 +3114,18 @@ function acKeydownDirectMode(event, idx, field){
   } else if(event.key === 'Enter'){
     event.preventDefault();
     sel = dd.querySelector('.ac-item.selected');
-    if(sel){ const nom=sel.dataset.nom; const inp=document.getElementById('dac-'+idx+'-'+field); if(inp) inp.value=nom; dd.innerHTML=''; dd.classList.remove('open'); const md=getMatchData(_directMatchId); if(md&&md.goals[idx]){md.goals[idx][field]=nom;saveData();directRefreshSummary();} }
+    if(sel){
+      if(sel.classList.contains('ac-add-player')){
+        const inp=document.getElementById('dac-'+idx+'-'+field);
+        openAddPlayerModal(null,idx,field,'direct',inp?inp.value.trim():'');
+        dd.innerHTML=''; dd.classList.remove('open');
+      } else {
+        const nom=sel.dataset.nom; const inp=document.getElementById('dac-'+idx+'-'+field);
+        if(inp){ inp.value=nom; inp.classList.remove('ac-input-invalid'); const h=inp.parentNode.querySelector('.ac-invalid-hint'); if(h) h.remove(); }
+        dd.innerHTML=''; dd.classList.remove('open'); const md=getMatchData(_directMatchId);
+        if(md&&md.goals[idx]){md.goals[idx][field]=nom;saveData();directRefreshSummary();}
+      }
+    }
   } else if(event.key === 'Escape'){
     dd.innerHTML=''; dd.classList.remove('open');
   }
@@ -3471,6 +3501,15 @@ function renderOptions(){
 const JOUEURS_FLAT = [{"n":"Aaron Hickey","e":"Écosse"},{"n":"Aaron Tshibola","e":"Congo DR"},{"n":"Aaron Wan-Bissaka","e":"Congo DR"},{"n":"Abbosbek Fayzullaev","e":"Ouzbékistan"},{"n":"Abdallah Al Fakhouri","e":"Jordanie"},{"n":"Abdelmouhib Chamakh","e":"Tunisie"},{"n":"Abdesamad Ezzalzouli","e":"Maroc"},{"n":"Abdoulaye Seck","e":"Sénégal"},{"n":"Abdukodir Khusanov","e":"Ouzbékistan"},{"n":"Abdul Fatawu Issahaku","e":"Ghana"},{"n":"Abdul Mumin","e":"Ghana"},{"n":"Abdulaziz Hatem","e":"Qatar"},{"n":"Abdulelah Al Amri","e":"Arabie saoudite"},{"n":"Abdulkerim Bardakci","e":"Türkiye"},{"n":"Abdulla Abdullaev","e":"Ouzbékistan"},{"n":"Abdullah Al Hamdan","e":"Arabie saoudite"},{"n":"Abdullah Al Khaibari","e":"Arabie saoudite"},{"n":"Abdullah Nasib","e":"Jordanie"},{"n":"Abduvohid Nematov","e":"Ouzbékistan"},{"n":"Achraf Abada","e":"Algérie"},{"n":"Achraf Hakimi","e":"Maroc"},{"n":"Adalberto Carrasquilla","e":"Panama"},{"n":"Adam Hlozek","e":"Tchéquie"},{"n":"Adem Arous","e":"Tunisie"},{"n":"Adil Boulbina","e":"Algérie"},{"n":"Adrien Rabiot","e":"France"},{"n":"Agustin Canobbio","e":"Uruguay"},{"n":"Ahmed Al-Janehi","e":"Qatar"},{"n":"Ahmed Alaa","e":"Qatar"},{"n":"Ahmed Alkassar","e":"Arabie saoudite"},{"n":"Ahmed Basil","e":"Irak"},{"n":"Ahmed Fathi","e":"Qatar"},{"n":"Ahmed Fattouh","e":"Égypte"},{"n":"Ahmed Qasim","e":"Irak"},{"n":"Ahmed Reda Tagnaouti","e":"Maroc"},{"n":"Ahmed Yahya","e":"Irak"},{"n":"Ahmed Zizo","e":"Égypte"},{"n":"Aiden O'Neill","e":"Australie"},{"n":"Aimar Sher","e":"Irak"},{"n":"Aissa Mandi","e":"Algérie"},{"n":"Ajdin Hrustic","e":"Australie"},{"n":"Akam Hashem","e":"Irak"},{"n":"Akmal Mozgovoy","e":"Ouzbékistan"},{"n":"Akram Afif","e":"Qatar"},{"n":"Al Hashmi Al Hussain","e":"Qatar"},{"n":"Alaa Al Hejji","e":"Arabie saoudite"},{"n":"Alan Franco","e":"Équateur"},{"n":"Alan Minda","e":"Équateur"},{"n":"Alban Lafont","e":"Côte d'Ivoire"},{"n":"Alberto Quintero","e":"Panama"},{"n":"Alejandro Gamarra","e":"Paraguay"},{"n":"Alejandro Grimaldo","e":"Espagne"},{"n":"Alejandro Zendejas","e":"États-Unis"},{"n":"Aleksandar Pavlovic","e":"Allemagne"},{"n":"Alessandro Circati","e":"Australie"},{"n":"Alessandro Schopf","e":"Autriche"},{"n":"Alex Arce","e":"Paraguay"},{"n":"Alex Baena","e":"Espagne"},{"n":"Alex Freeman","e":"États-Unis"},{"n":"Alex Paulsen","e":"Nouvelle-Zélande"},{"n":"Alex Rufer","e":"Nouvelle-Zélande"},{"n":"Alex Sandro","e":"Brésil"},{"n":"Alexander Bernhardsson","e":"Suède"},{"n":"Alexander Isak","e":"Suède"},{"n":"Alexander Nuebel","e":"Allemagne"},{"n":"Alexander Prass","e":"Autriche"},{"n":"Alexander Schlager","e":"Autriche"},{"n":"Alexander Sorloth","e":"Norvège"},{"n":"Alexandr Sojka","e":"Tchéquie"},{"n":"Alexandre Pierre","e":"Haïti"},{"n":"Alexandro Maidana","e":"Paraguay"},{"n":"Alexis Mac Allister","e":"Argentine"},{"n":"Alexis Saelemaekers","e":"Belgique"},{"n":"Alexis Vega","e":"Mexique"},{"n":"Alfie Jones","e":"Canada"},{"n":"Ali Abdi","e":"Tunisie"},{"n":"Ali Ahmed","e":"Canada"},{"n":"Ali Al Hamadi","e":"Irak"},{"n":"Ali Alipour","e":"Iran"},{"n":"Ali Azaizeh","e":"Jordanie"},{"n":"Ali Jassim","e":"Irak"},{"n":"Ali Lajami","e":"Arabie saoudite"},{"n":"Ali Majrashi","e":"Arabie saoudite"},{"n":"Ali Nemati","e":"Iran"},{"n":"Ali Olwan","e":"Jordanie"},{"n":"Ali Yousef","e":"Irak"},{"n":"Alidu Seidu","e":"Ghana"},{"n":"Alireza Beiranvand","e":"Iran"},{"n":"Alireza Jahanbakhsh","e":"Iran"},{"n":"Alisson","e":"Brésil"},{"n":"Alistair Johnston","e":"Canada"},{"n":"Almoez Ali","e":"Qatar"},{"n":"Alphonso Davies","e":"Canada"},{"n":"Altay Bayindir","e":"Türkiye"},{"n":"Alvaro Fidalgo","e":"Mexique"},{"n":"Alvaro Montero","e":"Colombie"},{"n":"Amad Diallo","e":"Côte d'Ivoire"},{"n":"Amadou Onana","e":"Belgique"},{"n":"Amar Dedic","e":"Bosnie-Herzégovine"},{"n":"Amar Memic","e":"Bosnie-Herzégovine"},{"n":"Amer Jamous","e":"Jordanie"},{"n":"Amine Gouiri","e":"Algérie"},{"n":"Amir Al Ammari","e":"Irak"},{"n":"Amir Hadziahmetovic","e":"Bosnie-Herzégovine"},{"n":"Amir Mohammad Razzaghinia","e":"Iran"},{"n":"Amir Murillo","e":"Panama"},{"n":"Amirhossein Hosseinzadeh","e":"Iran"},{"n":"Anas Badawi","e":"Jordanie"},{"n":"Anas Salah-Eddine","e":"Maroc"},{"n":"Andreas Schjelderup","e":"Norvège"},{"n":"Andrej Kramaric","e":"Croatie"},{"n":"Andres Andrade","e":"Panama"},{"n":"Andres Cubas","e":"Paraguay"},{"n":"Andy Robertson","e":"Écosse"},{"n":"Ange-Yoan Bonny","e":"Côte d'Ivoire"},{"n":"Angelo Preciado","e":"Équateur"},{"n":"Angelo Stiller","e":"Allemagne"},{"n":"Angus Gunn","e":"Écosse"},{"n":"Anibal Godoy","e":"Panama"},{"n":"Anis Ben Slimane","e":"Tunisie"},{"n":"Anis Hadj Moussa","e":"Algérie"},{"n":"Ante Budimir","e":"Croatie"},{"n":"Anthony Elanga","e":"Suède"},{"n":"Anthony Gordon","e":"Angleterre"},{"n":"Anthony Ralston","e":"Écosse"},{"n":"Anthony Valencia","e":"Équateur"},{"n":"Antoine Mendy","e":"Sénégal"},{"n":"Antoine Semenyo","e":"Ghana"},{"n":"Antonee Robinson","e":"États-Unis"},{"n":"Antonio Nusa","e":"Norvège"},{"n":"Antonio Rudiger","e":"Allemagne"},{"n":"Antonio Sanabria","e":"Paraguay"},{"n":"Ao Tanaka","e":"Japon"},{"n":"Ar'jany Martha","e":"Curaçao"},{"n":"Arda Guler","e":"Türkiye"},{"n":"Ardon Jashari","e":"Suisse"},{"n":"Aria Yousefi","e":"Iran"},{"n":"Armando Gonzalez","e":"Mexique"},{"n":"Armando Obispo","e":"Curaçao"},{"n":"Armin Gigovic","e":"Bosnie-Herzégovine"},{"n":"Arthur Masuaku","e":"Congo DR"},{"n":"Arthur Theate","e":"Belgique"},{"n":"Assane Diao","e":"Sénégal"},{"n":"Assim Madibo","e":"Qatar"},{"n":"Aubrey Modiba","e":"Afrique du Sud"},{"n":"Augustine Boakye","e":"Ghana"},{"n":"Aurele Amenda","e":"Suisse"},{"n":"Aurelien Tchouameni","e":"France"},{"n":"Auston Trusty","e":"États-Unis"},{"n":"Avazbek Ulmasaliev","e":"Ouzbékistan"},{"n":"Awer Mabil","e":"Australie"},{"n":"Axel Tuanzebe","e":"Congo DR"},{"n":"Axel Witsel","e":"Belgique"},{"n":"Ayase Ueda","e":"Japon"},{"n":"Ayman Yahya","e":"Arabie saoudite"},{"n":"Aymen Dahman","e":"Tunisie"},{"n":"Aymen Hussein","e":"Irak"},{"n":"Aymeric Laporte","e":"Espagne"},{"n":"Ayoub Al Alawi","e":"Qatar"},{"n":"Ayoub Bouaddi","e":"Maroc"},{"n":"Ayoub El Kaabi","e":"Maroc"},{"n":"Ayoube Amaimouni-Echghouyab","e":"Maroc"},{"n":"Ayumu Seko","e":"Japon"},{"n":"Azarias Londono","e":"Panama"},{"n":"Aziz Behich","e":"Australie"},{"n":"Azizbek Amonov","e":"Ouzbékistan"},{"n":"Azizbek Ganiev","e":"Ouzbékistan"},{"n":"Azzedine Ounahi","e":"Maroc"},{"n":"Baba Abdul Rahman","e":"Ghana"},{"n":"Bae Junho","e":"Corée du Sud"},{"n":"Bamba Dieng","e":"Sénégal"},{"n":"Bara Ndiaye","e":"Sénégal"},{"n":"Baris Alper Yilmaz","e":"Türkiye"},{"n":"Bart Verbruggen","e":"Pays-Bas"},{"n":"Bazoumana Toure","e":"Côte d'Ivoire"},{"n":"Bekhruz Karimov","e":"Ouzbékistan"},{"n":"Ben Gannon-Doak","e":"Écosse"},{"n":"Ben Old","e":"Nouvelle-Zélande"},{"n":"Ben Waine","e":"Nouvelle-Zélande"},{"n":"Benjamin Asare","e":"Ghana"},{"n":"Benjamin Nygren","e":"Suède"},{"n":"Benjamin Tahirovic","e":"Bosnie-Herzégovine"},{"n":"Bernardo Silva","e":"Portugal"},{"n":"Besfort Zeneli","e":"Suède"},{"n":"Bilal El Khannouss","e":"Maroc"},{"n":"Borja Iglesias","e":"Espagne"},{"n":"Botirali Ergashev","e":"Ouzbékistan"},{"n":"Boualem Khoukhi","e":"Qatar"},{"n":"Bradley Barcola","e":"France"},{"n":"Bradley Cross","e":"Afrique du Sud"},{"n":"Brahim Diaz","e":"Maroc"},{"n":"Braian Ojeda","e":"Paraguay"},{"n":"Brandley Kuwas","e":"Curaçao"},{"n":"Brandon Mechele","e":"Belgique"},{"n":"Brandon Thomas-Asante","e":"Ghana"},{"n":"Breel Embolo","e":"Suisse"},{"n":"Bremer","e":"Brésil"},{"n":"Brenden Aaronson","e":"États-Unis"},{"n":"Brian Brobbey","e":"Pays-Bas"},{"n":"Brian Cipenga","e":"Congo DR"},{"n":"Brian Gutierrez","e":"Mexique"},{"n":"Brian Rodriguez","e":"Uruguay"},{"n":"Brice Samba","e":"France"},{"n":"Bruno Fernandes","e":"Portugal"},{"n":"Bruno Guimaraes","e":"Brésil"},{"n":"Bukayo Saka","e":"Angleterre"},{"n":"Caglar Soyuncu","e":"Türkiye"},{"n":"Caleb Yirenkyi","e":"Ghana"},{"n":"Callan Elliot","e":"Nouvelle-Zélande"},{"n":"Callum McCowatt","e":"Nouvelle-Zélande"},{"n":"Cameron Burgess","e":"Australie"},{"n":"Cameron Devlin","e":"Australie"},{"n":"Camilo Vargas","e":"Colombie"},{"n":"Can Uzun","e":"Türkiye"},{"n":"Carl Fred Sainte","e":"Haïti"},{"n":"Carl Starfelt","e":"Suède"},{"n":"Carlens Arcus","e":"Haïti"},{"n":"Carlos Acevedo","e":"Mexique"},{"n":"Carlos Gomez","e":"Colombie"},{"n":"Carlos Harvey","e":"Panama"},{"n":"Carney Chukwuemeka","e":"Autriche"},{"n":"Casemiro","e":"Brésil"},{"n":"Cecilio Waterman","e":"Panama"},{"n":"Cedric Bakambu","e":"Congo DR"},{"n":"Cedric Itten","e":"Suisse"},{"n":"Cesar Blackman","e":"Panama"},{"n":"Cesar Huerta","e":"Mexique"},{"n":"Cesar Montes","e":"Mexique"},{"n":"Cesar Samudio","e":"Panama"},{"n":"Cesar Yanis","e":"Panama"},{"n":"Chadi Riad","e":"Maroc"},{"n":"Chancel Mbemba","e":"Congo DR"},{"n":"Charles De Ketelaere","e":"Belgique"},{"n":"Charles Pickel","e":"Congo DR"},{"n":"Che Adams","e":"Écosse"},{"n":"Chemsdine Talbi","e":"Maroc"},{"n":"Cherif Ndiaye","e":"Sénégal"},{"n":"Cho Guesung","e":"Corée du Sud"},{"n":"Cho Wije","e":"Corée du Sud"},{"n":"Chris Brady","e":"États-Unis"},{"n":"Chris Richards","e":"États-Unis"},{"n":"Chris Wood","e":"Nouvelle-Zélande"},{"n":"Christ Oulai","e":"Côte d'Ivoire"},{"n":"Christian Fassnacht","e":"Suisse"},{"n":"Christian Pulisic","e":"États-Unis"},{"n":"Christoph Baumgartner","e":"Autriche"},{"n":"Christopher Bonsu Baah","e":"Ghana"},{"n":"Christopher Operi","e":"Côte d'Ivoire"},{"n":"CJ Dos Santos","e":"Cap-Vert"},{"n":"Cody Gakpo","e":"Pays-Bas"},{"n":"Connor Metcalfe","e":"Australie"},{"n":"Craig Gordon","e":"Écosse"},{"n":"Cristian Martinez","e":"Panama"},{"n":"Cristian Roldan","e":"États-Unis"},{"n":"Cristian Romero","e":"Argentine"},{"n":"Cristian Volpato","e":"Australie"},{"n":"Cristiano Ronaldo","e":"Portugal"},{"n":"Crysencio Summerville","e":"Pays-Bas"},{"n":"Cyle Larin","e":"Canada"},{"n":"Daichi Kamada","e":"Japon"},{"n":"Dailon Livramento","e":"Cap-Vert"},{"n":"Daizen Maeda","e":"Japon"},{"n":"Damian Bobadilla","e":"Paraguay"},{"n":"Dan Burn","e":"Angleterre"},{"n":"Dan Ndoye","e":"Suisse"},{"n":"Dani Olmo","e":"Espagne"},{"n":"Danial Eiri","e":"Iran"},{"n":"Daniel Munoz","e":"Colombie"},{"n":"Daniel Svensson","e":"Suède"},{"n":"Danilo","e":"Brésil"},{"n":"Danilo Santos","e":"Brésil"},{"n":"Danley Jean Jacques","e":"Haïti"},{"n":"Darwin Nunez","e":"Uruguay"},{"n":"David Affengruber","e":"Autriche"},{"n":"David Alaba","e":"Autriche"},{"n":"David Doudera","e":"Tchéquie"},{"n":"David Jurasek","e":"Tchéquie"},{"n":"David Moller Wolfe","e":"Norvège"},{"n":"David Ospina","e":"Colombie"},{"n":"David Raum","e":"Allemagne"},{"n":"David Raya","e":"Espagne"},{"n":"David Zima","e":"Tchéquie"},{"n":"Davinson Sanchez","e":"Colombie"},{"n":"Dayne St. Clair","e":"Canada"},{"n":"Dayot Upamecano","e":"France"},{"n":"Dean Henderson","e":"Angleterre"},{"n":"Declan Rice","e":"Angleterre"},{"n":"Deiver Machado","e":"Colombie"},{"n":"Dejan Kulusevski","e":"Suède"},{"n":"Denil Castillo","e":"Équateur"},{"n":"Denis Visinsky","e":"Tchéquie"},{"n":"Denis Zakaria","e":"Suisse"},{"n":"Deniz Gul","e":"Türkiye"},{"n":"Deniz Undav","e":"Allemagne"},{"n":"Dennis Dargahi","e":"Iran"},{"n":"Dennis Hadzikadunic","e":"Bosnie-Herzégovine"},{"n":"Denzel Dumfries","e":"Pays-Bas"},{"n":"Derek Cornelius","e":"Canada"},{"n":"Deroy Duarte","e":"Cap-Vert"},{"n":"Derrick Etienne Jr.","e":"Haïti"},{"n":"Derrick Luckassen","e":"Ghana"},{"n":"Desire Doue","e":"France"},{"n":"Deveron Fonville","e":"Curaçao"},{"n":"Diego Gomez","e":"Paraguay"},{"n":"Diego Moreira","e":"Belgique"},{"n":"Diney Borges","e":"Cap-Vert"},{"n":"Diogo Costa","e":"Portugal"},{"n":"Diogo Dalot","e":"Portugal"},{"n":"Djed Spence","e":"Angleterre"},{"n":"Djibril Sow","e":"Suisse"},{"n":"Dodi Lukebakio","e":"Belgique"},{"n":"Dom Hyam","e":"Écosse"},{"n":"Dominik Kotarski","e":"Croatie"},{"n":"Dominik Livakovic","e":"Croatie"},{"n":"Dominique Simon","e":"Haïti"},{"n":"Donyell Malen","e":"Pays-Bas"},{"n":"Dostonbek Hamdamov","e":"Ouzbékistan"},{"n":"Douglas Santos","e":"Brésil"},{"n":"Duckens Nazon","e":"Haïti"},{"n":"Duje Caleta-Car","e":"Croatie"},{"n":"Duke Lacroix","e":"Haïti"},{"n":"Dylan Batubinsika","e":"Congo DR"},{"n":"Dylan Bronn","e":"Tunisie"},{"n":"Dzenis Burnic","e":"Bosnie-Herzégovine"},{"n":"Eberechi Eze","e":"Angleterre"},{"n":"Ederson","e":"Brésil"},{"n":"Edgardo Farina","e":"Panama"},{"n":"Edin Dzeko","e":"Bosnie-Herzégovine"},{"n":"Edmilson Junior","e":"Qatar"},{"n":"Edo Kayembe","e":"Congo DR"},{"n":"Edouard Mendy","e":"Sénégal"},{"n":"Edson Alvarez","e":"Mexique"},{"n":"Egil Selvik","e":"Norvège"},{"n":"Ehsan Haddad","e":"Jordanie"},{"n":"Ehsan Hajsafi","e":"Iran"},{"n":"El Hadji Malick Diouf","e":"Sénégal"},{"n":"El Mahdy Soliman","e":"Égypte"},{"n":"Eldor Shomurodov","e":"Ouzbékistan"},{"n":"Eli Just","e":"Nouvelle-Zélande"},{"n":"Elias Achouri","e":"Tunisie"},{"n":"Elias Saad","e":"Tunisie"},{"n":"Elisha Owusu","e":"Ghana"},{"n":"Elliot Anderson","e":"Angleterre"},{"n":"Elliot Stroud","e":"Suède"},{"n":"Ellyes Skhiri","e":"Tunisie"},{"n":"Eloy Room","e":"Curaçao"},{"n":"Elye Wahi","e":"Côte d'Ivoire"},{"n":"Emam Ashour","e":"Égypte"},{"n":"Emiliano Martinez","e":"Argentine"},{"n":"Emiliano Martinez","e":"Uruguay"},{"n":"Emmanuel Agbadou","e":"Côte d'Ivoire"},{"n":"Endrick","e":"Brésil"},{"n":"Enner Valencia","e":"Équateur"},{"n":"Enzo Fernandez","e":"Argentine"},{"n":"Eom Jisung","e":"Corée du Sud"},{"n":"Eray Comert","e":"Suisse"},{"n":"Eren Elmali","e":"Türkiye"},{"n":"Eric Davis","e":"Panama"},{"n":"Eric Garcia","e":"Espagne"},{"n":"Eric Smith","e":"Suède"},{"n":"Erik Lira","e":"Mexique"},{"n":"Erling Haaland","e":"Norvège"},{"n":"Ermedin Demirovic","e":"Bosnie-Herzégovine"},{"n":"Ermin Mahmic","e":"Bosnie-Herzégovine"},{"n":"Ernest Nuamah","e":"Ghana"},{"n":"Esmir Bajraktarevic","e":"Bosnie-Herzégovine"},{"n":"Evan Ndicka","e":"Côte d'Ivoire"},{"n":"Evann Guessand","e":"Côte d'Ivoire"},{"n":"Evidence Makgopa","e":"Afrique du Sud"},{"n":"Exequiel Palacios","e":"Argentine"},{"n":"Ezri Konsa","e":"Angleterre"},{"n":"Fabian Balbuena","e":"Paraguay"},{"n":"Fabian Rieder","e":"Suisse"},{"n":"Fabian Ruiz","e":"Espagne"},{"n":"Fabinho","e":"Brésil"},{"n":"Facundo Medina","e":"Argentine"},{"n":"Facundo Pellistri","e":"Uruguay"},{"n":"Fahad Talib","e":"Irak"},{"n":"Fares Chaibi","e":"Algérie"},{"n":"Fares Ghedjemis","e":"Algérie"},{"n":"Farrukh Sayfiev","e":"Ouzbékistan"},{"n":"Federico Valverde","e":"Uruguay"},{"n":"Federico Vinas","e":"Uruguay"},{"n":"Felix Nmecha","e":"Allemagne"},{"n":"Felix Torres","e":"Équateur"},{"n":"Feras Al Brikan","e":"Arabie saoudite"},{"n":"Ferdi Kadioglu","e":"Türkiye"},{"n":"Fernando Muslera","e":"Uruguay"},{"n":"Ferran Torres","e":"Espagne"},{"n":"Fidel Escobar","e":"Panama"},{"n":"Findlay Curtis","e":"Écosse"},{"n":"Finn Surman","e":"Nouvelle-Zélande"},{"n":"Firas Chaouat","e":"Tunisie"},{"n":"Fiston Mayele","e":"Congo DR"},{"n":"Florian Grillitsch","e":"Autriche"},{"n":"Florian Wiegele","e":"Autriche"},{"n":"Florian Wirtz","e":"Allemagne"},{"n":"Folarin Balogun","e":"États-Unis"},{"n":"Francis De Vries","e":"Nouvelle-Zélande"},{"n":"Francisco Conceicao","e":"Portugal"},{"n":"Francisco Trincao","e":"Portugal"},{"n":"Franck Kessie","e":"Côte d'Ivoire"},{"n":"Frans Putros","e":"Irak"},{"n":"Frantzdy Pierrot","e":"Haïti"},{"n":"Fredrik Aursnes","e":"Norvège"},{"n":"Fredrik Bjorkan","e":"Norvège"},{"n":"Frenkie De Jong","e":"Pays-Bas"},{"n":"Gabriel Avalos","e":"Paraguay"},{"n":"Gabriel Gudmundsson","e":"Suède"},{"n":"Gabriel Magalhaes","e":"Brésil"},{"n":"Gabriel Martinelli","e":"Brésil"},{"n":"Gael Kakuta","e":"Congo DR"},{"n":"Garry Rodrigues","e":"Cap-Vert"},{"n":"Gaston Olveira","e":"Paraguay"},{"n":"Gavi","e":"Espagne"},{"n":"Gedeon Kalulu","e":"Congo DR"},{"n":"George Hirst","e":"Écosse"},{"n":"Geronimo Rulli","e":"Argentine"},{"n":"Gervane Kastaneer","e":"Curaçao"},{"n":"Ghislain Konan","e":"Côte d'Ivoire"},{"n":"Gideon Mensah","e":"Ghana"},{"n":"Gilberto Mora","e":"Mexique"},{"n":"Gilson Benchimol","e":"Cap-Vert"},{"n":"Gio Reyna","e":"États-Unis"},{"n":"Giorgian De Arrascaeta","e":"Uruguay"},{"n":"Giovani Lo Celso","e":"Argentine"},{"n":"Giuliano Simeone","e":"Argentine"},{"n":"Godfried Roemeratoe","e":"Curaçao"},{"n":"Goncalo Guedes","e":"Portugal"},{"n":"Goncalo Inacio","e":"Portugal"},{"n":"Goncalo Ramos","e":"Portugal"},{"n":"Gonzalo Montiel","e":"Argentine"},{"n":"Gonzalo Plata","e":"Équateur"},{"n":"Gonzalo Valle","e":"Équateur"},{"n":"Granit Xhaka","e":"Suisse"},{"n":"Grant Hanley","e":"Écosse"},{"n":"Gregor Kobel","e":"Suisse"},{"n":"Guela Doue","e":"Côte d'Ivoire"},{"n":"Guillermo Martinez","e":"Mexique"},{"n":"Guillermo Ochoa","e":"Mexique"},{"n":"Guillermo Varela","e":"Uruguay"},{"n":"Gustaf Lagerbielke","e":"Suède"},{"n":"Gustaf Nilsson","e":"Suède"},{"n":"Gustavo Caballero","e":"Paraguay"},{"n":"Gustavo Gomez","e":"Paraguay"},{"n":"Gustavo Puerta","e":"Colombie"},{"n":"Gustavo Velazquez","e":"Paraguay"},{"n":"Guus Til","e":"Pays-Bas"},{"n":"Habib Diarra","e":"Sénégal"},{"n":"Haitham Hassan","e":"Égypte"},{"n":"Haji Wright","e":"États-Unis"},{"n":"Hakan Calhanoglu","e":"Türkiye"},{"n":"Hamdi Fathi","e":"Égypte"},{"n":"Hamza Abdel Karim","e":"Égypte"},{"n":"Hannes Delcroix","e":"Haïti"},{"n":"Hannibal Mejbri","e":"Tunisie"},{"n":"Hans Vanaken","e":"Belgique"},{"n":"Haris Tabakovic","e":"Bosnie-Herzégovine"},{"n":"Harry Kane","e":"Angleterre"},{"n":"Harry Souttar","e":"Australie"},{"n":"Hassan Al Haydos","e":"Qatar"},{"n":"Hassan Kadesh","e":"Arabie saoudite"},{"n":"Hassan Tambakti","e":"Arabie saoudite"},{"n":"Hazem Mastouri","e":"Tunisie"},{"n":"Helio Varela","e":"Cap-Vert"},{"n":"Henrik Falchener","e":"Norvège"},{"n":"Hernan Galindez","e":"Équateur"},{"n":"Hicham Boudaoui","e":"Algérie"},{"n":"Hiroki Ito","e":"Japon"},{"n":"Hjalmar Ekdal","e":"Suède"},{"n":"Homam Al Amin","e":"Qatar"},{"n":"Hossam Abdelmaguid","e":"Égypte"},{"n":"Hossein Kanaani","e":"Iran"},{"n":"Houssem Aouar","e":"Algérie"},{"n":"Hugo Sochurek","e":"Tchéquie"},{"n":"Hussam Abu Dhahab","e":"Jordanie"},{"n":"Hussein Ali","e":"Irak"},{"n":"Hwang Heechan","e":"Corée du Sud"},{"n":"Hwang Inbeom","e":"Corée du Sud"},{"n":"Ibrahim Adel","e":"Égypte"},{"n":"Ibrahim Bayesh","e":"Irak"},{"n":"Ibrahim Maza","e":"Algérie"},{"n":"Ibrahim Mbaye","e":"Sénégal"},{"n":"Ibrahim Sabra","e":"Jordanie"},{"n":"Ibrahim Sadeh","e":"Jordanie"},{"n":"Ibrahim Sangare","e":"Côte d'Ivoire"},{"n":"Ibrahima Konate","e":"France"},{"n":"Idrissa Gana Gueye","e":"Sénégal"},{"n":"Igor Matanovic","e":"Croatie"},{"n":"Igor Sergeev","e":"Ouzbékistan"},{"n":"Igor Thiago","e":"Brésil"},{"n":"Iliman Ndiaye","e":"Sénégal"},{"n":"Ime Okon","e":"Afrique du Sud"},{"n":"Inaki Williams","e":"Ghana"},{"n":"Iqraam Rayners","e":"Afrique du Sud"},{"n":"Irfan Can Kahveci","e":"Türkiye"},{"n":"Isak Hien","e":"Suède"},{"n":"Isidro Pitta","e":"Paraguay"},{"n":"Ismael Diaz","e":"Panama"},{"n":"Ismael Gharbi","e":"Tunisie"},{"n":"Ismael Kone","e":"Canada"},{"n":"Ismael Saibari","e":"Maroc"},{"n":"Ismail Jakobs","e":"Sénégal"},{"n":"Ismail Yuksek","e":"Türkiye"},{"n":"Ismaila Sarr","e":"Sénégal"},{"n":"Israel Reyes","e":"Mexique"},{"n":"Issa Diop","e":"Maroc"},{"n":"Issa Laye","e":"Qatar"},{"n":"Ivan Basic","e":"Bosnie-Herzégovine"},{"n":"Ivan Perisic","e":"Croatie"},{"n":"Ivan Sunjic","e":"Bosnie-Herzégovine"},{"n":"Ivan Toney","e":"Angleterre"},{"n":"Ivor Pandur","e":"Croatie"},{"n":"Jack Hendry","e":"Écosse"},{"n":"Jackson Irvine","e":"Australie"},{"n":"Jackson Porozo","e":"Équateur"},{"n":"Jacob Italiano","e":"Australie"},{"n":"Jacob Shaffelburg","e":"Canada"},{"n":"Jacob Zetterstrom","e":"Suède"},{"n":"Jakhongir Urozov","e":"Ouzbékistan"},{"n":"Jalal Hassan","e":"Irak"},{"n":"Jaloliddin Masharipov","e":"Ouzbékistan"},{"n":"Jamal Musiala","e":"Allemagne"},{"n":"James Rodriguez","e":"Colombie"},{"n":"James Trafford","e":"Angleterre"},{"n":"Jamie Leweling","e":"Allemagne"},{"n":"Jaminton Campaz","e":"Colombie"},{"n":"Jamiro Monteiro","e":"Cap-Vert"},{"n":"Jamshid Iskanderov","e":"Ouzbékistan"},{"n":"Jan Kuchta","e":"Tchéquie"},{"n":"Jan Paul Van Hecke","e":"Pays-Bas"},{"n":"Jaouen Hadjam","e":"Algérie"},{"n":"Jarell Quansah","e":"Angleterre"},{"n":"Jaroslav Zeleny","e":"Tchéquie"},{"n":"Jason Geria","e":"Australie"},{"n":"Jassim Gaber","e":"Qatar"},{"n":"Jayden Adams","e":"Afrique du Sud"},{"n":"Jean Michael Seri","e":"Côte d'Ivoire"},{"n":"Jean-Kevin Duverne","e":"Haïti"},{"n":"Jean-Philippe Mateta","e":"France"},{"n":"Jean-Ricner Bellegarde","e":"Haïti"},{"n":"Jearl Margaritha","e":"Curaçao"},{"n":"Jefferson Lerma","e":"Colombie"},{"n":"Jehad Thakri","e":"Arabie saoudite"},{"n":"Jens Castrop","e":"Corée du Sud"},{"n":"Jens Petter Hauge","e":"Norvège"},{"n":"Jeremy Antonisse","e":"Curaçao"},{"n":"Jeremy Arevalo","e":"Équateur"},{"n":"Jeremy Doku","e":"Belgique"},{"n":"Jerome Opoku","e":"Ghana"},{"n":"Jesper Karlstrom","e":"Suède"},{"n":"Jesse Randall","e":"Nouvelle-Zélande"},{"n":"Jesus Gallardo","e":"Mexique"},{"n":"Jhon Arias","e":"Colombie"},{"n":"Jhon Cordoba","e":"Colombie"},{"n":"Jhon Lucumi","e":"Colombie"},{"n":"Jindrich Stanek","e":"Tchéquie"},{"n":"Jiovany Ramos","e":"Panama"},{"n":"Jo Hyeonwoo","e":"Corée du Sud"},{"n":"Joan Garcia","e":"Espagne"},{"n":"Joao Cancelo","e":"Portugal"},{"n":"Joao Felix","e":"Portugal"},{"n":"Joao Neves","e":"Portugal"},{"n":"Joao Paulo Fernandes","e":"Cap-Vert"},{"n":"Joaquin Piquerez","e":"Uruguay"},{"n":"Joaquin Seys","e":"Belgique"},{"n":"Joe Bell","e":"Nouvelle-Zélande"},{"n":"Joe Scally","e":"États-Unis"},{"n":"Joel Ordonez","e":"Équateur"},{"n":"Joel Waterman","e":"Canada"},{"n":"Johan Manzambi","e":"Suisse"},{"n":"Johan Mojica","e":"Colombie"},{"n":"Johan Vasquez","e":"Mexique"},{"n":"John McGinn","e":"Écosse"},{"n":"John Souttar","e":"Écosse"},{"n":"John Stones","e":"Angleterre"},{"n":"John Yeboah","e":"Équateur"},{"n":"Johny Placide","e":"Haïti"},{"n":"Jonas Adjetey","e":"Ghana"},{"n":"Jonathan David","e":"Canada"},{"n":"Jonathan Osorio","e":"Canada"},{"n":"Jonathan Tah","e":"Allemagne"},{"n":"Jordan Ayew","e":"Ghana"},{"n":"Jordan Bos","e":"Australie"},{"n":"Jordan Henderson","e":"Angleterre"},{"n":"Jordan Pickford","e":"Angleterre"},{"n":"Jordy Alcivar","e":"Équateur"},{"n":"Jordy Caicedo","e":"Équateur"},{"n":"Jorge Carrascal","e":"Colombie"},{"n":"Jorge Gutierrez","e":"Panama"},{"n":"Jorge Sanchez","e":"Mexique"},{"n":"Jorgen Strand Larsen","e":"Norvège"},{"n":"Joris Kayembe","e":"Congo DR"},{"n":"Jorrel Hato","e":"Pays-Bas"},{"n":"Jose Canale","e":"Paraguay"},{"n":"Jose Cordoba","e":"Panama"},{"n":"Jose Fajardo","e":"Panama"},{"n":"Jose Luis Rodriguez","e":"Panama"},{"n":"Jose Manuel Lopez","e":"Argentine"},{"n":"Jose Maria Gimenez","e":"Uruguay"},{"n":"Jose Sa","e":"Portugal"},{"n":"Joseph Anang","e":"Ghana"},{"n":"Joshua Brenet","e":"Curaçao"},{"n":"Joshua Kimmich","e":"Allemagne"},{"n":"Josip Stanisic","e":"Croatie"},{"n":"Josip Sutalo","e":"Croatie"},{"n":"Josko Gvardiol","e":"Croatie"},{"n":"Josue Casimir","e":"Haïti"},{"n":"Josue Duverger","e":"Haïti"},{"n":"Jovane Cabral","e":"Cap-Vert"},{"n":"Jovo Lukic","e":"Bosnie-Herzégovine"},{"n":"Juan Caceres","e":"Paraguay"},{"n":"Juan Camilo Hernandez","e":"Colombie"},{"n":"Juan Camilo Portilla","e":"Colombie"},{"n":"Juan Fernando Quintero","e":"Colombie"},{"n":"Juan Manuel Sanabria","e":"Uruguay"},{"n":"Juan Musso","e":"Argentine"},{"n":"Jude Bellingham","e":"Angleterre"},{"n":"Jules Kounde","e":"France"},{"n":"Julian Alvarez","e":"Argentine"},{"n":"Julian Quinones","e":"Mexique"},{"n":"Julian Ryerson","e":"Norvège"},{"n":"Julio Enciso","e":"Paraguay"},{"n":"Juninho Bacuna","e":"Curaçao"},{"n":"Junior Alonso","e":"Paraguay"},{"n":"Junnosuke Suzuki","e":"Japon"},{"n":"Junya Ito","e":"Japon"},{"n":"Jurgen Locadia","e":"Curaçao"},{"n":"Jurien Gaari","e":"Curaçao"},{"n":"Jurrien Timber","e":"Pays-Bas"},{"n":"Justin Kluivert","e":"Pays-Bas"},{"n":"Kaan Ayhan","e":"Türkiye"},{"n":"Kai Havertz","e":"Allemagne"},{"n":"Kai Trewin","e":"Australie"},{"n":"Kaishu Sano","e":"Japon"},{"n":"Kalidou Koulibaly","e":"Sénégal"},{"n":"Kamal Deen Sulemana","e":"Ghana"},{"n":"Kamogelo Sebelebele","e":"Afrique du Sud"},{"n":"Karim Boudiaf","e":"Qatar"},{"n":"Karim Hafez","e":"Égypte"},{"n":"Keeto Thermoncy","e":"Haïti"},{"n":"Keisuke Goto","e":"Japon"},{"n":"Keisuke Osako","e":"Japon"},{"n":"Keito Nakamura","e":"Japon"},{"n":"Kelvin Pires","e":"Cap-Vert"},{"n":"Ken Sema","e":"Suède"},{"n":"Kenan Yildiz","e":"Türkiye"},{"n":"Kendry Paez","e":"Équateur"},{"n":"Kenji Gorre","e":"Curaçao"},{"n":"Kenny McLean","e":"Écosse"},{"n":"Kento Shiogai","e":"Japon"},{"n":"Kerem Akturkoglu","e":"Türkiye"},{"n":"Kerim Alajbegovic","e":"Bosnie-Herzégovine"},{"n":"Kevin Castano","e":"Colombie"},{"n":"Kevin Danso","e":"Autriche"},{"n":"Kevin De Bruyne","e":"Belgique"},{"n":"Kevin Felida","e":"Curaçao"},{"n":"Kevin Pina","e":"Cap-Vert"},{"n":"Kevin Rodriguez","e":"Équateur"},{"n":"Kevin Yakob","e":"Irak"},{"n":"Khalid Al Ghannam","e":"Arabie saoudite"},{"n":"Khalil Ayari","e":"Tunisie"},{"n":"Khojiakbar Alijonov","e":"Ouzbékistan"},{"n":"Khuliso Mudau","e":"Afrique du Sud"},{"n":"Khulumani Ndamane","e":"Afrique du Sud"},{"n":"Kieran Tierney","e":"Écosse"},{"n":"Kim Jingyu","e":"Corée du Sud"},{"n":"Kim Minjae","e":"Corée du Sud"},{"n":"Kim Moonhwan","e":"Corée du Sud"},{"n":"Kim Seung-gyu","e":"Corée du Sud"},{"n":"Kim Taehyeon","e":"Corée du Sud"},{"n":"Ko Itakura","e":"Japon"},{"n":"Kobbie Mainoo","e":"Angleterre"},{"n":"Kojo Oppong Preprah","e":"Ghana"},{"n":"Koki Ogawa","e":"Japon"},{"n":"Koni De Winter","e":"Belgique"},{"n":"Konrad Laimer","e":"Autriche"},{"n":"Kosta Barbarouses","e":"Nouvelle-Zélande"},{"n":"Krepin Diatta","e":"Sénégal"},{"n":"Kristian Thorstvedt","e":"Norvège"},{"n":"Kristijan Jakic","e":"Croatie"},{"n":"Kristoffer Ajer","e":"Norvège"},{"n":"Kristoffer Nordfeldt","e":"Suède"},{"n":"Kwasi Sibo","e":"Ghana"},{"n":"Kylian Mbappe","e":"France"},{"n":"Lachlan Bayliss","e":"Nouvelle-Zélande"},{"n":"Ladislav Krejci","e":"Tchéquie"},{"n":"Lamine Camara","e":"Sénégal"},{"n":"Lamine Yamal","e":"Espagne"},{"n":"Laros Duarte","e":"Cap-Vert"},{"n":"Lautaro Martinez","e":"Argentine"},{"n":"Lawrence Ati-Zigi","e":"Ghana"},{"n":"Lawrence Shankland","e":"Écosse"},{"n":"Leandro Bacuna","e":"Curaçao"},{"n":"Leandro Paredes","e":"Argentine"},{"n":"Leandro Trossard","e":"Belgique"},{"n":"Lee Donggyeong","e":"Corée du Sud"},{"n":"Lee Hanbeom","e":"Corée du Sud"},{"n":"Lee Jaesung","e":"Corée du Sud"},{"n":"Lee Kangin","e":"Corée du Sud"},{"n":"Lee Kihyuk","e":"Corée du Sud"},{"n":"Lee Taeseok","e":"Corée du Sud"},{"n":"Lennart Karl","e":"Allemagne"},{"n":"Lenny Joseph","e":"Haïti"},{"n":"Leo Ostigard","e":"Norvège"},{"n":"Leo Pereira","e":"Brésil"},{"n":"Leon Goretzka","e":"Allemagne"},{"n":"Leonardo Balerdi","e":"Argentine"},{"n":"Leroy Sane","e":"Allemagne"},{"n":"Leverton Pierre","e":"Haïti"},{"n":"Lewis Ferguson","e":"Écosse"},{"n":"Liam Kelly","e":"Écosse"},{"n":"Liam Millar","e":"Canada"},{"n":"Liberato Cacace","e":"Nouvelle-Zélande"},{"n":"Lionel Messi","e":"Argentine"},{"n":"Lionel Mpasi","e":"Congo DR"},{"n":"Lisandro Martinez","e":"Argentine"},{"n":"Livano Comenencia","e":"Curaçao"},{"n":"Logan Costa","e":"Cap-Vert"},{"n":"Louicius Deedson","e":"Haïti"},{"n":"Luc de Fougerolles","e":"Canada"},{"n":"Luca Jaquez","e":"Suisse"},{"n":"Luca Zidane","e":"Algérie"},{"n":"Lucas Bergvall","e":"Suède"},{"n":"Lucas Digne","e":"France"},{"n":"Lucas Hernandez","e":"France"},{"n":"Lucas Herrington","e":"Australie"},{"n":"Lucas Mendes","e":"Qatar"},{"n":"Lucas Paqueta","e":"Brésil"},{"n":"Luis Chavez","e":"Mexique"},{"n":"Luis Diaz","e":"Colombie"},{"n":"Luis Mejia","e":"Panama"},{"n":"Luis Romo","e":"Mexique"},{"n":"Luis Suarez","e":"Colombie"},{"n":"Luiz Henrique","e":"Brésil"},{"n":"Luka Modric","e":"Croatie"},{"n":"Luka Sucic","e":"Croatie"},{"n":"Luka Vuskovic","e":"Croatie"},{"n":"Lukas Cerv","e":"Tchéquie"},{"n":"Lukas Hornicek","e":"Tchéquie"},{"n":"Lukas Provod","e":"Tchéquie"},{"n":"Lyle Foster","e":"Afrique du Sud"},{"n":"Lyndon Dykes","e":"Écosse"},{"n":"Maghnes Akliouche","e":"France"},{"n":"Mahmoud Abunada","e":"Qatar"},{"n":"Mahmoud Mardahi","e":"Jordanie"},{"n":"Mahmoud Saber","e":"Égypte"},{"n":"Mahmoud Trezeguet","e":"Égypte"},{"n":"Malick Thiaw","e":"Allemagne"},{"n":"Malik Tillman","e":"États-Unis"},{"n":"Malo Gusto","e":"France"},{"n":"Mamadou Sarr","e":"Sénégal"},{"n":"Manaf Younis","e":"Irak"},{"n":"Manu Kone","e":"France"},{"n":"Manuel Akanji","e":"Suisse"},{"n":"Manuel Neuer","e":"Allemagne"},{"n":"Manuel Ugarte","e":"Uruguay"},{"n":"Marc Cucurella","e":"Espagne"},{"n":"Marc Guehi","e":"Angleterre"},{"n":"Marc Pubill","e":"Espagne"},{"n":"Marcel Sabitzer","e":"Autriche"},{"n":"Marcelo Flores","e":"Canada"},{"n":"Marcio Rosa","e":"Cap-Vert"},{"n":"Marco Friedl","e":"Autriche"},{"n":"Marco Pasalic","e":"Croatie"},{"n":"Marcos Llorente","e":"Espagne"},{"n":"Marcus Holmgren Pedersen","e":"Norvège"},{"n":"Marcus Rashford","e":"Angleterre"},{"n":"Marcus Thuram","e":"France"},{"n":"Marin Pongracic","e":"Croatie"},{"n":"Mario Pasalic","e":"Croatie"},{"n":"Mark Flekken","e":"Pays-Bas"},{"n":"Mark McKenzie","e":"États-Unis"},{"n":"Marko Arnautovic","e":"Autriche"},{"n":"Marko Farji","e":"Irak"},{"n":"Marko Stamenic","e":"Nouvelle-Zélande"},{"n":"Marquinhos","e":"Brésil"},{"n":"Marten De Roon","e":"Pays-Bas"},{"n":"Martin Baturina","e":"Croatie"},{"n":"Martin Erlic","e":"Croatie"},{"n":"Martin Experience","e":"Haïti"},{"n":"Martin Odegaard","e":"Norvège"},{"n":"Martin Zlomislic","e":"Bosnie-Herzégovine"},{"n":"Martin Zubimendi","e":"Espagne"},{"n":"Marvin Keller","e":"Suisse"},{"n":"Marvin Senaya","e":"Ghana"},{"n":"Marwan Attia","e":"Égypte"},{"n":"Matej Kovar","e":"Tchéquie"},{"n":"Mateo Chavez","e":"Mexique"},{"n":"Mateo Kovacic","e":"Croatie"},{"n":"Matheus Cunha","e":"Brésil"},{"n":"Matheus Nunes","e":"Portugal"},{"n":"Mathew Leckie","e":"Australie"},{"n":"Mathew Ryan","e":"Australie"},{"n":"Mathias Olivera","e":"Uruguay"},{"n":"Mathieu Choiniere","e":"Canada"},{"n":"Matias Fernandez-Pardo","e":"Belgique"},{"n":"Matias Galarza","e":"Paraguay"},{"n":"Matias Vina","e":"Uruguay"},{"n":"Mats Wieffer","e":"Pays-Bas"},{"n":"Matt Freese","e":"États-Unis"},{"n":"Matt Garbett","e":"Nouvelle-Zélande"},{"n":"Matt Turner","e":"États-Unis"},{"n":"Matthieu Epolo","e":"Congo DR"},{"n":"Mattias Svanberg","e":"Suède"},{"n":"Mauricio Magalhaes","e":"Paraguay"},{"n":"Max Arfsten","e":"États-Unis"},{"n":"Max Crocombe","e":"Nouvelle-Zélande"},{"n":"Maxence Lacroix","e":"France"},{"n":"Maxim De Cuyper","e":"Belgique"},{"n":"Maxime Crepeau","e":"Canada"},{"n":"Maximilian Beier","e":"Allemagne"},{"n":"Maximiliano Araujo","e":"Uruguay"},{"n":"Mbekezeli Mbokazi","e":"Afrique du Sud"},{"n":"Mehdi Ghaedi","e":"Iran"},{"n":"Mehdi Taremi","e":"Iran"},{"n":"Mehdi Torabi","e":"Iran"},{"n":"Melvin Masstil","e":"Algérie"},{"n":"Memphis Depay","e":"Pays-Bas"},{"n":"Merchas Doski","e":"Irak"},{"n":"Merih Demiral","e":"Türkiye"},{"n":"Mert Gunok","e":"Türkiye"},{"n":"Mert Muldur","e":"Türkiye"},{"n":"Meshaal Barsham","e":"Qatar"},{"n":"Meshack Elia","e":"Congo DR"},{"n":"Michael Boxall","e":"Nouvelle-Zélande"},{"n":"Michael Gregoritsch","e":"Autriche"},{"n":"Michael Olise","e":"France"},{"n":"Michael Svoboda","e":"Autriche"},{"n":"Michael Woud","e":"Nouvelle-Zélande"},{"n":"Michal Sadilek","e":"Tchéquie"},{"n":"Michel Aebischer","e":"Suisse"},{"n":"Micky Van De Ven","e":"Pays-Bas"},{"n":"Miguel Almiron","e":"Paraguay"},{"n":"Mike Maignan","e":"France"},{"n":"Mike Penders","e":"Belgique"},{"n":"Mikel Merino","e":"Espagne"},{"n":"Mikel Oyarzabal","e":"Espagne"},{"n":"Milad Mohammadi","e":"Iran"},{"n":"Miles Robinson","e":"États-Unis"},{"n":"Milos Degenek","e":"Australie"},{"n":"Miro Muheim","e":"Suisse"},{"n":"Mohamed Abdelmonem","e":"Égypte"},{"n":"Mohamed Al Owais","e":"Arabie saoudite"},{"n":"Mohamed Alaa","e":"Égypte"},{"n":"Mohamed Amine Amoura","e":"Algérie"},{"n":"Mohamed Amine Ben Hamida","e":"Tunisie"},{"n":"Mohamed Amine Tougai","e":"Algérie"},{"n":"Mohamed El Shenawy","e":"Égypte"},{"n":"Mohamed Hadj Mahmoud","e":"Tunisie"},{"n":"Mohamed Hany","e":"Égypte"},{"n":"Mohamed Kanno","e":"Arabie saoudite"},{"n":"Mohamed Kone","e":"Côte d'Ivoire"},{"n":"Mohamed Salah","e":"Égypte"},{"n":"Mohamed Toure","e":"Australie"},{"n":"Mohammad Abu Alnadi","e":"Jordanie"},{"n":"Mohammad Abu Hashish","e":"Jordanie"},{"n":"Mohammad Abu Zraiq","e":"Jordanie"},{"n":"Mohammad Al Dawoud","e":"Jordanie"},{"n":"Mohammad Ghorbani","e":"Iran"},{"n":"Mohammad Mohebi","e":"Iran"},{"n":"Mohammed Abu Alshamat","e":"Arabie saoudite"},{"n":"Mohammed Mannai","e":"Qatar"},{"n":"Mohammed Muntari","e":"Qatar"},{"n":"Mohanad Ali","e":"Irak"},{"n":"Mohannad Abu Taha","e":"Jordanie"},{"n":"Mohannad Lasheen","e":"Égypte"},{"n":"Moise Bombito","e":"Canada"},{"n":"Moises Caicedo","e":"Équateur"},{"n":"Moises Ramirez","e":"Équateur"},{"n":"Mojmir Chytil","e":"Tchéquie"},{"n":"Montassar Talbi","e":"Tunisie"},{"n":"Morgan Rogers","e":"Angleterre"},{"n":"Mortadha Ben Ouanes","e":"Tunisie"},{"n":"Morten Thorsby","e":"Norvège"},{"n":"Mory Diaw","e":"Sénégal"},{"n":"Mostafa Abdel Raouf","e":"Égypte"},{"n":"Mostafa Shobeir","e":"Égypte"},{"n":"Moteb Al Harbi","e":"Arabie saoudite"},{"n":"Mousa Al Tamari","e":"Jordanie"},{"n":"Moussa Niakhate","e":"Sénégal"},{"n":"Moutaz Neffati","e":"Tunisie"},{"n":"Munir El Kajoui","e":"Maroc"},{"n":"Musab Al Juwayr","e":"Arabie saoudite"},{"n":"Mustafa Saadoon","e":"Irak"},{"n":"N'Golo Kante","e":"France"},{"n":"Nabil Bentaleb","e":"Algérie"},{"n":"Nabil Emad","e":"Égypte"},{"n":"Nadiem Amiri","e":"Allemagne"},{"n":"Nadir Benbouali","e":"Algérie"},{"n":"Nahuel Molina","e":"Argentine"},{"n":"Nando Pijnaker","e":"Nouvelle-Zélande"},{"n":"Nasser Al Dawsari","e":"Arabie saoudite"},{"n":"Nathan Ake","e":"Pays-Bas"},{"n":"Nathan Ngoy","e":"Belgique"},{"n":"Nathan Patterson","e":"Écosse"},{"n":"Nathan Saliba","e":"Canada"},{"n":"Nathanael Mbuku","e":"Congo DR"},{"n":"Nathaniel Brown","e":"Allemagne"},{"n":"Nawaf Al Aqidi","e":"Arabie saoudite"},{"n":"Nawaf Boushal","e":"Arabie saoudite"},{"n":"Nayef Aguerd","e":"Maroc"},{"n":"Neil El Aynaoui","e":"Maroc"},{"n":"Nelson Semedo","e":"Portugal"},{"n":"Nestory Irankunda","e":"Australie"},{"n":"Neymar Jr","e":"Brésil"},{"n":"Ngal'ayel Mukau","e":"Congo DR"},{"n":"Nick Woltemade","e":"Allemagne"},{"n":"Nico Elvedi","e":"Suisse"},{"n":"Nico O'Reilly","e":"Angleterre"},{"n":"Nico Schlotterbeck","e":"Allemagne"},{"n":"Nico Williams","e":"Espagne"},{"n":"Nicolas De La Cruz","e":"Uruguay"},{"n":"Nicolas Gonzalez","e":"Argentine"},{"n":"Nicolas Jackson","e":"Sénégal"},{"n":"Nicolas Otamendi","e":"Argentine"},{"n":"Nicolas Paz","e":"Argentine"},{"n":"Nicolas Pepe","e":"Côte d'Ivoire"},{"n":"Nicolas Raskin","e":"Belgique"},{"n":"Nicolas Seiwald","e":"Autriche"},{"n":"Nicolas Tagliafico","e":"Argentine"},{"n":"Nidal Celik","e":"Bosnie-Herzégovine"},{"n":"Nihad Mujakic","e":"Bosnie-Herzégovine"},{"n":"Niko Sigur","e":"Canada"},{"n":"Nikola Katic","e":"Bosnie-Herzégovine"},{"n":"Nikola Moro","e":"Croatie"},{"n":"Nikola Vasilj","e":"Bosnie-Herzégovine"},{"n":"Nikola Vlasic","e":"Croatie"},{"n":"Nilson Angulo","e":"Équateur"},{"n":"Nishan Velupillay","e":"Australie"},{"n":"Nizar Al Rashdan","e":"Jordanie"},{"n":"Nkosinathi Sibisi","e":"Afrique du Sud"},{"n":"Noa Lang","e":"Pays-Bas"},{"n":"Noah Okafor","e":"Suisse"},{"n":"Noah Sadiki","e":"Congo DR"},{"n":"Noni Madueke","e":"Angleterre"},{"n":"Noor Al Rawabdeh","e":"Jordanie"},{"n":"Noor Bani Attiah","e":"Jordanie"},{"n":"Noussair Mazraoui","e":"Maroc"},{"n":"Nuno Da Costa","e":"Cap-Vert"},{"n":"Nuno Mendes","e":"Portugal"},{"n":"Obed Vargas","e":"Mexique"},{"n":"Odeh Fakhoury","e":"Jordanie"},{"n":"Odiljon Hamrobekov","e":"Ouzbékistan"},{"n":"Odilon Kossounou","e":"Côte d'Ivoire"},{"n":"Oguz Aydin","e":"Türkiye"},{"n":"Oh Hyeongyu","e":"Corée du Sud"},{"n":"Oliver Baumann","e":"Allemagne"},{"n":"Ollie Watkins","e":"Angleterre"},{"n":"Olwethu Makhanya","e":"Afrique du Sud"},{"n":"Omar Alderete","e":"Paraguay"},{"n":"Omar Marmoush","e":"Égypte"},{"n":"Omar Rekik","e":"Tunisie"},{"n":"Orbelin Pineda","e":"Mexique"},{"n":"Orjan Nyland","e":"Norvège"},{"n":"Orkun Kokcu","e":"Türkiye"},{"n":"Orlando Gill","e":"Paraguay"},{"n":"Orlando Mosquera","e":"Panama"},{"n":"Oscar Bobb","e":"Norvège"},{"n":"Osman Hadzikic","e":"Bosnie-Herzégovine"},{"n":"Oston Urunov","e":"Ouzbékistan"},{"n":"Oswin Appollis","e":"Afrique du Sud"},{"n":"Otabek Shukurov","e":"Ouzbékistan"},{"n":"Oumar Diakite","e":"Côte d'Ivoire"},{"n":"Ousmane Dembele","e":"France"},{"n":"Ousmane Diomande","e":"Côte d'Ivoire"},{"n":"Oussama Benbot","e":"Algérie"},{"n":"Owen Goodman","e":"Canada"},{"n":"Ozan Kabak","e":"Türkiye"},{"n":"Paik Seungho","e":"Corée du Sud"},{"n":"Pape Gueye","e":"Sénégal"},{"n":"Pape Matar Sarr","e":"Sénégal"},{"n":"Parfait Guiagon","e":"Côte d'Ivoire"},{"n":"Park Jinseob","e":"Corée du Sud"},{"n":"Pascal Gross","e":"Allemagne"},{"n":"Pathe Ciss","e":"Sénégal"},{"n":"Patrick Beach","e":"Australie"},{"n":"Patrick Berg","e":"Norvège"},{"n":"Patrick Pentz","e":"Autriche"},{"n":"Patrick Wimmer","e":"Autriche"},{"n":"Patrik Schick","e":"Tchéquie"},{"n":"Pau Cubarsi","e":"Espagne"},{"n":"Paul Izzo","e":"Australie"},{"n":"Paul Okon-Engstler","e":"Australie"},{"n":"Paul Wanner","e":"Autriche"},{"n":"Pavel Sulc","e":"Tchéquie"},{"n":"Payam Niazmand","e":"Iran"},{"n":"Pedri","e":"Espagne"},{"n":"Pedro Miguel","e":"Qatar"},{"n":"Pedro Neto","e":"Portugal"},{"n":"Pedro Porro","e":"Espagne"},{"n":"Pedro Vite","e":"Équateur"},{"n":"Pervis Estupinan","e":"Équateur"},{"n":"Petar Musa","e":"Croatie"},{"n":"Petar Sucic","e":"Croatie"},{"n":"Philipp Lienhart","e":"Autriche"},{"n":"Phillipp Mwene","e":"Autriche"},{"n":"Piero Hincapie","e":"Équateur"},{"n":"Prince Kwabena Adu","e":"Ghana"},{"n":"Promise David","e":"Canada"},{"n":"Quinten Timber","e":"Pays-Bas"},{"n":"Raed Chikhaoui","e":"Tunisie"},{"n":"Rafael Leao","e":"Portugal"},{"n":"Rafik Belghali","e":"Algérie"},{"n":"Rajaei Ayed","e":"Jordanie"},{"n":"Rami Rabia","e":"Égypte"},{"n":"Ramin Rezaeian","e":"Iran"},{"n":"Ramiz Zerrouki","e":"Algérie"},{"n":"Ramon Sosa","e":"Paraguay"},{"n":"Ramy Bensebaini","e":"Algérie"},{"n":"Rani Khedira","e":"Tunisie"},{"n":"Raphinha","e":"Brésil"},{"n":"Raul Jimenez","e":"Mexique"},{"n":"Raul Rangel","e":"Mexique"},{"n":"Rayan","e":"Brésil"},{"n":"Rayan Ait-Nouri","e":"Algérie"},{"n":"Rayan Cherki","e":"France"},{"n":"Rayan Elloumi","e":"Tunisie"},{"n":"Rebin Sulaka","e":"Irak"},{"n":"Redouane Halhal","e":"Maroc"},{"n":"Reece James","e":"Angleterre"},{"n":"Relebohile Mofokeng","e":"Afrique du Sud"},{"n":"Remo Freuler","e":"Suisse"},{"n":"Renato Veiga","e":"Portugal"},{"n":"Ricardo Ade","e":"Haïti"},{"n":"Ricardo Goss","e":"Afrique du Sud"},{"n":"Ricardo Pepi","e":"États-Unis"},{"n":"Ricardo Rodriguez","e":"Suisse"},{"n":"Richard Rios","e":"Colombie"},{"n":"Richie Laryea","e":"Canada"},{"n":"Riechedly Bazoer","e":"Curaçao"},{"n":"Ritsu Doan","e":"Japon"},{"n":"Riyad Mahrez","e":"Algérie"},{"n":"Roberto Alvarado","e":"Mexique"},{"n":"Roberto Fernandez","e":"Paraguay"},{"n":"Roberto Pico Lopes","e":"Cap-Vert"},{"n":"Robin Hranac","e":"Tchéquie"},{"n":"Robin Risser","e":"France"},{"n":"Robin Roefs","e":"Pays-Bas"},{"n":"Roderick Miller","e":"Panama"},{"n":"Rodri","e":"Espagne"},{"n":"Rodrigo Aguirre","e":"Uruguay"},{"n":"Rodrigo Bentancur","e":"Uruguay"},{"n":"Rodrigo De Paul","e":"Argentine"},{"n":"Rodrigo Zalazar","e":"Uruguay"},{"n":"Roger Ibanez","e":"Brésil"},{"n":"Romano Schmid","e":"Autriche"},{"n":"Romelu Lukaku","e":"Belgique"},{"n":"Ronald Araujo","e":"Uruguay"},{"n":"Ronwen Williams","e":"Afrique du Sud"},{"n":"Roshon Van Eijma","e":"Curaçao"},{"n":"Ross Stewart","e":"Écosse"},{"n":"Rouzbeh Cheshmi","e":"Iran"},{"n":"Ruben Dias","e":"Portugal"},{"n":"Ruben Neves","e":"Portugal"},{"n":"Ruben Providence","e":"Haïti"},{"n":"Ruben Vargas","e":"Suisse"},{"n":"Rui Silva","e":"Portugal"},{"n":"Rustamjon Ashurmatov","e":"Ouzbékistan"},{"n":"Ryan Christie","e":"Écosse"},{"n":"Ryan Gravenberch","e":"Pays-Bas"},{"n":"Ryan Mendes","e":"Cap-Vert"},{"n":"Ryan Thomas","e":"Nouvelle-Zélande"},{"n":"Sabri Ben Hessen","e":"Tunisie"},{"n":"Sadio Mane","e":"Sénégal"},{"n":"Saed Al Rosan","e":"Jordanie"},{"n":"Saeid Ezatolahi","e":"Iran"},{"n":"Salah Zakaria","e":"Qatar"},{"n":"Saleh Al Shehri","e":"Arabie saoudite"},{"n":"Saleh Hardani","e":"Iran"},{"n":"Salem Al Dawsari","e":"Arabie saoudite"},{"n":"Salem Obaid","e":"Jordanie"},{"n":"Salih Ozcan","e":"Türkiye"},{"n":"Saman Ghoddos","e":"Iran"},{"n":"Samed Bazdar","e":"Bosnie-Herzégovine"},{"n":"Samet Akaydin","e":"Türkiye"},{"n":"Samir Chergui","e":"Algérie"},{"n":"Samir El Mourabet","e":"Maroc"},{"n":"Samuel Costa","e":"Portugal"},{"n":"Samuel Moutoussamy","e":"Congo DR"},{"n":"Samukele Kabini","e":"Afrique du Sud"},{"n":"Sander Berge","e":"Norvège"},{"n":"Sander Tangvik","e":"Norvège"},{"n":"Santiago Arias","e":"Colombie"},{"n":"Santiago Bueno","e":"Uruguay"},{"n":"Santiago Gimenez","e":"Mexique"},{"n":"Santiago Mele","e":"Uruguay"},{"n":"Sarpreet Singh","e":"Nouvelle-Zélande"},{"n":"Sasa Kalajdzic","e":"Autriche"},{"n":"Saud Abdulhamid","e":"Arabie saoudite"},{"n":"Scott McKenna","e":"Écosse"},{"n":"Scott McTominay","e":"Écosse"},{"n":"Sead Kolasinac","e":"Bosnie-Herzégovine"},{"n":"Sebastian Berhalter","e":"États-Unis"},{"n":"Sebastian Caceres","e":"Uruguay"},{"n":"Sebastian Tounekti","e":"Tunisie"},{"n":"Seko Fofana","e":"Côte d'Ivoire"},{"n":"Senne Lammens","e":"Belgique"},{"n":"Seol Youngwoo","e":"Corée du Sud"},{"n":"Sergino Dest","e":"États-Unis"},{"n":"Sergio Rochet","e":"Uruguay"},{"n":"Seyed Hossein Hosseini","e":"Iran"},{"n":"Shahriar Moghanlou","e":"Iran"},{"n":"Sherel Floranus","e":"Curaçao"},{"n":"Sherzod Esanov","e":"Ouzbékistan"},{"n":"Sherzod Nasrullaev","e":"Ouzbékistan"},{"n":"Shogo Taniguchi","e":"Japon"},{"n":"Shoja Khalilzadeh","e":"Iran"},{"n":"Shurandy Sambo","e":"Curaçao"},{"n":"Sidny Cabral","e":"Cap-Vert"},{"n":"Silvan Widmer","e":"Suisse"},{"n":"Simon Adingra","e":"Côte d'Ivoire"},{"n":"Simon Banza","e":"Congo DR"},{"n":"Sipho Chaine","e":"Afrique du Sud"},{"n":"Sofyan Amrabat","e":"Maroc"},{"n":"Son Heungmin","e":"Corée du Sud"},{"n":"Sondre Langas","e":"Norvège"},{"n":"Song Bumkeun","e":"Corée du Sud"},{"n":"Sontje Hansen","e":"Curaçao"},{"n":"Soufiane Rahimi","e":"Maroc"},{"n":"Sphephelo Sithole","e":"Afrique du Sud"},{"n":"Stefan Posch","e":"Autriche"},{"n":"Stepan Chaloupek","e":"Tchéquie"},{"n":"Stephen Eustaquio","e":"Canada"},{"n":"Steve Kapuadi","e":"Congo DR"},{"n":"Steven Moreira","e":"Cap-Vert"},{"n":"Stjepan Radeljic","e":"Bosnie-Herzégovine"},{"n":"Stopira","e":"Cap-Vert"},{"n":"Sultan Al Brake","e":"Qatar"},{"n":"Sultan Mandash","e":"Arabie saoudite"},{"n":"Taha Ali","e":"Suède"},{"n":"Tahith Chong","e":"Curaçao"},{"n":"Tahsin Mohammed","e":"Qatar"},{"n":"Tajon Buchanan","e":"Canada"},{"n":"Takefusa Kubo","e":"Japon"},{"n":"Takehiro Tomiyasu","e":"Japon"},{"n":"Tani Oluwaseyi","e":"Canada"},{"n":"Tarek Alaa","e":"Égypte"},{"n":"Tarik Muharemovic","e":"Bosnie-Herzégovine"},{"n":"Teboho Mokoena","e":"Afrique du Sud"},{"n":"Telmo Arcanjo","e":"Cap-Vert"},{"n":"Tete Yengi","e":"Australie"},{"n":"Teun Koopmeiners","e":"Pays-Bas"},{"n":"Thabang Matuludi","e":"Afrique du Sud"},{"n":"Thalente Mbatha","e":"Afrique du Sud"},{"n":"Thapelo Maseko","e":"Afrique du Sud"},{"n":"Thelonious Aasgaard","e":"Norvège"},{"n":"Themba Zwane","e":"Afrique du Sud"},{"n":"Theo Bongonda","e":"Congo DR"},{"n":"Theo Hernandez","e":"France"},{"n":"Thiago Almada","e":"Argentine"},{"n":"Thibaut Courtois","e":"Belgique"},{"n":"Thomas Meunier","e":"Belgique"},{"n":"Thomas Partey","e":"Ghana"},{"n":"Tijjani Reijnders","e":"Pays-Bas"},{"n":"Tim Payne","e":"Nouvelle-Zélande"},{"n":"Tim Ream","e":"États-Unis"},{"n":"Tim Weah","e":"États-Unis"},{"n":"Timothy Castagne","e":"Belgique"},{"n":"Timothy Fayulu","e":"Congo DR"},{"n":"Tino Livramento","e":"Angleterre"},{"n":"Tomas Araujo","e":"Portugal"},{"n":"Tomas Chory","e":"Tchéquie"},{"n":"Tomas Holes","e":"Tchéquie"},{"n":"Tomas Rodriguez","e":"Panama"},{"n":"Tomas Soucek","e":"Tchéquie"},{"n":"Tommy Smith","e":"Nouvelle-Zélande"},{"n":"Tomoki Hayakawa","e":"Japon"},{"n":"Toni Fruk","e":"Croatie"},{"n":"Torbjorn Heggem","e":"Norvège"},{"n":"Trevor Doornbusch","e":"Curaçao"},{"n":"Tshepang Moremi","e":"Afrique du Sud"},{"n":"Tsuyoshi Watanabe","e":"Japon"},{"n":"Tyler Adams","e":"États-Unis"},{"n":"Tyler Bindon","e":"Nouvelle-Zélande"},{"n":"Tyler Fletcher","e":"Écosse"},{"n":"Tyrese Noslin","e":"Curaçao"},{"n":"Tyrick Bodack","e":"Curaçao"},{"n":"Ugurcan Cakir","e":"Türkiye"},{"n":"Umarbek Eshmuradov","e":"Ouzbékistan"},{"n":"Unai Simon","e":"Espagne"},{"n":"Utkir Yusupov","e":"Ouzbékistan"},{"n":"Valentin Barco","e":"Argentine"},{"n":"Victor Lindelof","e":"Suède"},{"n":"Victor Munoz","e":"Espagne"},{"n":"Viktor Gyokeres","e":"Suède"},{"n":"Viktor Johansson","e":"Suède"},{"n":"Vinicius Junior","e":"Brésil"},{"n":"Virgil Van Dijk","e":"Pays-Bas"},{"n":"Vitinha","e":"Portugal"},{"n":"Vladimir Coufal","e":"Tchéquie"},{"n":"Vladimir Darida","e":"Tchéquie"},{"n":"Vozinha","e":"Cap-Vert"},{"n":"Wagner Pina","e":"Cap-Vert"},{"n":"Waldemar Anton","e":"Allemagne"},{"n":"Warren Zaire-Emery","e":"France"},{"n":"Wataru Endo","e":"Japon"},{"n":"Wesley","e":"Brésil"},{"n":"Weston McKennie","e":"États-Unis"},{"n":"Weverton","e":"Brésil"},{"n":"Wilfried Singo","e":"Côte d'Ivoire"},{"n":"Wilguens Paugain","e":"Haïti"},{"n":"Willer Ditta","e":"Colombie"},{"n":"William Saliba","e":"France"},{"n":"Willian Pacho","e":"Équateur"},{"n":"Willy Semedo","e":"Cap-Vert"},{"n":"Wilson Isidor","e":"Haïti"},{"n":"Woodensky Pierre","e":"Haïti"},{"n":"Wout Weghorst","e":"Pays-Bas"},{"n":"Xaver Schlager","e":"Autriche"},{"n":"Yahia Fofana","e":"Côte d'Ivoire"},{"n":"Yaimar Medina","e":"Équateur"},{"n":"Yan Diomande","e":"Côte d'Ivoire"},{"n":"Yan Valery","e":"Tunisie"},{"n":"Yang Hyunjun","e":"Corée du Sud"},{"n":"Yannick Semedo","e":"Cap-Vert"},{"n":"Yasin Ayari","e":"Suède"},{"n":"Yasser Ibrahim","e":"Égypte"},{"n":"Yassin Fortune","e":"Haïti"},{"n":"Yassine Bounou","e":"Maroc"},{"n":"Yassine Gessim","e":"Maroc"},{"n":"Yassine Titraoui","e":"Algérie"},{"n":"Yazan Al Arab","e":"Jordanie"},{"n":"Yazid Abulaila","e":"Jordanie"},{"n":"Yehvann Diouf","e":"Sénégal"},{"n":"Yeremy Pino","e":"Espagne"},{"n":"Yerry Mina","e":"Colombie"},{"n":"Yoane Wissa","e":"Congo DR"},{"n":"Yoel Barcenas","e":"Panama"},{"n":"Youri Tielemans","e":"Belgique"},{"n":"Youssef Amyn","e":"Irak"},{"n":"Youssef Bellammari","e":"Maroc"},{"n":"Yuito Suzuki","e":"Japon"},{"n":"Yukinari Sugawara","e":"Japon"},{"n":"Yunus Akgun","e":"Türkiye"},{"n":"Yusuf Abdurisag","e":"Qatar"},{"n":"Yuto Nagatomo","e":"Japon"},{"n":"Yvon Mvogo","e":"Suisse"},{"n":"Zaid Ismail","e":"Irak"},{"n":"Zaid Tahseen","e":"Irak"},{"n":"Zakaria El Ouahdi","e":"Maroc"},{"n":"Zeki Amdouni","e":"Suisse"},{"n":"Zeki Celik","e":"Türkiye"},{"n":"Zeno Debast","e":"Belgique"},{"n":"Zidane Iqbal","e":"Irak"},{"n":"Zinedine Belaid","e":"Algérie"},{"n":"Zion Suzuki","e":"Japon"},{"n":"Ziyad Al Johani","e":"Arabie saoudite"}];
 // Remapper les clés courtes vers les noms complets
 JOUEURS_FLAT.forEach(j=>{ j.nom=j.n; j.equipe=j.e; });
+// Fusionner les joueurs custom (vdj_players localStorage) dans JOUEURS_FLAT
+(function(){
+  try{
+    JSON.parse(localStorage.getItem('vdj_players')||'[]').forEach(p=>{
+      const fn=(p.prenom+' '+p.nom).trim();
+      if(fn && !JOUEURS_FLAT.find(j=>j.nom===fn)) JOUEURS_FLAT.push({nom:fn,equipe:p.club||'—',custom:true});
+    });
+  }catch(e){}
+})();
 
 function buildAcInput(idx, field, value, disabled){
   const dis = disabled ? 'disabled' : '';
@@ -3511,7 +3550,9 @@ function acInput(input, idx, field){
   const contains = JOUEURS_FLAT.filter(j=>!acNormalize(j.nom).startsWith(q) && acNormalize(j.nom).includes(q));
   const results = [...starts, ...contains].slice(0, 20);
   if(results.length === 0){
-    dd.innerHTML = '<div class="ac-hint">Aucun joueur trouvé</div>';
+    const qn=query.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    dd.innerHTML='<div class="ac-hint">Aucun joueur trouvé dans la liste</div>'
+      +'<div class="ac-item ac-add-player" onmousedown="openAddPlayerModal(event,'+idx+',\''+field+'\',\'normal\',\''+qn+'\')">➕ Ajouter <strong>'+query+'</strong> à la base joueurs</div>';
     dd.classList.add('open');
     return;
   }
@@ -3543,6 +3584,18 @@ function acBlur(input, idx, field){
   setTimeout(()=>{
     const dd = document.getElementById('ac-'+idx+'-'+field+'-dd');
     if(dd){ dd.innerHTML=''; dd.classList.remove('open'); }
+    // Validation : le nom doit être connu
+    const val=input.value.trim();
+    if(val && !JOUEURS_FLAT.find(j=>j.nom===val)){
+      input.classList.add('ac-input-invalid');
+      let hint=input.parentNode.querySelector('.ac-invalid-hint');
+      if(!hint){hint=document.createElement('span');hint.className='ac-invalid-hint';input.parentNode.appendChild(hint);}
+      hint.textContent='⚠ Joueur inconnu — tapez à nouveau pour ajouter';
+    } else {
+      input.classList.remove('ac-input-invalid');
+      const hint=input.parentNode.querySelector('.ac-invalid-hint');
+      if(hint) hint.remove();
+    }
   }, 200);
 }
 
@@ -3573,13 +3626,19 @@ function acKeydown(event, idx, field){
     event.preventDefault();
     sel = dd.querySelector('.ac-item.selected');
     if(sel){
-      const nom = sel.dataset.nom;
-      const input = document.getElementById('ac-'+idx+'-'+field);
-      if(input) input.value = nom;
-      dd.innerHTML=''; dd.classList.remove('open');
-      const md = getMatchData(currentMatchId);
-      md.goals[idx][field] = nom;
-      saveData();
+      if(sel.classList.contains('ac-add-player')){
+        const inp=document.getElementById('ac-'+idx+'-'+field);
+        openAddPlayerModal(null,idx,field,'normal',inp?inp.value.trim():'');
+        dd.innerHTML=''; dd.classList.remove('open');
+      } else {
+        const nom = sel.dataset.nom;
+        const input = document.getElementById('ac-'+idx+'-'+field);
+        if(input){ input.value=nom; input.classList.remove('ac-input-invalid'); const h=input.parentNode.querySelector('.ac-invalid-hint'); if(h) h.remove(); }
+        dd.innerHTML=''; dd.classList.remove('open');
+        const md = getMatchData(currentMatchId);
+        md.goals[idx][field] = nom;
+        saveData();
+      }
     }
   } else if(event.key === 'Escape'){
     dd.innerHTML=''; dd.classList.remove('open');
@@ -4936,8 +4995,205 @@ function vdjCycleNext(btn){
   sel.selectedIndex = ni;
   if(typeof sel.onchange==='function') sel.onchange.call(sel, new Event('change'));
 }
+
+// ==========================================
+// BASE JOUEURS PERSO (vdj_players)
+// ==========================================
+function getVDJPlayers(){ try{return JSON.parse(localStorage.getItem('vdj_players')||'[]');}catch(e){return[];} }
+function saveVDJPlayersList(arr){ localStorage.setItem('vdj_players', JSON.stringify(arr)); }
+
+let _addPlayerCtx = null; // {idx, field, mode}
+
+function openAddPlayerModal(event, idx, field, mode, query){
+  if(event) event.preventDefault();
+  _addPlayerCtx = {idx, field, mode};
+  // Pré-remplir depuis la requête tapée
+  const parts = (query||'').trim().split(/\s+/);
+  document.getElementById('addp-prenom').value = parts.slice(0,-1).join(' ')||parts[0]||'';
+  document.getElementById('addp-nom').value = parts.length>1 ? parts[parts.length-1] : '';
+  document.getElementById('addp-club').value = '';
+  document.getElementById('addp-dob').value = '';
+  document.getElementById('addp-result').innerHTML = '';
+  document.getElementById('addp-status').innerHTML = '';
+  document.getElementById('add-player-modal').style.display='flex';
+  setTimeout(()=>document.getElementById('addp-prenom').focus(), 50);
+}
+
+function closeAddPlayerModal(){
+  document.getElementById('add-player-modal').style.display='none';
+  _addPlayerCtx = null;
+}
+
+async function submitAddPlayer(){
+  const prenom = document.getElementById('addp-prenom').value.trim();
+  const nom    = document.getElementById('addp-nom').value.trim();
+  const club   = document.getElementById('addp-club').value.trim();
+  const dob    = document.getElementById('addp-dob').value.trim();
+  if(!nom){ alert('Le nom est requis.'); return; }
+  const fullnom = (prenom ? prenom+' '+nom : nom);
+  // Sauvegarder dans vdj_players
+  const list = getVDJPlayers();
+  if(!list.find(p=>(p.prenom+' '+p.nom).trim()===fullnom)){
+    list.push({prenom, nom, club, dob, tm_url:'', tm_id:''});
+    saveVDJPlayersList(list);
+  }
+  // Ajouter à JOUEURS_FLAT pour utilisation immédiate
+  if(!JOUEURS_FLAT.find(j=>j.nom===fullnom)){
+    JOUEURS_FLAT.push({nom:fullnom, equipe:club||'—', custom:true});
+  }
+  // Sélectionner dans le champ en cours
+  if(_addPlayerCtx){
+    const {idx, field, mode} = _addPlayerCtx;
+    const prefix = mode==='direct' ? 'dac' : 'ac';
+    const input = document.getElementById(prefix+'-'+idx+'-'+field);
+    if(input){
+      input.value = fullnom;
+      input.classList.remove('ac-input-invalid');
+      const hint = input.parentNode.querySelector('.ac-invalid-hint');
+      if(hint) hint.remove();
+      if(mode==='direct'){
+        const md=getMatchData(_directMatchId);
+        if(md&&md.goals[idx]){md.goals[idx][field]=fullnom;saveData();directRefreshSummary();}
+      } else {
+        const md=getMatchData(currentMatchId);
+        if(md&&md.goals[idx]){md.goals[idx][field]=fullnom;saveData();}
+      }
+    }
+  }
+  // Recherche Transfermarkt
+  document.getElementById('addp-status').innerHTML='🔍 Recherche Transfermarkt…';
+  document.getElementById('addp-submit').disabled=true;
+  await fetchTransfermarkt(prenom, nom, club);
+  document.getElementById('addp-submit').disabled=false;
+}
+
+const TM_PROXY='https://spring-smoke-d136.pushkulu-6a2.workers.dev/?url=';
+
+async function fetchTransfermarkt(prenom, nom, club){
+  const statusEl=document.getElementById('addp-status');
+  const resultEl=document.getElementById('addp-result');
+  try{
+    const q=encodeURIComponent((prenom+' '+nom).trim());
+    const tmUrl='https://www.transfermarkt.com/schnellsuche/ergebnis/schnellsuche?query='+q+'&Spieler_page=0';
+    const resp=await fetch(TM_PROXY+encodeURIComponent(tmUrl));
+    if(!resp.ok){if(statusEl)statusEl.innerHTML='⚠ Transfermarkt inaccessible ('+resp.status+')';return;}
+    const html=await resp.text();
+    const parser=new DOMParser();
+    const doc=parser.parseFromString(html,'text/html');
+    // Liens profil joueur TM : /prenom-nom/profil/spieler/ID
+    const links=[...doc.querySelectorAll('a[href*="/profil/spieler/"]')];
+    if(links.length===0){if(statusEl)statusEl.innerHTML='⚠ Aucun profil Transfermarkt trouvé';return;}
+    const href=links[0].getAttribute('href');
+    const tmFullUrl=href.startsWith('http')?href:'https://www.transfermarkt.com'+href;
+    const idMatch=href.match(/\/spieler\/(\d+)/);
+    const tmId=idMatch?idMatch[1]:'';
+    // Chercher date de naissance dans la page résultats
+    let dob='';
+    const rows=doc.querySelectorAll('.items tbody tr');
+    if(rows.length>0){
+      const cells=rows[0].querySelectorAll('td');
+      cells.forEach(td=>{ const t=td.textContent.trim(); if(/\d{2}\.\d{2}\.\d{4}/.test(t)) dob=t; });
+    }
+    // Mettre à jour vdj_players
+    const fullnom=(prenom+' '+nom).trim();
+    const list=getVDJPlayers();
+    const p=list.find(x=>((x.prenom||'')+' '+(x.nom||'')).trim()===fullnom||(x.nom||'')===nom);
+    if(p){p.tm_url=tmFullUrl;p.tm_id=tmId;if(dob&&!p.dob)p.dob=dob;saveVDJPlayersList(list);}
+    if(dob&&!document.getElementById('addp-dob').value) document.getElementById('addp-dob').value=dob;
+    if(resultEl) resultEl.innerHTML='✅ <a href="'+tmFullUrl+'" target="_blank" style="color:#4499ff">'+tmFullUrl+'</a>'+(dob?'<br>🎂 Naissance : '+dob:'');
+    if(statusEl) statusEl.innerHTML='';
+  }catch(e){
+    if(statusEl)statusEl.innerHTML='⚠ Erreur : '+e.message;
+  }
+}
+
+// Afficher la liste des joueurs custom
+function showVDJPlayersModal(){
+  const list=getVDJPlayers();
+  const modal=document.getElementById('vdj-players-list-modal');
+  if(!modal) return;
+  if(list.length===0){
+    modal.querySelector('#vpl-content').innerHTML='<em style="color:#888">Aucun joueur ajouté pour l'instant.</em>';
+  } else {
+    modal.querySelector('#vpl-content').innerHTML='<table style="width:100%;border-collapse:collapse;font-size:.85em">'
+      +'<tr style="color:#aaa;border-bottom:1px solid #333"><th align=left>Nom</th><th align=left>Club</th><th align=left>Naissance</th><th align=left>TM</th><th></th></tr>'
+      +list.map((p,i)=>'<tr style="border-bottom:1px solid #222">'
+        +'<td style="padding:6px 8px"><strong>'+(p.prenom?p.prenom+' ':'')+p.nom+'</strong></td>'
+        +'<td style="padding:6px 8px;color:#aaa">'+(p.club||'—')+'</td>'
+        +'<td style="padding:6px 8px;color:#aaa">'+(p.dob||'—')+'</td>'
+        +'<td style="padding:6px 4px">'+(p.tm_url?'<a href="'+p.tm_url+'" target="_blank" style="color:#4499ff;font-size:.8em">TM ↗</a>':'—')+'</td>'
+        +'<td><button onclick="deleteVDJPlayer('+i+')" style="background:none;border:none;color:#cc4444;cursor:pointer;font-size:1em" title="Supprimer">🗑</button></td>'
+        +'</tr>').join('')
+      +'</table>';
+  }
+  modal.style.display='flex';
+}
+function closeVDJPlayersModal(){ document.getElementById('vdj-players-list-modal').style.display='none'; }
+function deleteVDJPlayer(i){
+  if(!confirm('Supprimer ce joueur de la base ?')) return;
+  const list=getVDJPlayers(); list.splice(i,1); saveVDJPlayersList(list);
+  // Remove from JOUEURS_FLAT too
+  const idx2=JOUEURS_FLAT.findIndex(j=>j.custom===true);
+  // Rebuild custom entries
+  JOUEURS_FLAT.splice(0,JOUEURS_FLAT.length,...JOUEURS_FLAT.filter(j=>!j.custom));
+  list.forEach(p=>{ const fn=(p.prenom+' '+p.nom).trim(); if(!JOUEURS_FLAT.find(j=>j.nom===fn)) JOUEURS_FLAT.push({nom:fn,equipe:p.club||'—',custom:true}); });
+  showVDJPlayersModal();
+}
+
 // ── FIN CYCLE CLAVIER ────────────────────────────────────────────────────────
 
 </script>
+
+<!-- ══ MODAL AJOUT JOUEUR ══════════════════════════════════════════════════ -->
+<div id="add-player-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;align-items:center;justify-content:center">
+  <div style="background:#1a1a2e;color:#eee;border-radius:14px;padding:28px 32px;min-width:380px;max-width:480px;box-shadow:0 8px 40px rgba(0,0,0,.8)">
+    <h3 style="margin:0 0 16px;font-size:1.05em;color:#aaddff">➕ Ajouter un joueur à la base</h3>
+    <div style="display:grid;gap:10px">
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:.85em;color:#aaa">Prénom
+        <input id="addp-prenom" type="text" placeholder="Prénom" autocomplete="off"
+          style="padding:8px 10px;border-radius:6px;border:1px solid #444;background:#262640;color:#eee;font-size:.95em"
+          onkeydown="if(event.key==='Enter'){document.getElementById('addp-nom').focus();}">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:.85em;color:#aaa">Nom <span style="color:#cc5555">*</span>
+        <input id="addp-nom" type="text" placeholder="Nom (obligatoire)" autocomplete="off"
+          style="padding:8px 10px;border-radius:6px;border:1px solid #444;background:#262640;color:#eee;font-size:.95em"
+          onkeydown="if(event.key==='Enter'){document.getElementById('addp-club').focus();}">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:.85em;color:#aaa">Club
+        <input id="addp-club" type="text" placeholder="Club actuel (pour la base ligue)" autocomplete="off"
+          style="padding:8px 10px;border-radius:6px;border:1px solid #444;background:#262640;color:#eee;font-size:.95em"
+          onkeydown="if(event.key==='Enter'){document.getElementById('addp-dob').focus();}">
+      </label>
+      <label style="display:flex;flex-direction:column;gap:4px;font-size:.85em;color:#aaa">Date de naissance (si connue)
+        <input id="addp-dob" type="text" placeholder="JJ.MM.AAAA" autocomplete="off"
+          style="padding:8px 10px;border-radius:6px;border:1px solid #444;background:#262640;color:#eee;font-size:.95em"
+          onkeydown="if(event.key==='Enter'){submitAddPlayer();}">
+      </label>
+    </div>
+    <div style="display:flex;gap:10px;margin-top:18px">
+      <button id="addp-submit" onclick="submitAddPlayer()"
+        style="flex:1;padding:10px;background:#1155cc;color:#fff;border:none;border-radius:8px;cursor:pointer;font-size:.92em;font-weight:600">
+        ➕ Ajouter + chercher Transfermarkt
+      </button>
+      <button onclick="closeAddPlayerModal()"
+        style="padding:10px 18px;background:#333344;color:#ccc;border:none;border-radius:8px;cursor:pointer;font-size:.92em">
+        Fermer
+      </button>
+    </div>
+    <div id="addp-status" style="margin-top:12px;font-size:.82em;color:#888;min-height:1.2em"></div>
+    <div id="addp-result" style="margin-top:6px;font-size:.82em;color:#88ccff;word-break:break-all;line-height:1.5"></div>
+  </div>
+</div>
+
+<!-- ══ MODAL LISTE JOUEURS PERSO ════════════════════════════════════════════ -->
+<div id="vdj-players-list-modal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:99999;align-items:center;justify-content:center">
+  <div style="background:#1a1a2e;color:#eee;border-radius:14px;padding:28px 32px;min-width:500px;max-width:700px;max-height:80vh;overflow-y:auto;box-shadow:0 8px 40px rgba(0,0,0,.8)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <h3 style="margin:0;font-size:1.05em;color:#aaddff">👤 Base joueurs personnalisée (vdj_players)</h3>
+      <button onclick="closeVDJPlayersModal()" style="background:none;border:none;color:#aaa;font-size:1.2em;cursor:pointer">✕</button>
+    </div>
+    <div id="vpl-content"></div>
+  </div>
+</div>
 </body>
 </html>
