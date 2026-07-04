@@ -1159,8 +1159,8 @@ const MATCHES = [
   {id:92,date:"05/07/2026",heure:"20:00",group:"8e",dom:"Mexique",ext:"Angleterre",ville:"Mexico City",stade:"Estadio Azteca",phase:"8e de finale"},
   {id:93,date:"06/07/2026",heure:"15:00",group:"8e",dom:"Portugal",ext:"Espagne",ville:"Arlington",stade:"AT&T Stadium",phase:"8e de finale"},
   {id:94,date:"06/07/2026",heure:"20:00",group:"8e",dom:"États-Unis",ext:"Belgique",ville:"Seattle",stade:"Lumen Field",phase:"8e de finale"},
-  {id:95,date:"07/07/2026",heure:"12:00",group:"8e",dom:"À déterminer",ext:"À déterminer",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"8e de finale"},
-  {id:96,date:"07/07/2026",heure:"16:00",group:"8e",dom:"À déterminer",ext:"À déterminer",ville:"Vancouver",stade:"BC Place",phase:"8e de finale"},
+  {id:95,date:"07/07/2026",heure:"12:00",group:"8e",dom:"Argentine",ext:"Égypte",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"8e de finale"},
+  {id:96,date:"07/07/2026",heure:"16:00",group:"8e",dom:"Suisse",ext:"Colombie",ville:"Vancouver",stade:"BC Place",phase:"8e de finale"},
   {id:97,date:"09/07/2026",heure:"16:00",group:"Quart",dom:"À déterminer",ext:"À déterminer",ville:"Foxborough",stade:"Gillette Stadium",phase:"Quart de finale"},
   {id:98,date:"10/07/2026",heure:"15:00",group:"Quart",dom:"À déterminer",ext:"À déterminer",ville:"Inglewood",stade:"SoFi Stadium",phase:"Quart de finale"},
   {id:99,date:"11/07/2026",heure:"17:00",group:"Quart",dom:"À déterminer",ext:"À déterminer",ville:"Miami Gardens",stade:"Hard Rock Stadium",phase:"Quart de finale"},
@@ -2062,13 +2062,13 @@ function renderPenalties(){
     listHtml = `<div style="max-height:45vh;overflow-y:auto;border-radius:8px;border:2px solid #8896aa;margin-top:0">
       <table class="tableau" style="font-size:.83em;margin-bottom:0;border:none;border-radius:0;box-shadow:none">
         <thead><tr>
-          <th style="position:sticky;top:8vw;z-index:10">Match</th>
-          <th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Player':'Joueur'}</th>
-          <th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Team':'Équipe'}</th>
-          <th style="position:sticky;top:8vw;z-index:10">Min.</th>
-          <th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Corner':'Coin'}</th>
-          <th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Foot':'Pied'}</th>
-          <th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Video':'Vidéo'}</th>
+          <th style="position:sticky;top:0;z-index:10">Match</th>
+          <th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Player':'Joueur'}</th>
+          <th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Team':'Équipe'}</th>
+          <th style="position:sticky;top:0;z-index:10">Min.</th>
+          <th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Corner':'Coin'}</th>
+          <th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Foot':'Pied'}</th>
+          <th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Video':'Vidéo'}</th>
         </tr></thead><tbody>`;
     filteredGoals.forEach(g=>{
       const corner = g.penaltyCorner ? cornerNames[g.penaltyCorner] : '<span style="color:#aaa">—</span>';
