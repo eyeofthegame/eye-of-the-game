@@ -4474,9 +4474,9 @@ function renderShotMap(){
     html += `<h2 style="color:var(--accent);font-size:1.08em;text-transform:uppercase;letter-spacing:.06em;margin-bottom:6px">${_lang==='en'?'Goal Detail':'Détail des buts'} (${filtered.length})</h2>
     <div style="max-height:55vh;overflow-y:auto;border-radius:10px;border:2px solid #8896aa;box-shadow:0 4px 16px rgba(72,90,120,.13)">
     <table class="tableau" style="width:auto;min-width:560px;border:none;border-radius:0;box-shadow:none;margin-bottom:0"><thead><tr>
-      <th style="position:sticky;top:8vw;z-index:10">Min.</th>
-      ${showBoth?`<th style="position:sticky;top:8vw;z-index:10">⚽ ${_lang==='en'?'Who scores':'Qui marque'}</th><th style="position:sticky;top:8vw;z-index:10">🔴 ${_lang==='en'?'Who concedes':'Qui encaisse'}</th>`:showConceded?`<th style="position:sticky;top:8vw;z-index:10">🔴 ${_lang==='en'?'Concedes':'Encaisse'}</th><th style="position:sticky;top:8vw;z-index:10">⚽ ${_lang==='en'?'Scored by':'Marqué par'}</th>`:`<th style="position:sticky;top:8vw;z-index:10">⚽ ${_lang==='en'?'Team':'Équipe'}</th>`}
-      <th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Scorer':'Buteur'}</th><th style="position:sticky;top:8vw;z-index:10">Assist</th><th style="position:sticky;top:8vw;z-index:10">${_lang==='en'?'Tactical Pattern':'Tactique'}</th><th style="position:sticky;top:8vw;z-index:10"></th>
+      <th style="position:sticky;top:0;z-index:10">Min.</th>
+      ${showBoth?`<th style="position:sticky;top:0;z-index:10">⚽ ${_lang==='en'?'Who scores':'Qui marque'}</th><th style="position:sticky;top:0;z-index:10">🔴 ${_lang==='en'?'Who concedes':'Qui encaisse'}</th>`:showConceded?`<th style="position:sticky;top:0;z-index:10">🔴 ${_lang==='en'?'Concedes':'Encaisse'}</th><th style="position:sticky;top:0;z-index:10">⚽ ${_lang==='en'?'Scored by':'Marqué par'}</th>`:`<th style="position:sticky;top:0;z-index:10">⚽ ${_lang==='en'?'Team':'Équipe'}</th>`}
+      <th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Scorer':'Buteur'}</th><th style="position:sticky;top:0;z-index:10">Assist</th><th style="position:sticky;top:0;z-index:10">${_lang==='en'?'Tactical Pattern':'Tactique'}</th><th style="position:sticky;top:0;z-index:10"></th>
     </tr></thead><tbody>`;
     filtered.slice().sort((a,b)=>(parseInt(a.minute)||0)-(parseInt(b.minute)||0)).forEach(g=>{
       const tac1=VDJ.tactique1&&VDJ.tactique1[g.tactique1]?VDJ.tactique1[g.tactique1].nom:'—';
