@@ -4117,15 +4117,25 @@ function showGoalDetailGPN(key, catVal, team, state, type){
 function renderOverUnder(){
   loadData();
 
-  // Collect all validated matches with score
+  // Collect all validated matches — score at 90 min only (betting rule: no ET goals)
   const matchesWithScore = [];
   Object.keys(data).forEach(matchId=>{
     const md = data[matchId];
     if(!md.score) return;
     const m = MATCHES.find(x=>x.id==matchId);
     if(!m) return;
-    const total = md.score.dom + md.score.ext;
-    matchesWithScore.push({m, total, dom: md.score.dom, ext: md.score.ext});
+    // Count only goals scored at ≤ 90 min (exclude extra-time goals)
+    const goals90 = (md.goals||[]).filter(g=>parseInt(g.minute)<=90);
+    let dom90, ext90;
+    if(goals90.length > 0){
+      dom90 = goals90.filter(g=>g.team===m.dom).length;
+      ext90 = goals90.filter(g=>g.team===m.ext).length;
+    } else {
+      // No goals encoded yet: fall back to stored score (best available)
+      dom90 = md.score.dom; ext90 = md.score.ext;
+    }
+    const total = dom90 + ext90;
+    matchesWithScore.push({m, total, dom: dom90, ext: ext90});
   });
 
   if(matchesWithScore.length === 0){
