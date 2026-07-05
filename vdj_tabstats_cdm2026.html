@@ -2226,7 +2226,7 @@ function renderHome(){
   const totalMatches = homeWins+draws+awayWins;
 
   const PHASE_ORDER_HOME = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
-  const PHASE_SHORT_HOME = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'32e','8e de finale':_lang==='en'?'R16':'16e','Quart de finale':_lang==='en'?'QF':'Quarts','Demi-finale':_lang==='en'?'SF':'Demis','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
+  const PHASE_SHORT_HOME = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'16e','8e de finale':_lang==='en'?'R16':'8e','Quart de finale':_lang==='en'?'QF':'Quarts','Demi-finale':_lang==='en'?'SF':'Demis','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
   const goalsForType = _homeTypePhase ? goals.filter(g=>g.match&&g.match.phase===_homeTypePhase) : goals;
   const nPleinJeu = goalsForType.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
   const nPA = goalsForType.filter(g=>g.tactique1===5).length;
@@ -8759,7 +8759,7 @@ function renderEvolutionPhase(){
 
   // Phases ordonnées
   const PHASE_ORDER = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
-  const PHASE_SHORT = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'32e','8e de finale':_lang==='en'?'R16':'16e','Quart de finale':_lang==='en'?'QF':'Quart','Demi-finale':_lang==='en'?'SF':'Demi','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':'Final'};
+  const PHASE_SHORT = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'16e','8e de finale':_lang==='en'?'R16':'8e','Quart de finale':_lang==='en'?'QF':'Quart','Demi-finale':_lang==='en'?'SF':'Demi','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
 
   // Regrouper les buts par phase
   const byPhase = {};
