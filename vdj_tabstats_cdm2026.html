@@ -2201,6 +2201,9 @@ function showAnalysis(key, opts={}){
   document.getElementById('view-analysis').style.display='block';
 }
 
+let _homeTypePhase = '';
+function setHomeTypePhase(v){ _homeTypePhase = v; renderHome(); }
+
 function renderHome(){
   loadData();
   const goals = getAllGoals();
@@ -2222,11 +2225,14 @@ function renderHome(){
   });
   const totalMatches = homeWins+draws+awayWins;
 
-  const nPleinJeu = goals.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
-  const nPA = goals.filter(g=>g.tactique1===5).length;
-  const nPen = goals.filter(g=>g.tactique1===6).length;
-  const nRecup = goals.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1)))).length;
-  const total = goals.length;
+  const PHASE_ORDER_HOME = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
+  const PHASE_SHORT_HOME = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'32e','8e de finale':_lang==='en'?'R16':'16e','Quart de finale':_lang==='en'?'QF':'Quarts','Demi-finale':_lang==='en'?'SF':'Demis','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
+  const goalsForType = _homeTypePhase ? goals.filter(g=>g.match&&g.match.phase===_homeTypePhase) : goals;
+  const nPleinJeu = goalsForType.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
+  const nPA = goalsForType.filter(g=>g.tactique1===5).length;
+  const nPen = goalsForType.filter(g=>g.tactique1===6).length;
+  const nRecup = goalsForType.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1)))).length;
+  const total = goalsForType.length;
   const pct = (n,t) => t>0 ? Math.round(n/t*100)+'%' : '—';
 
   let html = `<h1>${_lang==='en'?'Overview':'Vue d\u2019ensemble'} — ${_lang==='en'?'WC 2026':'CDM 2026'}</h1>
@@ -2236,12 +2242,46 @@ function renderHome(){
     <div class="stat-card"><div class="num">${teams.length}</div><div class="lbl">${_lang==='en'?'Teams':'Équipes'}</div></div>
     <div class="stat-card"><div class="num">${matchesWithScore}</div><div class="lbl">${_lang==='en'?'Scores entered':'Scores entrés'}</div></div>
   </div>
+  <div style="display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:2px"><span style="font-size:.75em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${_lang==='en'?'Filter by phase:':'Filtrer par phase :'}</span><select onchange="setHomeTypePhase(this.value)" style="font-size:.82em;padding:4px 10px;border-radius:6px;border:1px solid var(--border)"><option value="">${_lang==='en'?'All phases':'Toutes les phases'}</option>${PHASE_ORDER_HOME.filter(p=>goals.some(g=>g.match&&g.match.phase===p)).map(p=>`<option value="${p}" ${p===_homeTypePhase?'selected':''}>${PHASE_SHORT_HOME[p]}</option>`).join('')}</select></div>
   <div class="stats-summary" style="margin-top:10px">
     <div class="stat-card"><div class="num" style="color:#1a44cc">${nPleinJeu}</div><div class="lbl">${_lang==='en'?'Open play goals':'Buts de plein jeu'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPleinJeu,total)}</div></div>
     <div class="stat-card"><div class="num" style="color:#aa8800">${nPA}</div><div class="lbl">${_lang==='en'?'Set piece goals':'Buts sur phase arrêtée'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPA,total)}</div></div>
     <div class="stat-card"><div class="num" style="color:#cc0000">${nPen}</div><div class="lbl">${_lang==='en'?'Penalty goals':'Buts sur penalty'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPen,total)}</div></div>
     <div class="stat-card" onclick="showView('presszones')" style="cursor:pointer" title="${_lang==='en'?'See recovery zones':'Voir les zones de récupération'}"><div class="num" style="color:#e65100">${nRecup}</div><div class="lbl">🟠 ${_lang==='en'?'Goals with recovery zone':'Buts avec zone de récup.'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nRecup,total)} ${_lang==='en'?'encoded':'encodés'}</div></div>
   </div>
+  
+  ${(()=>{
+    const byPhaseType = {};
+    PHASE_ORDER_HOME.forEach(p=>{ byPhaseType[p] = goals.filter(g=>g.match&&g.match.phase===p); });
+    const activePhasesHome = PHASE_ORDER_HOME.filter(p=>byPhaseType[p].length>0);
+    if(!activePhasesHome.length) return '';
+    return `<h2 style="color:var(--accent);font-size:1em;text-transform:uppercase;letter-spacing:.06em;margin:1.4em 0 .5em">📊 ${_lang==='en'?'Goal Type by Tournament Phase':'Type de but par phase du tournoi'}</h2>
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 14px">
+    ${activePhasesHome.map(p=>{
+      const pg = byPhaseType[p];
+      const t = pg.length;
+      const pj = pg.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
+      const paC = pg.filter(g=>g.tactique1===5).length;
+      const penC = pg.filter(g=>g.tactique1===6).length;
+      const pctPj = t?Math.round(pj/t*100):0, pctPa = t?Math.round(paC/t*100):0, pctPen = t?Math.round(penC/t*100):0;
+      return `<div style="margin-bottom:12px">
+        <div style="display:flex;justify-content:space-between;font-size:.78em;font-weight:700;margin-bottom:5px">
+          <span>${PHASE_SHORT_HOME[p]}</span><span style="color:var(--muted);font-weight:400">${t} ${_lang==='en'?'goal'+(t>1?'s':''):'but'+(t>1?'s':'')}</span>
+        </div>
+        <div style="display:flex;height:18px;border-radius:4px;overflow:hidden">
+          ${pj?`<div title="${_lang==='en'?'Open play':'Plein jeu'}: ${pj} (${pctPj}%)" style="flex:${pj};background:#1a44cc"></div>`:''}
+          ${paC?`<div title="${_lang==='en'?'Set piece':'Phase arrêtée'}: ${paC} (${pctPa}%)" style="flex:${paC};background:#aa8800"></div>`:''}
+          ${penC?`<div title="Penalty: ${penC} (${pctPen}%)" style="flex:${penC};background:#cc0000"></div>`:''}
+        </div>
+        <div style="display:flex;gap:10px;margin-top:4px;font-size:.68em">
+          ${pj?`<span style="color:#1a44cc">■ ${_lang==='en'?'Open play':'Plein jeu'} ${pctPj}%</span>`:''}
+          ${paC?`<span style="color:#aa8800">■ ${_lang==='en'?'Set piece':'Phase arrêtée'} ${pctPa}%</span>`:''}
+          ${penC?`<span style="color:#cc0000">■ Penalty ${pctPen}%</span>`:''}
+        </div>
+      </div>`;
+    }).join('')}
+    </div>`;
+  })()}
   <div class="stats-summary" style="margin-top:10px">
     <div class="stat-card"><div class="num" style="color:#1a7a1a">${homeWins}</div><div class="lbl">${_lang==='en'?'Home wins':'Victoires \u00e0 domicile'}</div><div style="font-size:.85em;color:var(--muted)">${pct(homeWins,totalMatches)}</div></div>
     <div class="stat-card"><div class="num" style="color:#777">${draws}</div><div class="lbl">${_lang==='en'?'Draws':'Partages'}</div><div style="font-size:.85em;color:var(--muted)">${pct(draws,totalMatches)}</div></div>
