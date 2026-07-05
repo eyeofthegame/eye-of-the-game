@@ -4972,15 +4972,21 @@ function renderPressZones(){
   const CELL = 0.06;
   const cells = {};
   goals.forEach(g=>{
-    const _recupStep = g.goalSteps ? g.goalSteps.find(s=>s.type===1) : null;
-    const _px = g.pressX != null ? g.pressX : (_recupStep ? _recupStep.x : null);
-    const _py = g.pressY != null ? g.pressY : (_recupStep ? _recupStep.y : null);
-    if(_px == null || _py == null) return;
-    const cx = Math.floor(_px / CELL);
-    const cy = Math.floor(_py / CELL);
-    const key = cx+'_'+cy;
-    if(!cells[key]) cells[key] = {goals:[], cx: (cx+0.5)*CELL, cy: (cy+0.5)*CELL};
-    cells[key].goals.push(g);
+    // Un but peut avoir PLUSIEURS points de récupération encodés dans son schéma
+    // (ex: deux reconversions rapides successives) -> il faut TOUTES les tracer,
+    // pas seulement la première trouvée.
+    const _recupSteps = g.goalSteps ? g.goalSteps.filter(s=>s.type===1) : [];
+    const _points = _recupSteps.length
+      ? _recupSteps.map(s=>({x:s.x, y:s.y}))
+      : (g.pressX != null && g.pressY != null ? [{x:g.pressX, y:g.pressY}] : []);
+    _points.forEach(pt=>{
+      if(pt.x == null || pt.y == null) return;
+      const cx = Math.floor(pt.x / CELL);
+      const cy = Math.floor(pt.y / CELL);
+      const key = cx+'_'+cy;
+      if(!cells[key]) cells[key] = {goals:[], cx: (cx+0.5)*CELL, cy: (cy+0.5)*CELL};
+      cells[key].goals.push(g);
+    });
   });
 
   // Pitch SVG — paysage horizontal
