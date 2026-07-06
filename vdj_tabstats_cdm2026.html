@@ -1407,7 +1407,7 @@ function renderResults(){
 
     // Titre de phase si nouvelle
     if(phase !== lastPhase){
-      const phaseEN = {'Phase de groupes':'Group Stage','16e de finale':'Round of 32','8e de finale':'Round of 16','Huitièmes de finale':'Round of 16','Quarts de finale':'Quarter-finals','Quart de finale':'Quarter-finals','Demi-finales':'Semi-finals','Demi-finale':'Semi-finals','Finale pour la 3e place':'Third-place match','Match 3e place':'Third-place match','Finale':'Final'};
+      const phaseEN = {'Phase de groupes':'Group Stage','16e de finale':'Round of 16','8e de finale':'Round of 8','Huitièmes de finale':'Round of 8','Quarts de finale':'Quarter-finals','Quart de finale':'Quarter-finals','Demi-finales':'Semi-finals','Demi-finale':'Semi-finals','Finale pour la 3e place':'Third-place match','Match 3e place':'Third-place match','Finale':'Final'};
       const phaseLabel = _lang==='en' ? (phaseEN[phase]||phase) : phase;
       html += `<h2 style="margin:1.6em 0 .5em;color:var(--accent);font-size:1.05em;text-transform:uppercase;letter-spacing:.08em;border-bottom:2px solid var(--accent);padding-bottom:.3em">${phaseLabel}</h2>`;
       lastPhase = phase;
@@ -2228,7 +2228,7 @@ function renderHome(){
   const totalMatches = homeWins+draws+awayWins;
 
   const PHASE_ORDER_HOME = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
-  const PHASE_SHORT_HOME = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'16e','8e de finale':_lang==='en'?'R16':'8e','Quart de finale':_lang==='en'?'QF':'Quarts','Demi-finale':_lang==='en'?'SF':'Demis','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
+  const PHASE_SHORT_HOME = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R16':'16e','8e de finale':_lang==='en'?'R8':'8e','Quart de finale':_lang==='en'?'QF':'Quarts','Demi-finale':_lang==='en'?'SF':'Demis','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
   const goalsForType = _homeTypePhase ? goals.filter(g=>g.match&&g.match.phase===_homeTypePhase) : goals;
   const nPleinJeu = goalsForType.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
   const nPA = goalsForType.filter(g=>g.tactique1===5).length;
@@ -2567,7 +2567,7 @@ var _jpPhases  = [];  // [] = toutes ; sinon liste des phases sélectionnées
 // ── helper partagé : chips de phase multi-sélection
 var _ALL_PHASES_LIST = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
 var _PHASE_SHORT = {'Phase de groupes':'Groupes','16e de finale':'16e','8e de finale':'8e','Quart de finale':'QF','Demi-finale':'SF','Match 3e place':'3e pl.','Finale':'Finale'};
-var _PHASE_SHORT_EN = {'Phase de groupes':'Groups','16e de finale':'R32','8e de finale':'R16','Quart de finale':'QF','Demi-finale':'SF','Match 3e place':'3rd','Finale':'Final'};
+var _PHASE_SHORT_EN = {'Phase de groupes':'Groups','16e de finale':'R16','8e de finale':'R8','Quart de finale':'QF','Demi-finale':'SF','Match 3e place':'3rd','Finale':'Final'};
 
 function _phaseChips(selectedArr, toggleFnName) {
   var isAll = selectedArr.length === 0;
@@ -2932,7 +2932,7 @@ function renderAdnJeu(){
     loadData(); var ct=_adnGetCt(), teams=ct.teams;
     var keyOpts=(_lang==='en'?[['tactique1','Playing Style'],['origine1','General Origin'],['origine2','Playing Direction'],['origine3','Zone'],['actions','Shooting Action'],['tactique3','Nature of Goal'],['mitemps','Half-time'],['minutes','Minutes (15min)']]:[['tactique1','Style de jeu'],['origine1','Origine générale'],['origine2','Intention de jeu'],['origine3','Zone'],['actions','Action de tir'],['tactique3','Nature du but'],['mitemps','Mi-temps'],['minutes','Minutes (15min)']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.key===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var sideOpts=(_lang==='en'?[['scored','⚽ Goals Scored'],['conceded','🛡️ Goals Conceded'],['both','Both']]:[['scored','⚽ Buts marqués'],['conceded','🛡️ Buts encaissés'],['both','Les deux']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.side===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
-    var phaseOpts=(_lang==='en'?[['all','All Rounds'],['Phase de groupes','Group Stage'],['16e de finale','Round of 32'],['8e de finale','Round of 16'],['Quart de finale','Quarterfinals'],['Demi-finale','Semifinals'],['Finale','Final']]:[['all','Toutes les phases'],['Phase de groupes','Phase de groupes'],['16e de finale','16e de finale'],['8e de finale','8e de finale'],['Quart de finale','Quart de finale'],['Demi-finale','Demi-finale'],['Finale','Finale']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.phase===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var phaseOpts=(_lang==='en'?[['all','All Rounds'],['Phase de groupes','Group Stage'],['16e de finale','Round of 16'],['8e de finale','Round of 8'],['Quart de finale','Quarterfinals'],['Demi-finale','Semifinals'],['Finale','Final']]:[['all','Toutes les phases'],['Phase de groupes','Phase de groupes'],['16e de finale','16e de finale'],['8e de finale','8e de finale'],['Quart de finale','Quart de finale'],['Demi-finale','Demi-finale'],['Finale','Finale']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.phase===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var venueOpts=(_lang==='en'?[['all','Home + Away'],['home','🏠 Home'],['away','✈️ Away']]:[['all','Dom. + Ext.'],['home','🏠 Domicile'],['away','✈️ Extérieur']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.venue===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var modeOpts=(_lang==='en'?[['overlay','🔀 Overlay'],['sidebyside','▥ Side by Side']]:[['overlay','🔀 Superposé'],['sidebyside','▥ Côte à côte']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.mode===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var selHtml=function(id,opts,fn){return '<select id="'+id+'" onchange="'+fn+'(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">'+opts+'</select>';};
@@ -8763,7 +8763,7 @@ function renderEvolutionPhase(){
 
   // Phases ordonnées
   const PHASE_ORDER = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
-  const PHASE_SHORT = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R32':'16e','8e de finale':_lang==='en'?'R16':'8e','Quart de finale':_lang==='en'?'QF':'Quart','Demi-finale':_lang==='en'?'SF':'Demi','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
+  const PHASE_SHORT = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R16':'16e','8e de finale':_lang==='en'?'R8':'8e','Quart de finale':_lang==='en'?'QF':'Quart','Demi-finale':_lang==='en'?'SF':'Demi','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
 
   // Regrouper les buts par phase
   const byPhase = {};
