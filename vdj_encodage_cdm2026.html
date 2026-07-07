@@ -2365,7 +2365,7 @@ function renderGoalForms(scrollToIdx){
         <a href="#goal-${Math.min(i+1, md.goals.length-1)}" style="font-size:.8em">But suivant ↓</a>
       </div>
       <div class="row">
-        <label>Minute : <input type="number" min="1" max="120" value="${g.minute}" onchange="updateGoal(${i},'minute',this.value)" style="width:60px"></label>
+        <label>Minute : <input type="text" inputmode="numeric" pattern="[0-9+]*" title="Ex: 23, ou 45+2 / 90+3 pour préciser l'ordre en temps additionnel" placeholder="ex: 90+3" value="${g.minute}" onchange="updateGoal(${i},'minute',this.value.trim())" style="width:70px"></label>
       </div>
       <div class="row">
         <label>Buteur : ${buildAcInput(i,'buteur',g.buteur,false)}</label>
@@ -2999,7 +2999,7 @@ function buildDirectGoalForm(idx, g, m){
     </label>
   </div>
   <div class="row">
-    <label>Minute : <input type="number" min="1" max="120" value="${g.minute||''}" style="width:60px" onchange="directUpdateGoal(${idx},'minute',this.value)"></label>
+    <label>Minute : <input type="text" inputmode="numeric" pattern="[0-9+]*" title="Ex: 23, ou 45+2 / 90+3 pour préciser l'ordre en temps additionnel" placeholder="ex: 90+3" value="${g.minute||''}" style="width:70px" onchange="directUpdateGoal(${idx},'minute',this.value.trim())"></label>
   </div>
   <div class="row" style="flex-wrap:wrap;gap:12px">
     <label>Buteur :</label>
@@ -4514,7 +4514,7 @@ function lsInjectGoal(e){
   }
 
   md.goals[idx].buteur = buteur;
-  md.goals[idx].minute = String(e.time.elapsed);
+  md.goals[idx].minute = min; // inclut le temps additionnel ("90+3") pour préserver l'ordre réel
   md.goals[idx].team = scoringTeam;
   md.goals[idx].opponent = opponent;
   if(assist) md.goals[idx].assist = assist;
