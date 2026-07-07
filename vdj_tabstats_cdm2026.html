@@ -1485,6 +1485,18 @@ function renderResults(){
 // ═══════════════════════════════════════════════════════════════════
 var _paPointsFilter = 'pa';   // 'pa' | 'pen' | 'all'
 var _paPointsPhases = [];      // [] = toutes ; sinon liste des phases sélectionnées
+var _paSortCol = null, _paSortDir = null;   // tri colonnes tableau Valeur PA en points
+function paSortBy(col){
+  if(_paSortCol === col){
+    if(_paSortDir==='desc') _paSortDir='asc';
+    else { _paSortCol=null; _paSortDir=null; }
+  } else { _paSortCol=col; _paSortDir='desc'; }
+  renderPaPoints();
+}
+function _paSortIco(col){
+  return _paSortCol===col ? (_paSortDir==='desc'?' ▼':' ▲') : ' <span style="opacity:.3">⇅</span>';
+}
+function _paTh(col){ return 'cursor:pointer;'+(_paSortCol===col?'outline:2px solid rgba(0,0,0,.12);outline-offset:-2px;':''); }
 
 function _paPointsGetGoals(matchId, md, m) {
   var goals = [];
@@ -1591,7 +1603,14 @@ function renderPaPoints() {
       matchesPlayed: s.matchesPlayed
     };
   }).filter(function(r){ return r.matchesPlayed > 0; })
-    .sort(function(a,b){ return b.netImpact - a.netImpact; });
+    .sort(function(a,b){
+      if(!_paSortCol) return b.netImpact - a.netImpact;
+      var va = _paSortCol==='team' ? tf(a.team).toLowerCase() : a[_paSortCol];
+      var vb = _paSortCol==='team' ? tf(b.team).toLowerCase() : b[_paSortCol];
+      if(va < vb) return _paSortDir==='asc' ? -1 : 1;
+      if(va > vb) return _paSortDir==='asc' ? 1 : -1;
+      return 0;
+    });
 
 
   var filterBtns = (_lang==='en'?[['pa','⛳ Set piece only'],['pen','🥅 Penalty only'],['all','Set piece + Penalty']]:[['pa','⛳ PA seulement'],['pen','🥅 Penalty seulement'],['all','PA + Penalty']]).map(function(f){
@@ -1681,16 +1700,16 @@ function renderPaPoints() {
     +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden">'
     +'<table style="width:100%;border-collapse:collapse">'
     +'<thead><tr style="background:var(--bg);font-size:.77em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">'
-    +'<th style="text-align:left;padding:10px 12px;font-weight:700">'+(_lang==='en'?'Team':'Équipe')+'</th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'SP ⚽':'PA ⚽')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'scored':'marquées')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'SP 🛡️':'PA 🛡️')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':'encaissées')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'Pts':'Pts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'actual':'réels')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#7a4a00">'+(_lang==='en'?'Pts':'Pts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'w/o SP':'sans PA')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#555">Δ<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':'impact')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a">'+(_lang==='en'?'Gain':'Gain')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'offensive':'offensif')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222">'+(_lang==='en'?'Cost':'Coût')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'defensive':'défensif')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'Net':'Impact')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':'net')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:400">'+(_lang==='en'?'Matches':'Matchs')+'</th>'
+    +'<th title="Trier" onclick="paSortBy(\'team\')" style="text-align:left;padding:10px 12px;font-weight:700;'+_paTh('team')+'">'+(_lang==='en'?'Team':'Équipe')+_paSortIco('team')+'</th>'
+    +'<th title="Trier" onclick="paSortBy(\'paScored\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('paScored')+'">'+(_lang==='en'?'SP ⚽':'PA ⚽')+_paSortIco('paScored')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'scored':'marquées')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'paConceded\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('paConceded')+'">'+(_lang==='en'?'SP 🛡️':'PA 🛡️')+_paSortIco('paConceded')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':'encaissées')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'actualPts\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('actualPts')+'">'+(_lang==='en'?'Pts':'Pts')+_paSortIco('actualPts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'actual':'réels')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'simBothPts\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#7a4a00;'+_paTh('simBothPts')+'">'+(_lang==='en'?'Pts':'Pts')+_paSortIco('simBothPts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'w/o SP':'sans PA')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'deltaBoth\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#555;'+_paTh('deltaBoth')+'">Δ'+_paSortIco('deltaBoth')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':'impact')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'gainScoring\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a;'+_paTh('gainScoring')+'">'+(_lang==='en'?'Gain':'Gain')+_paSortIco('gainScoring')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'offensive':'offensif')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'costConceding\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222;'+_paTh('costConceding')+'">'+(_lang==='en'?'Cost':'Coût')+_paSortIco('costConceding')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'defensive':'défensif')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'netImpact\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('netImpact')+'">'+(_lang==='en'?'Net':'Impact')+_paSortIco('netImpact')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':'net')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'matchesPlayed\')" style="text-align:center;padding:10px 8px;font-weight:400;'+_paTh('matchesPlayed')+'">'+(_lang==='en'?'Matches':'Matchs')+_paSortIco('matchesPlayed')+'</th>'
     +'</tr></thead>'
     +'<tbody>'+tableRows+'</tbody>'
     +'</table></div>'
@@ -2562,6 +2581,18 @@ function renderRadar(team){
 // 📊 VALEUR STYLES DE JEU EN POINTS — Impact but de plein jeu
 // ═══════════════════════════════════════════════════════════════════
 var _jpFilter  = 'trans';
+var _jpSortCol = null, _jpSortDir = null;   // tri colonnes tableau Valeur styles en points
+function jpSortBy(col){
+  if(_jpSortCol === col){
+    if(_jpSortDir==='desc') _jpSortDir='asc';
+    else { _jpSortCol=null; _jpSortDir=null; }
+  } else { _jpSortCol=col; _jpSortDir='desc'; }
+  renderJeuPoints();
+}
+function _jpSortIco(col){
+  return _jpSortCol===col ? (_jpSortDir==='desc'?' ▼':' ▲') : ' <span style="opacity:.3">⇅</span>';
+}
+function _jpTh(col){ return 'cursor:pointer;'+(_jpSortCol===col?'outline:2px solid rgba(0,0,0,.12);outline-offset:-2px;':''); }
 var _jpPhases  = [];  // [] = toutes ; sinon liste des phases sélectionnées
 
 // ── helper partagé : chips de phase multi-sélection
@@ -2672,7 +2703,14 @@ function renderJeuPoints(){
   var rows=teams.map(function(t){
     var s=stats[t];
     return {team:t,goalsScored:s.goalsScored,goalsConceded:s.goalsConceded,actualPts:s.actualPts,gainScoring:s.gainScoring,costConceding:-s.gainConceding,netImpact:s.gainScoring+s.gainConceding,matchDetails:s.matchDetails,matchesPlayed:s.matchesPlayed};
-  }).filter(function(r){return r.matchesPlayed>0;}).sort(function(a,b){return b.netImpact-a.netImpact;});
+  }).filter(function(r){return r.matchesPlayed>0;}).sort(function(a,b){
+    if(!_jpSortCol) return b.netImpact-a.netImpact;
+    var va = _jpSortCol==='team' ? tf(a.team).toLowerCase() : a[_jpSortCol];
+    var vb = _jpSortCol==='team' ? tf(b.team).toLowerCase() : b[_jpSortCol];
+    if(va < vb) return _jpSortDir==='asc' ? -1 : 1;
+    if(va > vb) return _jpSortDir==='asc' ? 1 : -1;
+    return 0;
+  });
 
   var totalGoals=rows.reduce(function(s,r){return s+r.goalsScored;},0);
   var totalGain =rows.reduce(function(s,r){return s+r.gainScoring;},0);
@@ -2738,14 +2776,14 @@ function renderJeuPoints(){
     +'<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;overflow:hidden">'
     +'<table style="width:100%;border-collapse:collapse">'
     +'<thead><tr style="background:var(--bg);font-size:.77em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">'
-    +'<th style="text-align:left;padding:10px 12px;font-weight:700">'+(_lang==='en'?'Team':'Équipe')+'</th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'Goals ⚽':'Buts ⚽')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'scored':'marqués')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'Goals 🛡️':'Buts 🛡️')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':'encaissés')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">Pts<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'actual':'réels')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a">'+(_lang==='en'?'Gain':'Gain')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'offensive':'offensif')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222">'+(_lang==='en'?'Cost':'Coût')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'defensive':'défensif')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:700">'+(_lang==='en'?'Net':'Impact')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':'net')+'</span></th>'
-    +'<th style="text-align:center;padding:10px 8px;font-weight:400">'+(_lang==='en'?'Matches':'Matchs')+'</th>'
+    +'<th title="Trier" onclick="jpSortBy(\'team\')" style="text-align:left;padding:10px 12px;font-weight:700;'+_jpTh('team')+'">'+(_lang==='en'?'Team':'Équipe')+_jpSortIco('team')+'</th>'
+    +'<th title="Trier" onclick="jpSortBy(\'goalsScored\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('goalsScored')+'">'+(_lang==='en'?'Goals ⚽':'Buts ⚽')+_jpSortIco('goalsScored')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'scored':'marqués')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'goalsConceded\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('goalsConceded')+'">'+(_lang==='en'?'Goals 🛡️':'Buts 🛡️')+_jpSortIco('goalsConceded')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':'encaissés')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'actualPts\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('actualPts')+'">Pts'+_jpSortIco('actualPts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'actual':'réels')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'gainScoring\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a;'+_jpTh('gainScoring')+'">'+(_lang==='en'?'Gain':'Gain')+_jpSortIco('gainScoring')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'offensive':'offensif')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'costConceding\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222;'+_jpTh('costConceding')+'">'+(_lang==='en'?'Cost':'Coût')+_jpSortIco('costConceding')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'defensive':'défensif')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'netImpact\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('netImpact')+'">'+(_lang==='en'?'Net':'Impact')+_jpSortIco('netImpact')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':'net')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'matchesPlayed\')" style="text-align:center;padding:10px 8px;font-weight:400;'+_jpTh('matchesPlayed')+'">'+(_lang==='en'?'Matches':'Matchs')+_jpSortIco('matchesPlayed')+'</th>'
     +'</tr></thead>'
     +'<tbody>'+tableRows+'</tbody>'
     +'</table></div>'
