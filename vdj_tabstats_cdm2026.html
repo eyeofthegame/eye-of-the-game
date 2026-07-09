@@ -2383,7 +2383,11 @@ function renderHome(){
       if(_tlPhase && (m.phase||m.group||'')!==_tlPhase) return false;
       return true;
     });
-    const MAX_SHOWN = 12;
+    // Pas de plafond pour les phases à élimination directe (16e et au-delà) :
+    // elles ont peu de matchs (16 max), pas besoin de tronquer comme pour
+    // "Toutes phases" ou "Phase de groupes" qui peuvent en compter des dizaines.
+    const KNOCKOUT_PHASES = ['16e de finale','8e de finale','Quart de finale','Demi-finale','Finale','Match 3e place'];
+    const MAX_SHOWN = KNOCKOUT_PHASES.includes(_tlPhase) ? Infinity : 12;
     const shown_tl = filtered_tl.slice(0, MAX_SHOWN);
 
     // Build timelines
