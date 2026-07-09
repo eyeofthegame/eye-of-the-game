@@ -6875,20 +6875,14 @@ function renderRecherche(){
     <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🔬 ${_lang==='en'?'Filters':'Filtres'}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
       <select id="rech-team"  onchange="rechUpdateFilter('team',this.value)" style="${selStyle}${fTeam?' font-weight:bold;border-color:var(--accent)':''}">${teamOptsR}</select>
-      ${fTeam ? '<div style="display:inline-flex;gap:0;border-radius:6px;overflow:hidden;border:1.5px solid var(--border);flex-shrink:0">'
-        +'<button onclick="rechUpdateFilter(\'mode\',\'off\')" style="padding:3px 10px;font-size:.78em;font-weight:700;border:none;cursor:pointer;border-right:1px solid var(--border);background:'+(fMode==='off'?'var(--accent)':'var(--card)')+';color:'+(fMode==='off'?'#fff':'var(--text)')+'">⚔️ '+(_lang==='en'?'Off':'Off')+'</button>'
-        +'<button onclick="rechUpdateFilter(\'mode\',\'def\')" style="padding:3px 10px;font-size:.78em;font-weight:700;border:none;cursor:pointer;background:'+(fMode==='def'?'#8b2020':'var(--card)')+';color:'+(fMode==='def'?'#fff':'var(--text)')+'">🛡️ '+(_lang==='en'?'Def':'Déf')+'</button>'
-        +'</div>' : ''}
+      ${(fMode==='def' && !fTeam) ? '<span style="font-size:.75em;color:#8b2020;font-style:italic">👆 '+(_lang==='en'?'Pick a team to see its conceded goals':'Choisis une équipe pour voir ses buts encaissés')+'</span>' : ''}
       <input  id="rech-buteur" type="text" placeholder="🔍 ${_lang==='en'?'Player':'Joueur'}…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="rechUpdateFilter('buteur',this.value)" style="${selStyle};min-width:130px">
-      <select id="rech-tac1"  onchange="rechUpdateFilter('tac1',this.value)" style="${selStyle}${fTac1?' font-weight:bold;border-color:var(--accent)':''}">${tac1OptsR.replace(`value="${fTac1}"`,`value="${fTac1}" selected`)}</select>
       <select id="rech-nat"   onchange="rechUpdateFilter('nat',this.value)" style="${selStyle}${fNat?' font-weight:bold;border-color:var(--accent)':''}">${natOptsR.replace(`value="${fNat}"`,`value="${fNat}" selected`)}</select>
       <select id="rech-ori1"  onchange="rechUpdateFilter('ori1',this.value)" style="${selStyle}${fOri1?' font-weight:bold;border-color:var(--accent)':''}">${ori1OptsR.replace(`value="${fOri1}"`,`value="${fOri1}" selected`)}</select>
       <select id="rech-ori2"  onchange="rechUpdateFilter('ori2',this.value)" style="${selStyle}${fOri2?' font-weight:bold;border-color:var(--accent)':''}">${ori2OptsR.replace(`value="${fOri2}"`,`value="${fOri2}" selected`)}</select>
       <select id="rech-act"   onchange="rechUpdateFilter('act',this.value)" style="${selStyle}${fAct?' font-weight:bold;border-color:var(--accent)':''}">${actOptsR.replace(`value="${fAct}"`,`value="${fAct}" selected`)}</select>
-      <select id="rech-lieu"  onchange="rechUpdateFilter('lieu',this.value)" style="${selStyle}${fLieu?' font-weight:bold;border-color:var(--accent)':''}">${lieuOptsR.replace(`value="${fLieu}"`,`value="${fLieu}" selected`)}</select>
       <select id="rech-fin"   onchange="rechUpdateFilter('fin',this.value)" style="${selStyle}${fFin?' font-weight:bold;border-color:var(--accent)':''}">${finOptsR.replace(`value="${fFin}"`,`value="${fFin}" selected`)}</select>
       <select id="rech-min"   onchange="rechUpdateFilter('min',this.value)" style="${selStyle}${fMin?' font-weight:bold;border-color:var(--accent)':''}">${minOptsR.replace(`value="${fMin}"`,`value="${fMin}" selected`)}</select>
-      <select id="rech-venue" onchange="rechUpdateFilter('venue',this.value)" style="${selStyle}${fVenue?' font-weight:bold;border-color:var(--accent)':''}">${venueOptsR}</select>
       <button onclick="rechReset()" style="font-size:.8em;padding:3px 10px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕ ${_lang==='en'?'Reset':'Réinitialiser'}</button>
     </div>
   </div>`;
@@ -7058,6 +7052,8 @@ function renderRecherche(){
 
   // ── Presets bar ────────────────────────────────────────────────────
   let _presetBtns = '<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center"><span style="font-size:.7em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:2px">'+(_lang==='en'?'Quick access':'Accès rapide')+'</span>';
+  _presetBtns += '<button onclick="rechSetMode(\'off\')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:'+(fMode==='off'?'var(--accent)':'var(--card)')+';color:'+(fMode==='off'?'#fff':'var(--text)')+';border:2px solid '+(fMode==='off'?'var(--accent)':'var(--border)')+';font-weight:'+(fMode==='off'?'bold':'normal')+';white-space:nowrap">⚔️ '+(_lang==='en'?'Scored':'Marqués')+'</button>';
+  _presetBtns += '<button onclick="rechSetMode(\'def\')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:'+(fMode==='def'?'#8b2020':'var(--card)')+';color:'+(fMode==='def'?'#fff':'var(--text)')+';border:2px solid '+(fMode==='def'?'#8b2020':'var(--border)')+';font-weight:'+(fMode==='def'?'bold':'normal')+';white-space:nowrap">🛡️ '+(_lang==='en'?'Conceded':'Encaissés')+'</button>';
   _RECH_PRESETS.forEach(function(p){
     const isActive = _rechActivePresets.has(p.key);
     const bg = isActive ? p.color : 'var(--card)';
@@ -7175,8 +7171,13 @@ function rechApplyPreset(key){
 }
 
 function rechReset(){
-  _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:''};
+  _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',mode:'off'};
   _rechActivePresets.clear();
+  renderRecherche();
+}
+
+function rechSetMode(m){
+  _rechState.mode = m;
   renderRecherche();
 }
 
