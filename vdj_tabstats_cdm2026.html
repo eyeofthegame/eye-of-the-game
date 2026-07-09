@@ -9148,21 +9148,21 @@ function renderRapport(){
     <!-- Style de jeu -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'⚽ Style — Goals Scored':'⚽ Style — Buts marqués'}</div>
-      ${distrTableMini(gFor,'tactique1',[1,2,4,3,5,6],VDJ.tactique1)}
+      ${_distrBar(gFor,'tactique1',[1,2,4,3,5,6],VDJ.tactique1)}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🛡 Style — Goals Conceded':'🛡 Style — Buts encaissés'}</div>
-      ${distrTableMini(gAgainst,'tactique1',[1,2,4,3,5,6],VDJ.tactique1)}
+      ${_distrBar(gAgainst,'tactique1',[1,2,4,3,5,6],VDJ.tactique1)}
     </div>
 
     <!-- Origine -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Direction — Goals Scored':'🔍 Origine — Buts marqués'}</div>
-      ${distrTableMini(gFor,'origine2',[4,2,3],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
+      ${_distrBar(gFor,'origine2',[4,2,3],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Direction — Goals Conceded':'🔍 Origine — Buts encaissés'}</div>
-      ${distrTableMini(gAgainst,'origine2',[4,2,3],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
+      ${_distrBar(gAgainst,'origine2',[4,2,3],{2:_lang==='en'?'Center':'Axe',3:_lang==='en'?'Right':'Droite',4:_lang==='en'?'Left':'Gauche'})}
     </div>
 
     <!-- Actions top 5 -->
@@ -9178,11 +9178,11 @@ function renderRapport(){
     <!-- Phases arrêtées -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🎯 Set Pieces — Scored':'🎯 Phases arrêtées — Marqués'} (${paFor.length})</div>
-      ${distrTableMini(paFor,'origine1',[5,4,3,10,7],{5:_lang==='en'?'Indirect FK':'Coup franc ind.',4:_lang==='en'?'Direct FK':'CF direct',3:'Corner',10:_lang==='en'?'Throw-in':'Touche',7:_lang==='en'?'Penalty (SP)':'Penalty (PA)'})}
+      ${_distrBar(paFor,'origine1',[5,4,3,10,7],{5:_lang==='en'?'Indirect FK':'Coup franc ind.',4:_lang==='en'?'Direct FK':'CF direct',3:'Corner',10:_lang==='en'?'Throw-in':'Touche',7:_lang==='en'?'Penalty (SP)':'Penalty (PA)'})}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
       <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🎯 Set Pieces — Conceded':'🎯 Phases arrêtées — Encaissés'} (${paAgainst.length})</div>
-      ${distrTableMini(paAgainst,'origine1',[5,4,3,10,7],{5:_lang==='en'?'Indirect FK':'Coup franc ind.',4:_lang==='en'?'Direct FK':'CF direct',3:'Corner',10:_lang==='en'?'Throw-in':'Touche',7:_lang==='en'?'Penalty (SP)':'Penalty (PA)'})}
+      ${_distrBar(paAgainst,'origine1',[5,4,3,10,7],{5:_lang==='en'?'Indirect FK':'Coup franc ind.',4:_lang==='en'?'Direct FK':'CF direct',3:'Corner',10:_lang==='en'?'Throw-in':'Touche',7:_lang==='en'?'Penalty (SP)':'Penalty (PA)'})}
     </div>
   </div>
 
