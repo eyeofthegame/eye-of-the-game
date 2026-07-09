@@ -3367,31 +3367,41 @@ function resetScorers(){
   refreshScorers();
 }
 
-function refreshScorers(){
-  const goals = getAllGoals();
-  const team  = document.getElementById('sf-team')?.value || '';
-  const tac1  = document.getElementById('sf-tac1')?.value || '';
-  const nat   = document.getElementById('sf-nat')?.value  || '';
-  const ori1  = document.getElementById('sf-ori1')?.value || '';
-  const ori2  = document.getElementById('sf-ori2')?.value || '';
-  const min   = document.getElementById('sf-min')?.value  || '';
-  const lieu  = document.getElementById('sf-lieu')?.value || '';
+// Lit l'état courant des filtres de la page Meilleurs buteurs (retourne des
+// chaînes vides si les selects n'existent pas — ex: appelé depuis Assists).
+function _currentScorerFilters(){
+  return {
+    team: document.getElementById('sf-team')?.value || '',
+    tac1: document.getElementById('sf-tac1')?.value || '',
+    nat:  document.getElementById('sf-nat')?.value  || '',
+    ori1: document.getElementById('sf-ori1')?.value || '',
+    ori2: document.getElementById('sf-ori2')?.value || '',
+    min:  document.getElementById('sf-min')?.value  || '',
+    lieu: document.getElementById('sf-lieu')?.value || ''
+  };
+}
 
-  const filtered = goals.filter(g=>{
+// Applique ces filtres à une liste de buts (même logique que refreshScorers).
+function _applyScorerFilters(goals, f){
+  return goals.filter(g=>{
     if(isCsc(g)) return false; // CSC gérés séparément
-    if(team && g.team !== team) return false;
-    if(tac1 && String(g.tactique1) !== tac1) return false;
-    if(nat  && String(g.tactique3) !== nat)  return false;
-    if(ori1 && String(g.origine1)  !== ori1) return false;
-    if(ori2 && String(g.origine2)  !== ori2) return false;
-    if(lieu && String(g.lieu)       !== lieu) return false;
-    if(min){
+    if(f.team && g.team !== f.team) return false;
+    if(f.tac1 && String(g.tactique1) !== f.tac1) return false;
+    if(f.nat  && String(g.tactique3) !== f.nat)  return false;
+    if(f.ori1 && String(g.origine1)  !== f.ori1) return false;
+    if(f.ori2 && String(g.origine2)  !== f.ori2) return false;
+    if(f.lieu && String(g.lieu)       !== f.lieu) return false;
+    if(f.min){
       const _s=String(g.minute||''),_i=parseInt(_s)||1;
       const bucket=_s.includes('45+')?7:_s.includes('90+')?8:_i===45?7:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();
-      if(String(bucket) !== min) return false;
+      if(String(bucket) !== f.min) return false;
     }
     return true;
   });
+}
+
+function refreshScorers(){
+  const filtered = _applyScorerFilters(getAllGoals(), _currentScorerFilters());
   buildScorerTable(filtered);
 }
 
@@ -3519,7 +3529,16 @@ function showGoalDetailTete(subKey, zone, team){
 }
 
 function showGoalDetailScorer(playerName, team, isAssist){
-  const goals = getAllGoals().filter(g=>{
+  // Sur la page Meilleurs buteurs (buts, pas assists), la barre de filtres (sf-*)
+  // peut être active — on ne veut voir en détail que les buts qui correspondent
+  // à la sélection en cours (ex: "Petit rectangle"), pas tous les buts du joueur
+  // sur le tournoi. La page Assists n'a pas cette barre : les selects sf-* n'y
+  // existent pas, donc _currentScorerFilters() retombe sur "aucun filtre".
+  let pool = getAllGoals();
+  if(!isAssist && document.getElementById('sf-team')){
+    pool = _applyScorerFilters(pool, _currentScorerFilters());
+  }
+  const goals = pool.filter(g=>{
     if(isAssist) return g.assist===playerName && g.team===team && !g.noAssist;
     return g.buteur===playerName && g.team===team;
   });
@@ -7086,7 +7105,20 @@ function rechUpdateFilter(key, val){
   _rechState[key] = val;
   // Deactivate any preset that controls this field
   _RECH_PRESETS.forEach(p=>{ if(p.filters[key]!==undefined) _rechActivePresets.delete(p.key); });
+  // renderRecherche() reconstruit tout le HTML (donc aussi le champ texte) :
+  // sans ceci, le focus/curseur saute après chaque lettre tapée. On mémorise
+  // le champ actif + la position du curseur avant le rendu, puis on les restaure.
+  const _focusEl = document.activeElement;
+  const _focusId = _focusEl && _focusEl.id;
+  const _selStart = _focusEl && typeof _focusEl.selectionStart === 'number' ? _focusEl.selectionStart : null;
   renderRecherche();
+  if(_focusId){
+    const el = document.getElementById(_focusId);
+    if(el && el.focus){
+      el.focus();
+      if(_selStart !== null && el.setSelectionRange) el.setSelectionRange(_selStart, _selStart);
+    }
+  }
 }
 
 const _RECH_PRESETS = [
@@ -7269,7 +7301,18 @@ function rechUpdateFilterB(key, val){
     const p=_RECH_PRESETS.find(pr=>pr.key===pk);
     if(p && p.filters[key]!==undefined) _rechActivePresetsB.delete(pk);
   });
+  // Même correctif de focus que rechUpdateFilter (voir ce commentaire).
+  const _focusEl = document.activeElement;
+  const _focusId = _focusEl && _focusEl.id;
+  const _selStart = _focusEl && typeof _focusEl.selectionStart === 'number' ? _focusEl.selectionStart : null;
   renderRecherche();
+  if(_focusId){
+    const el = document.getElementById(_focusId);
+    if(el && el.focus){
+      el.focus();
+      if(_selStart !== null && el.setSelectionRange) el.setSelectionRange(_selStart, _selStart);
+    }
+  }
 }
 
 function rechApplyPresetB(key){
@@ -8287,19 +8330,46 @@ function renderPreview(){
     // Offensive
     +'<div>'
     +'<div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#1a6e2e;margin-bottom:8px">⚔️ '+(_lang==='en'?'How they score':'Comment ils marquent')+' ('+offGoals.length+' '+(_lang==='en'?'goals':'buts')+')</div>'
-    +card('🎭 '+(_lang==='en'?'Tactics':'Tactique'), topPatterns(offGoals,'tactique1',VDJ.tactique1,5), '#1a6e2e44')
+    +card('🎭 '+(_lang==='en'?'Tactics':'Tactique'), topPatterns(offGoals,'tactique1',VDJ.tactique1,6), '#1a6e2e44')
     +card('📍 '+(_lang==='en'?'Shot zone':'Lieu du tir'), topPatterns(offGoals,'lieu',VDJ.lieu,3), '#1a6e2e44')
     +card('🏆 '+(_lang==='en'?'Top scorers':'Buteurs'), topPlayers(offGoals,5), '#1a6e2e44')
+    +card('⏱ '+(_lang==='en'?'Time distribution':'Distribution temporelle'), '<div style="display:grid;grid-template-columns:repeat(8,1fr);align-items:flex-end;gap:2px;height:56px">'+_timingRow(offGoals)+'</div>', '#1a6e2e44')
+    +card('🔍 '+(_lang==='en'?'Playing direction':'Intention de jeu'), _distrBar(offGoals,'origine2',[4,2,3],{2:{nom:_lang==='en'?'Center':'Axe'},3:{nom:_lang==='en'?'Right':'Droite'},4:{nom:_lang==='en'?'Left':'Gauche'}}), '#1a6e2e44')
+    +card('🦵 '+(_lang==='en'?'Shooting actions':'Actions de tir'), topN(offGoals,'actions',5), '#1a6e2e44')
     +'</div>'
 
     // Defensive
     +'<div>'
     +'<div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#8b2020;margin-bottom:8px">🛡️ '+(_lang==='en'?'How they concede':'Comment ils encaissent')+' ('+defGoals.length+' '+(_lang==='en'?'goals':'buts')+')</div>'
-    +card('🎭 '+(_lang==='en'?'Tactics conceded':'Tactiques encaissées'), topPatterns(defGoals,'tactique1',VDJ.tactique1,5), '#8b202044')
+    +card('🎭 '+(_lang==='en'?'Tactics conceded':'Tactiques encaissées'), topPatterns(defGoals,'tactique1',VDJ.tactique1,6), '#8b202044')
     +card('📍 '+(_lang==='en'?'Zones conceded':'Zones encaissées'), topPatterns(defGoals,'lieu',VDJ.lieu,3), '#8b202044')
     +card('⚠️ '+(_lang==='en'?'Scorers against them':'Auteurs des buts'), topPlayers(defGoals,5), '#8b202044')
+    +card('⏱ '+(_lang==='en'?'Time distribution (conceded)':'Distribution temporelle (encaissés)'), '<div style="display:grid;grid-template-columns:repeat(8,1fr);align-items:flex-end;gap:2px;height:56px">'+_timingRow(defGoals)+'</div>', '#8b202044')
+    +card('🔍 '+(_lang==='en'?'Playing direction (conceded)':'Intention de jeu (encaissée)'), _distrBar(defGoals,'origine2',[4,2,3],{2:{nom:_lang==='en'?'Center':'Axe'},3:{nom:_lang==='en'?'Right':'Droite'},4:{nom:_lang==='en'?'Left':'Gauche'}}), '#8b202044')
+    +card('🦵 '+(_lang==='en'?'Shooting actions conceded':'Actions de tir encaissées'), topN(defGoals,'actions',5), '#8b202044')
     +'</div>'
     +'</div>'
+
+    // Valeur en points (résumé — même méthodologie que Valeur PA en points / Valeur styles en points)
+    +(function(){
+      var pts = _teamPointsSummary(_prevTeam);
+      var col = function(n){ return n>0?'#1a7a1a':n<0?'#cc2222':'#888'; };
+      var sign = function(n){ return n===0?'0':(n>0?'+':'')+n; };
+      return '<div style="background:var(--card);border:1.5px solid var(--border);border-radius:10px;padding:14px;margin-bottom:14px">'
+        +'<div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">💰 '+(_lang==='en'?'Value in points':'Valeur en points')+'</div>'
+        +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
+        +'<div style="text-align:center;padding:10px;border-radius:8px;background:#f7f5ef">'
+        +'<div style="font-size:.75em;color:var(--muted);margin-bottom:4px">⛳ '+(_lang==='en'?'Set piece + penalty':'Phases arrêtées + penalty')+'</div>'
+        +'<div style="font-size:1.5em;font-weight:900;color:'+col(pts.setPieceNet)+'">'+sign(pts.setPieceNet)+' '+(_lang==='en'?'pts':'pts')+'</div>'
+        +'</div>'
+        +'<div style="text-align:center;padding:10px;border-radius:8px;background:#f7f5ef">'
+        +'<div style="font-size:.75em;color:var(--muted);margin-bottom:4px">🏃 '+(_lang==='en'?'Open play':'Jeu ouvert')+'</div>'
+        +'<div style="font-size:1.5em;font-weight:900;color:'+col(pts.openPlayNet)+'">'+sign(pts.openPlayNet)+' '+(_lang==='en'?'pts':'pts')+'</div>'
+        +'</div>'
+        +'</div>'
+        +'<div style="font-size:.68em;color:var(--muted);margin-top:8px">'+(_lang==='en'?'Net impact on points won across all their matches (offensive gain + defensive cost). Detail per match in "Set Piece Value in Points" / "Style Value in Points".':'Impact net sur les points gagnés sur l\'ensemble de leurs matchs (gain offensif + coût défensif). Détail match par match dans « Valeur PA en points » / « Valeur Styles en points ».')+'</div>'
+        +'</div>';
+    })()
 
     // Recent pills
     +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">'
@@ -8530,6 +8600,75 @@ function topN(goals, key, n){
       </div>
     </div>`;
   }).join('');
+}
+
+// ── Helpers Preview adversaire (dupliqués depuis renderComparateur pour ne pas
+//    risquer de casser le Comparateur — même principe que PHASE_ORDER_HOME) ──
+function _distrBar(goals, key, order, labels){
+  const tot = goals.length || 1;
+  const keys = order || Object.keys(labels).map(Number).sort((a,b)=>a-b);
+  return keys.map(k=>{
+    const cnt = goals.filter(g=>g[key]==k).length;
+    if(!cnt) return '';
+    const pct = Math.round(cnt/tot*100);
+    const lbl = labels[k] ? (labels[k].nom||labels[k]) : k;
+    return `<div style="margin-bottom:5px">
+      <div style="display:flex;justify-content:space-between;font-size:.75em;margin-bottom:2px">
+        <span>${lbl}</span><span style="color:var(--muted)">${cnt} (${pct}%)</span>
+      </div>
+      <div style="height:7px;background:#eee;border-radius:4px">
+        <div style="height:7px;background:var(--accent);border-radius:4px;width:${pct}%"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+const _T_LABELS = {1:'0–15',2:'16–30',3:'31–45',4:'46–60',5:'61–75',6:'76–90',7:'45+',8:'90+'};
+const _T_ORDER = [1,2,3,7,4,5,6,8];
+function _calcMin15(m){const s=String(m||''),i=parseInt(s)||1;if(s.includes('45+'))return 7;if(s.includes('90+'))return 8;if(i===45)return 7;if(i===90)return 8;let c=Math.ceil(i/15);return c>6?6:c<1?1:c;}
+function _timingRow(goals){
+  const tot = goals.length||1;
+  return _T_ORDER.map(k=>{
+    const cnt = goals.filter(g=>_calcMin15(g.minute)==k).length;
+    const pct = Math.round(cnt/tot*100);
+    return `<div style="text-align:center">
+      <div style="height:${Math.max(pct*1.5,2)}px;background:${k<=4?'#27ae60':'#2980b9'};border-radius:2px 2px 0 0;min-height:2px"></div>
+      <div style="font-size:.65em;color:var(--muted);margin-top:2px">${_T_LABELS[k]}</div>
+      <div style="font-size:.72em;font-weight:600">${cnt}</div>
+    </div>`;
+  }).join('');
+}
+
+// Valeur en points (PA+Penalty / Jeu ouvert) pour une seule équipe — même
+// méthodologie que renderPaPoints()/renderJeuPoints() (gainScoring+gainConceding),
+// filtre 'all' fixe (pas lié à l'état de filtre laissé sur ces autres pages).
+function _teamPointsSummary(team){
+  var spNet = 0, opNet = 0, matches = 0;
+  MATCHES.forEach(function(m){
+    var md = data[m.id];
+    if(!md || !md.validated) return;
+    if(m.dom !== team && m.ext !== team) return;
+    var goals = _paPointsGetGoals(m.id, md, m);
+    var myAll = goals.filter(function(g){return g.team===team;}).length;
+    var opAll = goals.filter(function(g){return g.team!==team;}).length;
+    var mySP  = goals.filter(function(g){return g.team===team && (g.tactique1===5||g.tactique1===6);}).length;
+    var opSP  = goals.filter(function(g){return g.team!==team && (g.tactique1===5||g.tactique1===6);}).length;
+    var myOP  = goals.filter(function(g){return g.team===team && g.tactique1>=1 && g.tactique1<=4;}).length;
+    var opOP  = goals.filter(function(g){return g.team!==team && g.tactique1>=1 && g.tactique1<=4;}).length;
+
+    var actual = _paPts(myAll, opAll);
+
+    var spSimOwn = _paPts(Math.max(0,myAll-mySP), opAll);
+    var spSimOpp = _paPts(myAll, Math.max(0,opAll-opSP));
+    spNet += (actual - spSimOwn) + (actual - spSimOpp);
+
+    var opSimOwn = _paPts(Math.max(0,myAll-myOP), opAll);
+    var opSimOpp = _paPts(myAll, Math.max(0,opAll-opOP));
+    opNet += (actual - opSimOwn) + (actual - opSimOpp);
+
+    matches++;
+  });
+  return { setPieceNet: spNet, openPlayNet: opNet, matches: matches };
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -8903,7 +9042,7 @@ function renderEvolutionPhase(){
       const g = byPhase[p].for;
       if(!g.length) return '';
       const tot=g.length;
-      const tacs=[{k:1,l:VDJ.tactique1[1].nom,c:'#27ae60'},{k:2,l:VDJ.tactique1[2].nom,c:'#2980b9'},{k:4,l:VDJ.tactique1[4].nom,c:'#f39c12'},{k:5,l:VDJ.tactique1[5].nom,c:'#c0392b'},{k:6,l:VDJ.tactique1[6].nom,c:'#e74c3c'}];
+      const tacs=[{k:1,l:VDJ.tactique1[1].nom,c:'#27ae60'},{k:2,l:VDJ.tactique1[2].nom,c:'#2980b9'},{k:4,l:VDJ.tactique1[4].nom,c:'#f39c12'},{k:3,l:VDJ.tactique1[3].nom,c:'#8e44ad'},{k:5,l:VDJ.tactique1[5].nom,c:'#c0392b'},{k:6,l:VDJ.tactique1[6].nom,c:'#e74c3c'}];
       return `<div style="margin-bottom:12px">
         <div style="font-size:.78em;font-weight:700;margin-bottom:6px">${PHASE_SHORT[p]} (${tot} ${_lang==='en'?'goal'+(tot>1?'s':''):'but'+(tot>1?'s':'')})</div>
         <div style="display:flex;height:16px;border-radius:4px;overflow:hidden">
