@@ -3629,21 +3629,23 @@ function buildCurvedArrow(x1,y1,x2,y2,color,curve,dasharray,sw){
 const GS_TYPE_COLORS = {1:'#e67e00',2:'#007755',3:'#003399',4:'#cc8800',5:'#cc0000',6:'#880099',7:'#009999',8:'#00838f',9:'#4a148c',10:'#cc0000'};
 const GS_TYPE_LABELS = {1:'Récup.',2:'Déclenchement',3:'Assist',4:'Chance',5:'Tir 👟',6:'Course 🏃',7:'Relais 🔄',8:'Réception 🤲',9:'Arrêt déf. 🛡',10:'But ⚽'};
 
-// Lignes de zones tactiques (half-spaces + tiers offensif) superposées sur les
-// schémas de but, en pointillés discrets — demandé par Christian pour mieux
-// visualiser le couloir/la zone utilisée lors de la construction d'un but.
-// Les 2 lignes intérieures divisent la largeur de la surface de réparation en
-// tiers (couloir gauche | demi-espace G | couloir central | demi-espace D | couloir droit),
-// les 2 lignes extérieures suivent les bords de la surface de réparation.
-function _tacticalZoneLines(M, W, H, paX, paW, color){
-  color = color || 'rgba(255,255,255,.4)';
-  const hs1=paX, hs2=paX+paW/3, hs3=paX+paW*2/3, hs4=paX+paW, thirdY=M+H/3;
+// Zones tactiques (demi-espaces + tiers médian) superposées sur les schémas de
+// but — design validé avec Christian après plusieurs allers-retours (mockups) :
+// deux bandes assombries à cheval sur les bords de la surface de réparation
+// (s'arrêtant peu après la surface, pas besoin d'aller plus loin), une bande
+// horizontale assombrie centrée sur le rond central, et une seule ligne
+// pointillée au bord de la surface. Pas de contour pointillé sur les demi-espaces.
+function _tacticalZones(M, W, H, paX, paW, paH, fillColor, dashColor){
+  fillColor = fillColor || 'rgba(255,255,255,.28)';
+  dashColor = dashColor || 'rgba(255,255,255,.4)';
+  const hsW = paW * 0.143;                 // largeur des bandes de demi-espace
+  const hsH = paH * 1.35;                  // s'arrête un peu après le bord de la surface
+  const bandTop = M + H*0.4, bandH = H*0.2; // bande horizontale centrée sur le rond central
   const S = v => v.toFixed(1);
-  return `<line x1="${S(hs1)}" y1="${S(M)}" x2="${S(hs1)}" y2="${S(M+H)}" stroke="${color}" stroke-width=".6" stroke-dasharray="3,2.5"/>
-    <line x1="${S(hs2)}" y1="${S(M)}" x2="${S(hs2)}" y2="${S(M+H)}" stroke="${color}" stroke-width=".6" stroke-dasharray="3,2.5"/>
-    <line x1="${S(hs3)}" y1="${S(M)}" x2="${S(hs3)}" y2="${S(M+H)}" stroke="${color}" stroke-width=".6" stroke-dasharray="3,2.5"/>
-    <line x1="${S(hs4)}" y1="${S(M)}" x2="${S(hs4)}" y2="${S(M+H)}" stroke="${color}" stroke-width=".6" stroke-dasharray="3,2.5"/>
-    <line x1="${S(M)}" y1="${S(thirdY)}" x2="${S(M+W)}" y2="${S(thirdY)}" stroke="${color}" stroke-width=".6" stroke-dasharray="3,2.5"/>`;
+  return `<rect x="${S(paX-hsW/2)}" y="${S(M)}" width="${S(hsW)}" height="${S(hsH)}" fill="${fillColor}"/>
+    <rect x="${S(paX+paW-hsW/2)}" y="${S(M)}" width="${S(hsW)}" height="${S(hsH)}" fill="${fillColor}"/>
+    <rect x="${S(M)}" y="${S(bandTop)}" width="${S(W)}" height="${S(bandH)}" fill="${fillColor}"/>
+    <line x1="${S(M)}" y1="${S(M+paH)}" x2="${S(M+W)}" y2="${S(M+paH)}" stroke="${dashColor}" stroke-width=".6" stroke-dasharray="3,2.5"/>`;
 }
 
 function buildGoalStepsSchema(steps, label) {
@@ -3663,7 +3665,7 @@ function buildGoalStepsSchema(steps, label) {
 
   let pitch = `<rect width="${TW}" height="${TH}" fill="#c8cdd4" rx="4"/>
     <rect x="${M}" y="${M}" width="${W}" height="${H}" fill="none" stroke="rgba(74,96,127,.90)" stroke-width="1"/>
-    ${_tacticalZoneLines(M, W, H, paXn, paWn, 'rgba(255,255,255,.4)')}
+    ${_tacticalZones(M, W, H, paXn, paWn, paHn, 'rgba(255,255,255,.28)', 'rgba(255,255,255,.4)')}
     <line x1="${M}" y1="${M+H/2}" x2="${M+W}" y2="${M+H/2}" stroke="rgba(255,255,255,.5)" stroke-width=".8"/>
     <circle cx="${cx}" cy="${cy}" r="${ccR}" fill="none" stroke="rgba(255,255,255,.5)" stroke-width=".8"/>
     <circle cx="${cx}" cy="${cy}" r="2" fill="rgba(255,255,255,.6)"/>
@@ -3827,7 +3829,7 @@ function buildMiniPitchWithArrow(assistX, assistY, pitchX, pitchY, label, trigge
     <svg viewBox="0 0 ${M*2+W} ${M*2+H}" width="100%" style="border-radius:4px;display:block">
       <rect width="${M*2+W}" height="${M*2+H}" fill="#c8cdd4" rx="3"/>
       <rect x="${M}" y="${M}" width="${W}" height="${H}" fill="none" stroke="rgba(74,96,127,.85)" stroke-width=".9"/>
-      ${_tacticalZoneLines(M, W, H, paX_, paW_, 'rgba(74,96,127,.55)')}
+      ${_tacticalZones(M, W, H, paX_, paW_, paH_, 'rgba(74,96,127,.35)', 'rgba(74,96,127,.55)')}
       <line x1="${M}" y1="${M+H/2}" x2="${M+W}" y2="${M+H/2}" stroke="rgba(74,96,127,.70)" stroke-width=".7"/>
       <circle cx="${(M+W/2).toFixed(1)}" cy="${(M+H/2).toFixed(1)}" r="${ccR_.toFixed(1)}" fill="none" stroke="rgba(74,96,127,.70)" stroke-width=".7"/>
       <circle cx="${(M+W/2).toFixed(1)}" cy="${(M+H/2).toFixed(1)}" r="1.8" fill="rgba(74,96,127,.75)"/>
