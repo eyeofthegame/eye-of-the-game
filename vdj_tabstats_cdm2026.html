@@ -8250,7 +8250,8 @@ function renderPreview(){
       const bg='#'+(info.c1||'888'), col='#'+(info.c2||'fff');
       const pct=Math.round(cnt/goals.length*100);
       return '<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">'
-        +'<span style="background:'+bg+';color:'+col+';padding:2px 8px;border-radius:4px;font-size:.72em;font-weight:700;white-space:nowrap;min-width:100px">'+info.nom+'</span>'
+        +'<span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:'+bg+';flex:0 0 9px"></span>'
+        +'<span style="flex:0 0 132px;font-size:.72em;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">'+info.nom+'</span>'
         +'<div style="flex:1;height:5px;border-radius:3px;background:#e8eaf0;overflow:hidden;min-width:40px">'
         +'<div style="width:'+pct+'%;height:100%;background:'+bg+';border-radius:3px;min-width:'+(pct>0?'4px':'0')+'"></div>'
         +'</div>'
