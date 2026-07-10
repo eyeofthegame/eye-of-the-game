@@ -4027,8 +4027,10 @@ function _topButsSort(arr){
 function _topButsListHTML(arr, catId){
   if(!arr.length) return '<div class="no-data">'+(_lang==='en'?'No goals':'Aucun but')+'</div>';
   return arr.map((g,i)=>{
-    const tac = VDJ.tactique1[g.tactique1] ? VDJ.tactique1[g.tactique1].nom : '—';
-    const tacBg = VDJ.tactique1[g.tactique1] ? '#'+VDJ.tactique1[g.tactique1].c1 : '#888';
+    const tDef = VDJ.tactique1[g.tactique1];
+    const tac = tDef ? tDef.nom : '—';
+    const tacBg = tDef ? '#'+tDef.c1 : '#888';
+    const tacFg = tDef ? '#'+tDef.c2 : '#fff'; // couleur de texte prédéfinie par catégorie (contraste garanti)
     const vid = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:.75em;cursor:pointer;flex-shrink:0">▶</button>` : '';
     return `<div onclick="openTopButGoal('${catId}',${i})" style="cursor:pointer;display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc">
       <span style="font-weight:800;color:var(--muted);font-size:.85em;width:20px;text-align:center;flex-shrink:0">${i+1}</span>
@@ -4037,7 +4039,7 @@ function _topButsListHTML(arr, catId){
         <div style="font-weight:700;font-size:.88em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'?'} <span style="font-weight:400;color:#888">${tf(g.team)}</span></div>
         <div style="font-size:.75em;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tf(g.match.dom)} — ${tf(g.match.ext)} · ${g.minute||'?'}'</div>
       </div>
-      <span style="font-size:.68em;background:${tacBg};color:#fff;border-radius:3px;padding:2px 6px;white-space:nowrap;flex-shrink:0">${tac}</span>
+      <span style="font-size:.68em;background:${tacBg};color:${tacFg};border-radius:3px;padding:2px 6px;white-space:nowrap;flex-shrink:0;font-weight:600">${tac}</span>
       ${xgBadge(g,'.68em')}
       ${vid}
     </div>`;
