@@ -1762,6 +1762,7 @@ function renderPaPoints() {
 // ──────────────────────────────────────────────────────────────
 let _spPaFilter = '__all__';
 let _spTeamFilter = '__all__';
+let _spComboOnly = false; // Combinaison travaillée (Descriptif id 31) — filtre rapide
 
 function renderSetpieces(){
   loadData();
@@ -1771,7 +1772,8 @@ function renderSetpieces(){
 
   const filtered = goals.filter(g=>
     (_spTeamFilter==='__all__' || g.team===_spTeamFilter) &&
-    (_spPaFilter==='__all__' || parseInt(g.paType)===parseInt(_spPaFilter))
+    (_spPaFilter==='__all__' || parseInt(g.paType)===parseInt(_spPaFilter)) &&
+    (!_spComboOnly || parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31)
   );
 
   const PA_NAMES = {1:'Corner', 2:'CF indirect', 3:'CF direct', 4:'Touche', 5:'Penalty'};
@@ -1893,11 +1895,13 @@ function renderSetpieces(){
     const paTypeInt = parseInt(g.paType)||0;
     const paLabel = (paTypeInt && paTypeInt !== 5 && PA_NAMES[paTypeInt]) ? (_lang==='en'?(PA_NAMES_EN[paTypeInt]||PA_NAMES[paTypeInt]):PA_NAMES[paTypeInt]) : null;
     const paBadge = paLabel ? `<span style="background:${PA_COLORS[paTypeInt]||'#555'};color:#fff;font-size:.72em;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.02em;white-space:nowrap">${paLabel.toUpperCase()}</span>` : '';
+    const isCombo = parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31;
+    const comboBadge = isCombo ? `<span style="background:#0e7c61;color:#fff;font-size:.68em;font-weight:700;padding:2px 7px;border-radius:6px;white-space:nowrap">🔧 ${_lang==='en'?'Worked Combo':'Combi. travaillée'}</span>` : '';
     return `<div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)">
       <div style="padding:8px 10px;background:#1a3a1a;color:#fff">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
           <div style="font-weight:700;font-size:.85em">${tmLink(g.buteur||'?')}${cscBadge} — ${g.team}</div>
-          ${paBadge}
+          <div style="display:flex;flex-direction:column;gap:3px;align-items:flex-end">${paBadge}${comboBadge}</div>
         </div>
         <div style="font-size:.75em;color:#8fb88f">${domLabel} – ${extLabel} · ${g.minute||'?'}'</div>
         ${assistLine}
@@ -1929,10 +1933,17 @@ function renderSetpieces(){
     return `<button onclick="_spPaFilter='${opt.v}';renderSetpieces()" style="padding:4px 10px;border-radius:20px;font-size:.8em;cursor:pointer;border:2px solid ${sel?opt.color:'#ccc'};background:${sel?opt.color:'#fff'};color:${sel?'#fff':'#555'};font-weight:${sel?700:400}">${opt.label}</button>`;
   }).join('');
 
+  // Pile unique : Combinaison travaillée (Descriptif = tactique2/tactique2b id 31,
+  // catégorie existante — ne pas confondre avec "Nature du but"/tactique3).
+  const COMBO_TRAVAILLEE_ID = 31;
+  const comboActive = _spComboOnly;
+  const comboCount = allGoals.filter(g => String(g.tactique1)==='5' && (parseInt(g.tactique2)===COMBO_TRAVAILLEE_ID || parseInt(g.tactique2b)===COMBO_TRAVAILLEE_ID)).length;
+  const comboPill = `<button onclick="_spComboOnly=!_spComboOnly;renderSetpieces()" style="padding:4px 12px;border-radius:20px;font-size:.8em;cursor:pointer;border:2px solid ${comboActive?'#0e7c61':'#ccc'};background:${comboActive?'#0e7c61':'#fff'};color:${comboActive?'#fff':'#555'};font-weight:${comboActive?700:400}">🔧 ${_lang==='en'?'Worked Combination':'Combinaison travaillée'} (${comboCount})</button>`;
+
   const html = `<div style="padding:20px 10px;max-width:1200px;margin:0 auto">
     <h2 style="margin:0 0 16px;font-size:1.4em">🗺 ${_lang==='en'?'Set-Piece Diagrams':'Schémas Phases arrêtées'}</h2>
     <div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">${teamPills.join('')}</div>
-    <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">${paPills}</div>
+    <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">${paPills}${comboPill}</div>
     <div style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#f5f5f5;border-radius:8px">${legend}</div>
     ${cards}
   </div>`;
