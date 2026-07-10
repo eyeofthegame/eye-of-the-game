@@ -667,6 +667,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <a href="#" onclick="showView('preview')" id="nav-preview" data-i18n="nav-preview">🎯 Preview adversaire</a>
 <a href="#" onclick="showView('topscorers')" id="nav-topscorers" data-i18n="nav-topscorers">Meilleurs buteurs</a>
 <a href="#" onclick="showView('assists')" id="nav-assists" data-i18n="nav-assists">Passes décisives</a>
+<a href="#" onclick="showView('topbuts')" id="nav-topbuts" data-i18n="nav-topbuts">🏆 Top Buts</a>
 
 <h3 id="sb-h-time">⏱ Temps &amp; Espace</h3>
 <a href="#" onclick="showAnalysis('mitemps')" data-key="mitemps" data-i18n="nav-mitemps">1ère / 2ème mi-temps</a>
@@ -723,6 +724,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <div id="view-scorerprofile" style="display:none"></div>
 <div id="view-recherche" style="display:none"></div>
 <div id="view-preview" style="display:none"></div>
+<div id="view-topbuts" style="display:none"></div>
 <div id="view-ficheMatch" style="display:none"></div>
 <div id="view-results" style="display:none"></div>
 <div id="view-penalties" style="display:none"></div>
@@ -2234,6 +2236,7 @@ function showView(name){
   else if(name==='scorerprofile') _safeRender(renderScorerProfile);
   else if(name==='recherche') _safeRender(renderRecherche);
   else if(name==='preview') _safeRender(renderPreview);
+  else if(name==='topbuts') _safeRender(renderTopButs);
   else if(name==='ficheMatch') _safeRender(renderFicheMatch);
   else if(name==='adn') _safeRender(renderAdnJeu);
   else if(name==='comparateur') _safeRender(renderComparateur);
@@ -3993,6 +3996,90 @@ function renderSingleGoal(idx){
 
 function closeDetail(){
   document.getElementById('detail-panel').classList.remove('open');
+}
+
+// ══════════════════════════════════════════════════════════════════════════
+// 🏆 TOP BUTS — classement par valeur (1 à 5, échelle Vision du Jeu)
+// ──────────────────────────────────────────────────────────────────────────
+// Deux catégories : plein jeu (tactique1 hors 5=Phase arrêtée et 6=Penalty,
+// même convention que renderHome) et phase arrêtée hors penalty (tactique1===5
+// uniquement — le penalty est exclu comme demandé). Les CSC ne sont pas de
+// "beaux buts" au sens de la valeur : exclus du classement.
+// ══════════════════════════════════════════════════════════════════════════
+let _topButsPJ = [], _topButsPA = [];
+
+function _topButsStars(v){
+  v = v || 0;
+  let s = '';
+  for(let i=1;i<=5;i++) s += i<=v ? '★' : '☆';
+  return '<span style="color:#e0a800;letter-spacing:1px;flex-shrink:0">'+s+'</span>';
+}
+
+function _topButsSort(arr){
+  return [...arr].sort((a,b)=>{
+    const va = a.valeur||0, vb = b.valeur||0;
+    if(vb!==va) return vb-va;
+    if(a.matchId!==b.matchId) return (b.matchId||0)-(a.matchId||0);
+    return (parseInt(b.minute)||0)-(parseInt(a.minute)||0);
+  });
+}
+
+function _topButsListHTML(arr, catId){
+  if(!arr.length) return '<div class="no-data">'+(_lang==='en'?'No goals':'Aucun but')+'</div>';
+  return arr.map((g,i)=>{
+    const tac = VDJ.tactique1[g.tactique1] ? VDJ.tactique1[g.tactique1].nom : '—';
+    const tacBg = VDJ.tactique1[g.tactique1] ? '#'+VDJ.tactique1[g.tactique1].c1 : '#888';
+    const vid = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:2px 7px;font-size:.75em;cursor:pointer;flex-shrink:0">▶</button>` : '';
+    return `<div onclick="openTopButGoal('${catId}',${i})" style="cursor:pointer;display:flex;align-items:center;gap:9px;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc">
+      <span style="font-weight:800;color:var(--muted);font-size:.85em;width:20px;text-align:center;flex-shrink:0">${i+1}</span>
+      ${_topButsStars(g.valeur)}
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:.88em;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${g.buteur||'?'} <span style="font-weight:400;color:#888">${tf(g.team)}</span></div>
+        <div style="font-size:.75em;color:#888;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${tf(g.match.dom)} — ${tf(g.match.ext)} · ${g.minute||'?'}'</div>
+      </div>
+      <span style="font-size:.68em;background:${tacBg};color:#fff;border-radius:3px;padding:2px 6px;white-space:nowrap;flex-shrink:0">${tac}</span>
+      ${xgBadge(g,'.68em')}
+      ${vid}
+    </div>`;
+  }).join('');
+}
+
+function renderTopButs(){
+  loadData();
+  const goals = getAllGoals().filter(g=>!isCsc(g));
+  const pleinJeu = goals.filter(g=>g.tactique1!==5 && g.tactique1!==6);
+  const phaseArretee = goals.filter(g=>g.tactique1===5); // hors penalty (6 exclu)
+
+  const TOP_N = 15;
+  _topButsPJ = _topButsSort(pleinJeu).slice(0, TOP_N);
+  _topButsPA = _topButsSort(phaseArretee).slice(0, TOP_N);
+
+  const el = document.getElementById('view-topbuts');
+  if(!el) return;
+
+  el.innerHTML = `
+    <div style="padding:24px">
+      <h2 style="color:var(--accent)">🏆 ${_lang==='en'?'Top Goals (by rating)':'Top Buts (par valeur)'}</h2>
+      <p style="color:var(--muted);margin-bottom:16px;font-size:.85em">${_lang==='en'?'Ranked by the 1–5 quality rating assigned in Vision du Jeu (VDJ).':'Classés selon la valeur (1 à 5) attribuée en Vision du Jeu.'}</p>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+        <div>
+          <h3 style="font-size:.95em;color:#1a6e2e;margin-bottom:8px">⚽ ${_lang==='en'?'Open Play':'Plein jeu'} (${pleinJeu.length})</h3>
+          ${_topButsListHTML(_topButsPJ,'pj')}
+        </div>
+        <div>
+          <h3 style="font-size:.95em;color:#8b2020;margin-bottom:8px">🎯 ${_lang==='en'?'Set Pieces (excl. penalties)':'Phase arrêtée (hors penalty)'} (${phaseArretee.length})</h3>
+          ${_topButsListHTML(_topButsPA,'pa')}
+        </div>
+      </div>
+    </div>`;
+}
+
+function openTopButGoal(catId, idx){
+  const arr = catId==='pj' ? _topButsPJ : _topButsPA;
+  if(!arr || !arr[idx]) return;
+  _detailGoalsCache = arr;
+  renderSingleGoal(idx);
+  document.getElementById('detail-panel').classList.add('open');
 }
 
 
@@ -10281,6 +10368,7 @@ const _SIDEBAR_EN = {
   "nav-scorerprofile":"⚡ Scorer Profile",
   "nav-topscorers":"Top Scorers",
   "nav-assists":"Key Passes",
+  "nav-topbuts":"🏆 Top Goals",
   "nav-mitemps":"1st / 2nd Half",
   "nav-minutes":"Minutes (15')",
   "nav-minutes10":"Minutes (10')",
@@ -10332,6 +10420,7 @@ const _SIDEBAR_FR = {
   "nav-scorerprofile":"⚡ Profil buteur",
   "nav-topscorers":"Meilleurs buteurs",
   "nav-assists":"Passes décisives",
+  "nav-topbuts":"🏆 Top Buts",
   "nav-mitemps":"1ère / 2ème mi-temps",
   "nav-minutes":"Minutes (15')",
   "nav-minutes10":"Minutes (10')",
