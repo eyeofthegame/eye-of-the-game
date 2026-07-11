@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>VDJ — Gestion BDD — Coupe du Monde 2026</title>
 <style>
-:root{--bg:#f0ece4;--card:#faf6f0;--border:#c4b09a;--accent:#4b607f;--green:#4b607f;--red:#c45a10;--text:#16140f;--muted:#7a6e62;--highlight:#f3e8d4
+:root{--bg:#f0ece4;--card:#faf6f0;--border:#c4b09a;--accent:#4b607f;--green:#3f7d52;--red:#c45a10;--text:#16140f;--muted:#7a6e62;--highlight:#f3e8d4
   --vdj-ink: #16140f;
   --vdj-parchment: #faf7f2;
   --vdj-stone: #f0ece4;
@@ -304,9 +304,12 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 </div>
 </div>
 <div id="goals-container"></div>
-<div id="encode-actions" class="hidden" style="margin-top:1em;display:flex;gap:8px">
+<div id="encode-actions" class="hidden" style="margin-top:1em;display:flex;flex-direction:column;gap:6px">
+<div style="display:flex;gap:8px">
 <button onclick="saveGoals()" class="primary success">Enregistrer l'encodage</button>
 <button onclick="showPage('matches')">Retour à la liste</button>
+</div>
+<div style="font-size:.8em;color:var(--red);font-weight:bold">⚠️ Vérifiez les équipes avant de valider.</div>
 </div>
 </div>
 
@@ -739,8 +742,8 @@ var MATCHES_CDM = [
   {id:95,date:"07/07/2026",heure:"12:00",group:"8e",dom:"Argentine",ext:"Égypte",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"8e de finale"},
   {id:96,date:"07/07/2026",heure:"16:00",group:"8e",dom:"Suisse",ext:"Colombie",ville:"Vancouver",stade:"BC Place",phase:"8e de finale"},
   {id:97,date:"09/07/2026",heure:"16:00",group:"Quart",dom:"Maroc",ext:"France",ville:"Foxborough",stade:"Gillette Stadium",phase:"Quart de finale",score:{dom:0,ext:2}},
-  {id:98,date:"11/07/2026",heure:"15:00",group:"Quart",dom:"Norvège",ext:"Angleterre",ville:"Inglewood",stade:"SoFi Stadium",phase:"Quart de finale"},
   {id:99,date:"10/07/2026",heure:"17:00",group:"Quart",dom:"Espagne",ext:"Belgique",ville:"Miami Gardens",stade:"Hard Rock Stadium",phase:"Quart de finale",score:{dom:2,ext:1}},
+  {id:98,date:"11/07/2026",heure:"15:00",group:"Quart",dom:"Norvège",ext:"Angleterre",ville:"Inglewood",stade:"SoFi Stadium",phase:"Quart de finale"},
   {id:100,date:"11/07/2026",heure:"21:00",group:"Quart",dom:"Argentine",ext:"Suisse",ville:"Kansas City",stade:"Arrowhead Stadium",phase:"Quart de finale"},
   {id:101,date:"14/07/2026",heure:"15:00",group:"Demi",dom:"France",ext:"Espagne",ville:"Arlington",stade:"AT&T Stadium",phase:"Demi-finale"},
   {id:102,date:"15/07/2026",heure:"15:00",group:"Demi",dom:"À déterminer",ext:"À déterminer",ville:"Atlanta",stade:"Mercedes-Benz Stadium",phase:"Demi-finale"},
