@@ -2435,6 +2435,20 @@ const OFFICIAL_SITES = {
   bl2627: { label:'Bundesliga',     matchesUrl:'https://www.bundesliga.com/en/bundesliga/matchday' },
 };
 
+// fbref.com (Christian, 12/07) : "site très intéressant qui donne un peu
+// plus de données statistiques" — utile aux journalistes. Couvre les 5
+// compétitions de l'outil (contrairement à OFFICIAL_SITES, limité à
+// PL/Bundesliga) : ID de compétition fbref vérifiés un par un (recherche
+// web, 12/07) — hub stats de la compétition, pas de lien par match (même
+// prudence que pour le site officiel : pas d'ID de match à deviner).
+const FBREF_URLS = {
+  cdm:     'https://fbref.com/en/comps/1/2026/2026-World-Cup-Stats',
+  pl2627:  'https://fbref.com/en/comps/9/Premier-League-Stats',
+  jl2026:  'https://fbref.com/en/comps/25/J1-League-Stats',
+  jpl2627: 'https://fbref.com/en/comps/37/Belgian-Pro-League-Stats',
+  bl2627:  'https://fbref.com/en/comps/20/Bundesliga-Stats',
+};
+
 // Lien "site officiel" pour un match donné : fiche club officielle de
 // l'équipe à domicile si son ID/slug est connu, sinon repli sur le hub
 // de matchs général de la compétition.
@@ -2566,6 +2580,10 @@ function renderResults(){
       const injuryPill = (officialCfg && officialCfg.injuriesUrl)
         ? `<a href="${officialCfg.injuriesUrl}" target="_blank" title="Blessés officiels ${officialCfg.label}" style="text-decoration:none;background:#c62828;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">🩹</a>`
         : '';
+      const fbrefUrl = FBREF_URLS[ACTIVE_COMP];
+      const fbrefPill = fbrefUrl
+        ? `<a href="${fbrefUrl}" target="_blank" title="Statistiques fbref (${COMPETITIONS[ACTIVE_COMP].label})" style="text-decoration:none;background:#4a7a2a;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">📊</a>`
+        : '';
 
       // Group badge
       const isGroup = m.group && m.group.startsWith('Groupe');
@@ -2581,7 +2599,7 @@ function renderResults(){
         <span style="display:flex;gap:5px;flex-shrink:0">
           <a href="${googleUrl}" target="_blank" title="Voir sur Google (compos, stats…)" style="text-decoration:none;background:#4285F4;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">G</a>
           <a href="${sofascoreUrl}" target="_blank" title="Voir sur Fotmob" style="text-decoration:none;background:#1a1a2e;color:#f5a623;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">FM</a>
-          ${officialPill}${injuryPill}
+          ${officialPill}${injuryPill}${fbrefPill}
         </span>
       </div>`;
     });
@@ -4952,7 +4970,7 @@ function showGoalDetailScorer(playerName, team, isAssist){
   });
   const label = isAssist ? 'Passes décisives' : 'Buts';
   document.getElementById('detail-title').textContent = `${playerName} (${team}) — ${label} (${goals.length})`;
-  renderDetailGoals(goals);
+  renderDetailGoals(goals, isAssist);
   document.getElementById('detail-panel').classList.add('open');
 }
 
@@ -5256,7 +5274,11 @@ function buildMiniPitchWithArrow(assistX, assistY, pitchX, pitchY, label, trigge
   </div>`;
 }
 
-function renderDetailGoals(goals){
+function renderDetailGoals(goals, isAssist){
+  // Christian (12/07) : ouvert depuis "Passes décisives", le détail doit
+  // mettre en avant le passeur (pas le buteur) — voir _detailIsAssist,
+  // utilisé par renderDetailList()/renderSingleGoal() ci-dessous.
+  _detailIsAssist = !!isAssist;
   if(goals.length===0){
     document.getElementById('detail-content').innerHTML = '<div class="no-data">'+(_lang==='en'?'No goals':'Aucun but')+'</div>';
     return;
@@ -5267,6 +5289,7 @@ function renderDetailGoals(goals){
 }
 
 let _detailGoalsCache = [];
+let _detailIsAssist = false;
 
 function renderDetailList(goals){
   // Pre-compute all goals sorted for score tracking
@@ -5296,12 +5319,20 @@ function renderDetailList(goals){
     const sc = scoreAt(g);
     const fs = finalScore(g);
     const videoBtn = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer;flex-shrink:0">▶</button>` : '';
-    const assist = g.assist&&!g.noAssist ? `<div style="font-size:.8em;color:#666;margin-top:1px">→ ${g.assist}</div>` : '';
+    // Christian (12/07) : depuis "Passes décisives", le passeur doit être
+    // le nom mis en avant (ligne principale), le buteur en secondaire —
+    // inverse de la vue "Buteurs" (comportement par défaut inchangé).
+    const buteurLine = `${g.buteur||'?'}${csc}`;
+    const hasAssist = g.assist && !g.noAssist;
+    const primaryLine = _detailIsAssist ? (g.assist||'?') : buteurLine;
+    const secondaryLine = _detailIsAssist
+      ? `<div style="font-size:.8em;color:#666;margin-top:1px">⚽ ${buteurLine}</div>`
+      : (hasAssist ? `<div style="font-size:.8em;color:#666;margin-top:1px">→ ${g.assist}</div>` : '');
     html += `<div onclick="renderSingleGoal(${i})" style="cursor:pointer;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc;display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:8px">
       <span style="font-weight:800;color:var(--accent);font-size:.95em">${g.minute||'?'}'</span>
       <div>
-        <div style="font-weight:700;font-size:.9em">${g.buteur||'?'}${csc}</div>
-        ${assist}
+        <div style="font-weight:700;font-size:.9em">${primaryLine}</div>
+        ${secondaryLine}
         <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}</div>
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
@@ -5338,10 +5369,18 @@ function renderSingleGoal(idx){
   const sc = scoreAt(g);
   const fs = finalScore(g.matchId, g.match);
   const cscLabel = isCsc(g) ? ' <span style="color:#cc4400;font-size:.8em;font-weight:normal">(csc)</span>' : '';
+  // Christian (12/07) : même inversion que dans la liste — depuis "Passes
+  // décisives", le passeur est mis en avant (gras), le buteur en secondaire.
+  const buteurHtml = tmLink(g.buteur||'?') + cscLabel;
+  const assistHtml = (g.assist && !g.noAssist) ? tmLink(g.assist) : null;
+  const mainNameHtml = _detailIsAssist ? (assistHtml || '?') : buteurHtml;
+  const subNameHtml = _detailIsAssist
+    ? ' (⚽ ' + buteurHtml + ')'
+    : (assistHtml ? ' (' + assistHtml + ')' : '');
   let html = `<button onclick="renderDetailList(_detailGoalsCache)" style="margin-bottom:10px;padding:4px 12px;border:1px solid #ccc;border-radius:4px;background:#f5f5f5;cursor:pointer;font-size:.8em">← ${_lang==='en'?'Back to list':'Retour à la liste'}</button>`;
   html += `<div class="goal-detail">
     <div class="gd-header">${tf(g.match.dom)} — ${tf(g.match.ext)} ${g.match.id?'(M'+g.match.id+')':''} — ${g.match.date} &nbsp;<span style="font-weight:normal;font-size:.85em;color:#555">(${_lang==='en'?'final score: ':'score final : '}${fs})</span></div>
-    <div style="margin-bottom:6px">${g.minute||'?'}' <b>${tmLink(g.buteur||'?')}</b>${cscLabel}${g.assist&&!g.noAssist?' ('+tmLink(g.assist)+')':''} &nbsp;<span style="background:#003399;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:.95em">${sc.after}</span> ${xgBadge(g,'.8em')}</div>
+    <div style="margin-bottom:6px">${g.minute||'?'}' <b>${mainNameHtml}</b>${subNameHtml} &nbsp;<span style="background:#003399;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:.95em">${sc.after}</span> ${xgBadge(g,'.8em')}</div>
     <div style="margin-bottom:8px">
       ${(g.goalSteps&&g.goalSteps.length>0) ? buildGoalStepsSchema(g.goalSteps, _lang==='en'?'🗺 Goal Diagram':'🗺 Schéma du but') : buildMiniPitchWithArrow(g.assistX, g.assistY, g.pitchX, g.pitchY, (_lang==='en'?'🎯 Goal Diagram':'🎯 Schéma du but'), g.triggerX, g.triggerY, g.pressX, g.pressY, g.curve1||0, g.curve2||0)}
     </div>
