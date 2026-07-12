@@ -707,6 +707,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <h3 id="sb-h-journalists">🎙️ Journalistes</h3>
 <a href="#" onclick="showView('ficheMatch')" id="nav-ficheMatch" data-i18n="nav-ficheMatch">🎙️ Fiche Match</a>
 <a href="#" onclick="showView('journee')" id="nav-journee" data-i18n="nav-journee">📆 Résumé par journée</a>
+<a href="#" onclick="showView('lesnoms')" id="nav-lesnoms" data-i18n="nav-lesnoms">📇 Les noms</a>
 
 <div style="margin-top:1.2em;padding-top:.8em;border-top:1px solid rgba(255,255,255,.15);font-size:.75em">
   <div id="sb-sync-label" style="color:var(--sidebar-section);font-weight:bold;margin-bottom:.3em">Sync fichier</div>
@@ -748,6 +749,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <div id="view-papoints" style="display:none"></div>
 <div id="view-jeupoints" style="display:none"></div>
 <div id="view-journee" style="display:none"></div>
+<div id="view-lesnoms" style="display:none"></div>
 </main>
 </div>
 
@@ -3626,6 +3628,7 @@ function showView(name){
   else if(name==='papoints') _safeRender(renderPaPoints);
   else if(name==='jeupoints') _safeRender(renderJeuPoints);
   else if(name==='journee') _safeRender(renderJourneeSummary);
+  else if(name==='lesnoms') _safeRender(renderLesNoms);
 }
 
 function showAnalysis(key, opts={}){
@@ -10806,6 +10809,103 @@ function renderJourneeSummary(){
 }
 
 // ══════════════════════════════════════════════════════════════════════════════
+// 📇 LES NOMS — vue compacte catégorie × journée (cliquable)
+// ══════════════════════════════════════════════════════════════════════════════
+// Christian (13/07) : "la rubrique « Les noms », en tactique, avec les 6,
+// et puis les colonnes 1,2,3...10, compact, avec les chiffres, cliquables
+// comme dans les autres rubriques." → lignes = les 6 styles tactique1,
+// colonnes = journées (ou phases pour la Coupe du Monde), cellule cliquable
+// = détail des buts (réutilise renderDetailGoals, comme showGoalDetail).
+const LES_NOMS_KEY = 'tactique1';
+
+function buildJourneeCrossTab(key){
+  loadData();
+  const goals = getAllGoals();
+  const catKeys = getKeys(key);
+  const table = getTable(key);
+  const journeeKeys = jrKeyList();
+  const counts = {}, catTotals = {}, journeeTotals = {};
+  catKeys.forEach(k=>{ counts[k]={}; catTotals[k]=0; });
+  journeeKeys.forEach(jk=>{ journeeTotals[jk]=0; });
+  goals.forEach(g=>{
+    const catVal = g[key];
+    if(catVal===undefined || catVal===null || catVal==='') return;
+    if(!counts[catVal]) return;
+    const jk = jrGetKey(g.match);
+    if(jk===null || jk===undefined) return;
+    if(!(jk in journeeTotals)) return;
+    counts[catVal][jk] = (counts[catVal][jk]||0)+1;
+    catTotals[catVal]++;
+    journeeTotals[jk]++;
+  });
+  return {catKeys, table, journeeKeys, counts, catTotals, journeeTotals};
+}
+
+function showGoalDetailJournee(key, catVal, journeeKey){
+  loadData();
+  const goals = getAllGoals().filter(g=>{
+    if(g[key] != catVal) return false;
+    const jk = jrGetKey(g.match);
+    return String(jk) === String(journeeKey);
+  });
+  const table = getTable(key);
+  const catName = table[catVal] ? table[catVal].nom : catVal;
+  const jLabel = jrUsesJournees() ? (_lang==='en'?'Matchday ':'Journée ')+journeeKey : jrLabel(journeeKey);
+  document.getElementById('detail-title').textContent = `${catName} — ${jLabel} (${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':''):'but'+(goals.length>1?'s':'')})`;
+  renderDetailGoals(goals);
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function renderLesNoms(){
+  loadData();
+  const el = document.getElementById('view-lesnoms');
+  if(!el) return;
+  const key = LES_NOMS_KEY;
+  const ct = buildJourneeCrossTab(key);
+
+  let html = `<div class="view-header"><h2>📇 ${_lang==='en'?'The Names':'Les noms'}</h2></div>`;
+
+  if(ct.journeeKeys.length===0 || ct.catKeys.every(k=>ct.catTotals[k]===0)){
+    html += `<div class="no-data">${_lang==='en'?'No data available. Encode matches first.':'Aucune donnée disponible. Encodez des matchs d\'abord.'}</div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  let maxV = 1;
+  ct.catKeys.forEach(k=>{ ct.journeeKeys.forEach(jk=>{ const v=(ct.counts[k]&&ct.counts[k][jk])||0; if(v>maxV) maxV=v; }); });
+
+  html += `<div style="overflow-x:auto;max-width:100%;border:1px solid var(--border);border-radius:6px">`;
+  html += `<table class="tableau" style="font-size:.72em;border-collapse:collapse;white-space:nowrap">`;
+  html += `<tr><th style="position:sticky;left:0;background:#fafafa;z-index:1;text-align:left;padding:3px 8px;min-width:150px">${_lang==='en'?'Style':'Style'}</th>`;
+  ct.journeeKeys.forEach(jk=>{
+    const colLabel = jrUsesJournees() ? jk : jrLabel(jk);
+    html += `<th style="padding:2px 3px;min-width:24px;text-align:center;font-weight:600;font-size:.9em">${colLabel}</th>`;
+  });
+  html += `<th style="padding:2px 6px;text-align:center">Total</th></tr>`;
+
+  ct.catKeys.forEach(k=>{
+    const row = ct.table[k];
+    html += `<tr><td style="position:sticky;left:0;z-index:1;padding:3px 8px;font-weight:600;background:#${row.c1};color:#${row.c2}">${row.nom}</td>`;
+    ct.journeeKeys.forEach(jk=>{
+      const v = (ct.counts[k]&&ct.counts[k][jk])||0;
+      const jTitle = jrUsesJournees() ? (_lang==='en'?'Matchday ':'Journée ')+jk : jrLabel(jk);
+      html += v>0
+        ? `<td class="cellule" style="background:${heatColorScored(v,maxV)};text-align:center;cursor:pointer;padding:2px" onclick="showGoalDetailJournee('${key}',${k},'${jk}')" title="${row.nom} — ${jTitle}">${v}</td>`
+        : `<td style="text-align:center;padding:2px"></td>`;
+    });
+    html += `<td class="total" style="text-align:center;font-weight:700">${ct.catTotals[k]}</td></tr>`;
+  });
+
+  html += `<tr class="total-row"><td style="position:sticky;left:0;padding:3px 8px;font-weight:700">Total</td>`;
+  let grandTotal = 0;
+  ct.journeeKeys.forEach(jk=>{ grandTotal += (ct.journeeTotals[jk]||0); html += `<td class="total" style="text-align:center">${ct.journeeTotals[jk]||''}</td>`; });
+  html += `<td class="total" style="text-align:center">${grandTotal}</td></tr>`;
+  html += `</table></div>`;
+
+  el.innerHTML = html;
+}
+
+// ══════════════════════════════════════════════════════════════════════════════
 // 📄 RAPPORT PDF
 // ══════════════════════════════════════════════════════════════════════════════
 let _rapportTeam = null;
@@ -11973,6 +12073,7 @@ const _SIDEBAR_EN = {
   "nav-rapport":"📄 PDF Report",
   "nav-ficheMatch":"🎙️ Match Report",
   "nav-journee":"📆 Matchday Summary",
+  "nav-lesnoms":"📇 The Names",
   "nav-recherche":"🔬 Custom Search",
   "nav-preview":"🎯 Opponent Preview",
   "nav-papoints":"📊 Set Piece Value in Points",
@@ -12026,6 +12127,7 @@ const _SIDEBAR_FR = {
   "nav-rapport":"📄 Rapport PDF",
   "nav-ficheMatch":"🎙️ Fiche Match",
   "nav-journee":"📆 Résumé par journée",
+  "nav-lesnoms":"📇 Les noms",
   "nav-recherche":"🔬 Recherche personnalisée",
   "nav-preview":"🎯 Preview adversaire",
   "nav-papoints":"📊 Valeur PA en points",
