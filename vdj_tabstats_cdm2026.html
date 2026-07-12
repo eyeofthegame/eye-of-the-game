@@ -2738,7 +2738,7 @@ let _spComboOnly = false; // Combinaison travaillée (Descriptif id 31) — filt
 // restriction sur cette catégorie. Permet de cumuler plusieurs critères à la
 // fois (ex: "Gauche" + "Sortant" + "t+1" simultanément) en cliquant sur les
 // barres du bilan lui-même.
-let _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set(), kicktype: new Set() };
+let _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set(), kicktype: new Set(), chance: new Set() };
 
 function spToggleFilter(cat, value){
   const s = _spFilters[cat];
@@ -2747,11 +2747,11 @@ function spToggleFilter(cat, value){
   renderSetpieces();
 }
 function spResetFilters(){
-  _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set(), kicktype: new Set() };
+  _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set(), kicktype: new Set(), chance: new Set() };
   renderSetpieces();
 }
 function spFiltersActiveCount(){
-  return _spFilters.touches.size + _spFilters.finish.size + _spFilters.side.size + _spFilters.swing.size + _spFilters.kicktype.size;
+  return _spFilters.touches.size + _spFilters.finish.size + _spFilters.side.size + _spFilters.swing.size + _spFilters.kicktype.size + _spFilters.chance.size;
 }
 
 // ── Lecture du schéma phase arrêtée : touches, finition, côté/trajectoire ──
@@ -2817,6 +2817,17 @@ function spKickType(g){
   if(SP_KICK_TYPE_IDS.includes(t2b)) return t2b;
   return null;
 }
+// Deuxième / 3e chance ou + (Christian, 12/07) : permet de voir quand un
+// corner (ou autre PA) est l'initiation de l'action mais que le but vient
+// d'une reprise/deuxième opportunité — déjà encodé dans le "Descriptif"
+// (tactique2/tactique2b), même logique que spKickType()/spIsCombo().
+const SP_CHANCE_IDS = [19, 26];
+function spChanceType(g){
+  const t2 = parseInt(g.tactique2), t2b = parseInt(g.tactique2b);
+  if(SP_CHANCE_IDS.includes(t2)) return t2;
+  if(SP_CHANCE_IDS.includes(t2b)) return t2b;
+  return null;
+}
 
 // ── Bilan phases arrêtées : touches, finition, côté/trajectoire corner, ────
 // combinaison travaillée, "modèles" les plus utilisés (usage club/scouting).
@@ -2863,6 +2874,10 @@ function buildSetpieceBilan(list, paFilter){
   const kickTypeCounts = {};
   list.forEach(g=>{ const k = spKickType(g); if(k) kickTypeCounts[k]=(kickTypeCounts[k]||0)+1; });
 
+  // Deuxième / 3e chance ou + — déduit de tactique2/tactique2b, cf. spChanceType().
+  const chanceCounts = {};
+  list.forEach(g=>{ const c = spChanceType(g); if(c) chanceCounts[c]=(chanceCounts[c]||0)+1; });
+
   // "Modèle" = signature combinant type de PA, côté/trajectoire (corners),
   // finition, nombre de touches, combinaison travaillée ou non.
   const sigCounts = {};
@@ -2908,13 +2923,17 @@ function buildSetpieceBilan(list, paFilter){
     <div style="margin-bottom:6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Touches after delivery':'Touches après la mise en jeu'}</div>
     ${touchRows.map(([label,n,opts])=>bar(label,n,opts)).join('')}
   ` : '';
+  // Déviations jugées pas nécessaires sur corner (Christian, 12/07) —
+  // masquées pour cette vue même si non nulles (contrairement à la règle
+  // générale "masquer si 0" qui s'applique aux autres lignes).
+  const hideDeviationsOnCorner = paFilterInt === 1;
   const finishRows = [
     ['tete', FINISH_LABELS.tete, finishCounts.tete],
     ['pied', FINISH_LABELS.pied, finishCounts.pied],
     ['corps', FINISH_LABELS.corps, finishCounts.corps],
-    ['devie_coequipier', FINISH_LABELS.devie_coequipier, finishCounts.devie_coequipier],
-    ['devie_adversaire', FINISH_LABELS.devie_adversaire, finishCounts.devie_adversaire],
-  ].filter(([,,n])=>n>0);
+    hideDeviationsOnCorner ? null : ['devie_coequipier', FINISH_LABELS.devie_coequipier, finishCounts.devie_coequipier],
+    hideDeviationsOnCorner ? null : ['devie_adversaire', FINISH_LABELS.devie_adversaire, finishCounts.devie_adversaire],
+  ].filter(r=>r && r[2]>0);
   const finishBlock = finishRows.length ? `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Final touch':'Dernier geste'}</div>
     ${finishRows.map(([val,label,n])=>bar(label,n,{cat:'finish',value:val})).join('')}
@@ -2942,6 +2961,10 @@ function buildSetpieceBilan(list, paFilter){
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🦵 ${_lang==='en'?'Kicker — foot & swing':'Pied & trajectoire du tireur'}</div>
     ${SP_KICK_TYPE_IDS.filter(id=>kickTypeCounts[id]>0).map(id=>bar(VDJ.tactique2[id].nom, kickTypeCounts[id], {cat:'kicktype',value:String(id)})).join('')}
   ` : '';
+  const chanceBlock = Object.keys(chanceCounts).length ? `
+    <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🔁 ${_lang==='en'?'2nd / 3rd+ chance':'Deuxième / 3e chance ou +'}</div>
+    ${SP_CHANCE_IDS.filter(id=>chanceCounts[id]>0).map(id=>bar(VDJ.tactique2[id].nom, chanceCounts[id], {cat:'chance',value:String(id)})).join('')}
+  ` : '';
   const topSigsBlock = topSigs.length ? `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🏆 ${_lang==='en'?'Most used models':'Modèles les plus utilisés'}</div>
     <div style="display:flex;flex-direction:column;gap:5px">
@@ -2964,9 +2987,10 @@ function buildSetpieceBilan(list, paFilter){
     </div>
     <div style="font-size:.72em;color:#888;margin-bottom:10px">${_lang==='en'?'Click a row to filter (multiple selections allowed).':'Clique sur une ligne pour filtrer (plusieurs sélections possibles).'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 30px">
-      <div>${touchesBlock}${finishBlock}${comboBlock}</div>
-      <div>${cornerBlock}${kickTypeBlock}${topSigsBlock}</div>
+      <div>${touchesBlock}${finishBlock}${comboBlock}${chanceBlock}</div>
+      <div>${cornerBlock}${kickTypeBlock}</div>
     </div>
+    ${topSigsBlock}
   </div>`;
 }
 
@@ -2984,7 +3008,8 @@ function renderSetpieces(){
     (_spFilters.finish.size===0  || _spFilters.finish.has(spLastFinish(g))) &&
     (_spFilters.side.size===0    || _spFilters.side.has(spCornerSide(g))) &&
     (_spFilters.swing.size===0   || _spFilters.swing.has(spCornerSwing(g))) &&
-    (_spFilters.kicktype.size===0 || _spFilters.kicktype.has(String(spKickType(g))))
+    (_spFilters.kicktype.size===0 || _spFilters.kicktype.has(String(spKickType(g)))) &&
+    (_spFilters.chance.size===0   || _spFilters.chance.has(String(spChanceType(g))))
   );
 
   const PA_NAMES = {1:'Corner', 2:'CF indirect', 3:'CF direct', 4:'Touche', 5:'Penalty'};
