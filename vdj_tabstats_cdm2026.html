@@ -2764,13 +2764,27 @@ function spTouchBucket(g){
   const t = spTouchesOf(g);
   return t>=3 ? 't3+' : ('t'+t);
 }
+// Actions VDJ "Tête" (rubrique R5, déjà encodée sur TOUS les buts, phase
+// arrêtée ou non) : 21 Tête 1ère zone, 22 Tête zone centrale, 23 Tête 2e zone.
+// Christian confirme qu'à la CDM (et plus généralement), un but est soit de
+// la tête soit du pied, jamais d'une autre partie du corps observée jusqu'ici
+// — donc toute action ≠ 21/22/23 déjà encodée peut être déduite "Pied" sans
+// repasser sur chaque but. Le sélecteur manuel Tête/Pied/Corps du schéma
+// (ajouté précédemment) reste disponible en cas d'exception (ex: un but de
+// la poitrine) et garde la priorité s'il a été renseigné explicitement.
+const SP_ACTIONS_TETE = [21,22,23];
 function spLastFinish(g){
   const steps = g.setpieceSteps||[];
-  if(!steps.length) return null;
-  const last = steps[steps.length-1];
-  if(last.action === 'but' && last.finish) return last.finish; // 'tete'|'pied'|'corps' — explicite
-  if(['tpro','trem'].includes(last.action)) return 'tete'; // ancien encodage sans "But" marqué
-  return 'inconnu'; // pas assez d'info pour trancher (ex: "But" marqué sans finition précisée)
+  const last = steps.length ? steps[steps.length-1] : null;
+  // 1) Override manuel explicite sur le schéma (prioritaire, gère les exceptions)
+  if(last && last.action === 'but' && last.finish) return last.finish;
+  // 2) Déduit de la rubrique Action (R5), déjà encodée sur le but — pas de travail supplémentaire
+  if(g.actions !== undefined && g.actions !== null && g.actions !== ''){
+    return SP_ACTIONS_TETE.includes(parseInt(g.actions)) ? 'tete' : 'pied';
+  }
+  // 3) Ancien repli : dernière étape du schéma marquée tête (prolongée/remise)
+  if(last && ['tpro','trem'].includes(last.action)) return 'tete';
+  return 'inconnu';
 }
 function spIsCombo(g){
   return parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31;
