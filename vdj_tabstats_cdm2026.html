@@ -707,7 +707,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <h3 id="sb-h-journalists">🎙️ Journalistes</h3>
 <a href="#" onclick="showView('ficheMatch')" id="nav-ficheMatch" data-i18n="nav-ficheMatch">🎙️ Fiche Match</a>
 <a href="#" onclick="showView('journee')" id="nav-journee" data-i18n="nav-journee">📆 Résumé par journée</a>
-<a href="#" onclick="showView('lesnoms')" id="nav-lesnoms" data-i18n="nav-lesnoms">📇 Les noms</a>
+<a href="#" onclick="showView('lesnoms')" id="nav-lesnoms" data-i18n="nav-lesnoms">🔢 Grille par journée</a>
 
 <div style="margin-top:1.2em;padding-top:.8em;border-top:1px solid rgba(255,255,255,.15);font-size:.75em">
   <div id="sb-sync-label" style="color:var(--sidebar-section);font-weight:bold;margin-bottom:.3em">Sync fichier</div>
@@ -10917,7 +10917,7 @@ function renderLesNoms(){
     return `<button onclick="lesNomsSelect('${r.id}')" style="padding:4px 12px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">${label}</button>`;
   }).join('');
 
-  let html = `<div class="view-header"><h2>📇 ${_lang==='en'?'The Names':'Les noms'}</h2></div>
+  let html = `<div class="view-header"><h2>🔢 ${_lang==='en'?'Matchday Grid':'Grille par journée'}</h2></div>
   <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">${pillsHtml}</div>`;
 
   if(ct.journeeKeys.length===0 || ct.catKeys.every(k=>ct.catTotals[k]===0)){
@@ -12128,7 +12128,7 @@ const _SIDEBAR_EN = {
   "nav-rapport":"📄 PDF Report",
   "nav-ficheMatch":"🎙️ Match Report",
   "nav-journee":"📆 Matchday Summary",
-  "nav-lesnoms":"📇 The Names",
+  "nav-lesnoms":"🔢 Matchday Grid",
   "nav-recherche":"🔬 Custom Search",
   "nav-preview":"🎯 Opponent Preview",
   "nav-papoints":"📊 Set Piece Value in Points",
@@ -12182,7 +12182,7 @@ const _SIDEBAR_FR = {
   "nav-rapport":"📄 Rapport PDF",
   "nav-ficheMatch":"🎙️ Fiche Match",
   "nav-journee":"📆 Résumé par journée",
-  "nav-lesnoms":"📇 Les noms",
+  "nav-lesnoms":"🔢 Grille par journée",
   "nav-recherche":"🔬 Recherche personnalisée",
   "nav-preview":"🎯 Preview adversaire",
   "nav-papoints":"📊 Valeur PA en points",
