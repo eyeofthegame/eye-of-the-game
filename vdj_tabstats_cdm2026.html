@@ -10816,19 +10816,55 @@ function renderJourneeSummary(){
 // comme dans les autres rubriques." → lignes = les 6 styles tactique1,
 // colonnes = journées (ou phases pour la Coupe du Monde), cellule cliquable
 // = détail des buts (réutilise renderDetailGoals, comme showGoalDetail).
-const LES_NOMS_KEY = 'tactique1';
+const LES_NOMS_RUBRICS = [
+  {id:'tactique1', key:'tactique1', labelFr:'Style de jeu', labelEn:'Playing style'},
+  {id:'tactique3', key:'tactique3', labelFr:'Nature du but', labelEn:'Goal nature'},
+  {id:'actions', key:'actions', labelFr:'Action de tir', labelEn:'Shot action'},
+  {id:'origine1', key:'origine1', labelFr:'Origine (générale)', labelEn:'Origin (general)'},
+  {id:'origine1_pa', key:'origine1', opts:{filter:'pa'}, labelFr:'Origines PA', labelEn:'Set piece origins'},
+  {id:'origine2', key:'origine2', labelFr:'Intention de jeu', labelEn:'Play intention'},
+  {id:'origine3', key:'origine3', labelFr:'Zone', labelEn:'Zone'},
+  {id:'mitemps', key:'mitemps', labelFr:'1ère / 2ème mi-temps', labelEn:'1st / 2nd half'},
+  {id:'minutes', key:'minutes', labelFr:"Minutes (15')", labelEn:"Minutes (15')"},
+  {id:'minutes10', key:'minutes10', labelFr:"Minutes (10')", labelEn:"Minutes (10')"},
+  {id:'lieu', key:'lieu', labelFr:'Lieu du tir', labelEn:'Shot location'}
+];
+let _lesNomsRubricId = 'tactique1';
 
-function buildJourneeCrossTab(key){
+function _lesNomsCatVal(g, key){
+  // Dupliqué volontairement depuis buildCrossTab() (même logique) — calcul
+  // spécial pour les rubriques temps, qui ne sont pas un champ direct du but.
+  if(key==='minutes'){
+    const _ms=String(g.minute||''),_mi=parseInt(_ms)||1;
+    if(_ms.includes('45+')) return 7;
+    if(_ms.includes('90+')) return 8;
+    if(_mi===45) return 7;
+    if(_mi===90) return 8;
+    if(_mi>90 && g.match?.aet) return _mi<=105?9:10;
+    let c=Math.ceil(_mi/15); if(c>6)c=6; if(c<1)c=1; return c;
+  }
+  if(key==='minutes10') return calcMin10(g.minute, g.match?.aet);
+  if(key==='mitemps'){
+    const _s=String(g.minute||''),_mi2=parseInt(_s)||1;
+    return g.match?.aet&&_mi2>90?3:_s.includes('90+')?2:_s.includes('45+')?1:_mi2<=45?1:2;
+  }
+  return g[key];
+}
+
+function buildJourneeCrossTab(key, opts={}){
   loadData();
-  const goals = getAllGoals();
-  const catKeys = getKeys(key);
+  let goals = getAllGoals();
+  if(opts.filter==='pa'){
+    goals = goals.filter(g=>g.tactique1===5||g.tactique1===6);
+  }
+  const catKeys = (key==='origine1' && opts.filter==='pa') ? getKeys('origine1_pa') : getKeys(key);
   const table = getTable(key);
   const journeeKeys = jrKeyList();
   const counts = {}, catTotals = {}, journeeTotals = {};
   catKeys.forEach(k=>{ counts[k]={}; catTotals[k]=0; });
   journeeKeys.forEach(jk=>{ journeeTotals[jk]=0; });
   goals.forEach(g=>{
-    const catVal = g[key];
+    const catVal = _lesNomsCatVal(g, key);
     if(catVal===undefined || catVal===null || catVal==='') return;
     if(!counts[catVal]) return;
     const jk = jrGetKey(g.match);
@@ -10841,10 +10877,18 @@ function buildJourneeCrossTab(key){
   return {catKeys, table, journeeKeys, counts, catTotals, journeeTotals};
 }
 
-function showGoalDetailJournee(key, catVal, journeeKey){
+function lesNomsSelect(rubricId){
+  _lesNomsRubricId = rubricId;
+  renderLesNoms();
+}
+
+function showGoalDetailJournee(key, catVal, journeeKey, filterPa){
   loadData();
-  const goals = getAllGoals().filter(g=>{
-    if(g[key] != catVal) return false;
+  let goals = getAllGoals();
+  if(filterPa){ goals = goals.filter(g=>g.tactique1===5||g.tactique1===6); }
+  goals = goals.filter(g=>{
+    const v = _lesNomsCatVal(g, key);
+    if(String(v) !== String(catVal)) return false;
     const jk = jrGetKey(g.match);
     return String(jk) === String(journeeKey);
   });
@@ -10860,10 +10904,21 @@ function renderLesNoms(){
   loadData();
   const el = document.getElementById('view-lesnoms');
   if(!el) return;
-  const key = LES_NOMS_KEY;
-  const ct = buildJourneeCrossTab(key);
+  const rub = LES_NOMS_RUBRICS.find(r=>r.id===_lesNomsRubricId) || LES_NOMS_RUBRICS[0];
+  const key = rub.key, opts = rub.opts || {};
+  const ct = buildJourneeCrossTab(key, opts);
 
-  let html = `<div class="view-header"><h2>📇 ${_lang==='en'?'The Names':'Les noms'}</h2></div>`;
+  const pillsHtml = LES_NOMS_RUBRICS.map(r=>{
+    const active = r.id === rub.id;
+    const bg = active ? 'var(--accent)' : '#fff';
+    const col = active ? '#fff' : 'var(--accent)';
+    const bord = active ? 'var(--accent)' : 'var(--border)';
+    const label = _lang==='en' ? r.labelEn : r.labelFr;
+    return `<button onclick="lesNomsSelect('${r.id}')" style="padding:4px 12px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">${label}</button>`;
+  }).join('');
+
+  let html = `<div class="view-header"><h2>📇 ${_lang==='en'?'The Names':'Les noms'}</h2></div>
+  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">${pillsHtml}</div>`;
 
   if(ct.journeeKeys.length===0 || ct.catKeys.every(k=>ct.catTotals[k]===0)){
     html += `<div class="no-data">${_lang==='en'?'No data available. Encode matches first.':'Aucune donnée disponible. Encodez des matchs d\'abord.'}</div>`;
@@ -10874,9 +10929,10 @@ function renderLesNoms(){
   let maxV = 1;
   ct.catKeys.forEach(k=>{ ct.journeeKeys.forEach(jk=>{ const v=(ct.counts[k]&&ct.counts[k][jk])||0; if(v>maxV) maxV=v; }); });
 
+  const paFlag = opts.filter==='pa' ? 'true' : 'false';
   html += `<div style="overflow-x:auto;max-width:100%;border:1px solid var(--border);border-radius:6px">`;
   html += `<table class="tableau" style="font-size:.72em;border-collapse:collapse;white-space:nowrap">`;
-  html += `<tr><th style="position:sticky;left:0;background:#fafafa;z-index:1;text-align:left;padding:3px 8px;min-width:150px">${_lang==='en'?'Style':'Style'}</th>`;
+  html += `<tr><th style="position:sticky;left:0;background:#fafafa;z-index:1;text-align:left;padding:3px 8px;min-width:150px">${_lang==='en'?'Category':'Rubrique'}</th>`;
   ct.journeeKeys.forEach(jk=>{
     const colLabel = jrUsesJournees() ? jk : jrLabel(jk);
     html += `<th style="padding:2px 3px;min-width:24px;text-align:center;font-weight:600;font-size:.9em">${colLabel}</th>`;
@@ -10890,7 +10946,7 @@ function renderLesNoms(){
       const v = (ct.counts[k]&&ct.counts[k][jk])||0;
       const jTitle = jrUsesJournees() ? (_lang==='en'?'Matchday ':'Journée ')+jk : jrLabel(jk);
       html += v>0
-        ? `<td class="cellule" style="background:${heatColorScored(v,maxV)};text-align:center;cursor:pointer;padding:2px" onclick="showGoalDetailJournee('${key}',${k},'${jk}')" title="${row.nom} — ${jTitle}">${v}</td>`
+        ? `<td class="cellule" style="background:${heatColorScored(v,maxV)};text-align:center;cursor:pointer;padding:2px" onclick="showGoalDetailJournee('${key}',${k},'${jk}',${paFlag})" title="${row.nom} — ${jTitle}">${v}</td>`
         : `<td style="text-align:center;padding:2px"></td>`;
     });
     html += `<td class="total" style="text-align:center;font-weight:700">${ct.catTotals[k]}</td></tr>`;
@@ -10904,7 +10960,6 @@ function renderLesNoms(){
 
   el.innerHTML = html;
 }
-
 // ══════════════════════════════════════════════════════════════════════════════
 // 📄 RAPPORT PDF
 // ══════════════════════════════════════════════════════════════════════════════
