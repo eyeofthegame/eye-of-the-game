@@ -271,6 +271,10 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
       <button onclick="lsSetDate(-1)" style="font-size:.7em;padding:3px 7px;background:#4b607f;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Hier">◀</button>
       <button onclick="lsSetDate(0)" style="font-size:.7em;padding:3px 7px;background:#4b607f;color:#fff;border:none;border-radius:4px;cursor:pointer" title="Aujourd'hui">●</button>
     </div>
+    <div style="display:flex;gap:4px;margin-bottom:5px;align-items:center">
+      <label style="font-size:.68em;color:#4b607f;font-weight:600;white-space:nowrap">CHAMPIONNAT</label>
+      <select id="ls-league-select" onchange="lsOnLeagueChange()" style="flex:1;font-size:.72em;padding:3px 5px;border:1.5px solid #c4b09a;border-radius:5px;background:#faf6f0"></select>
+    </div>
     <button onclick="lsSearchFixtures()" style="width:100%;font-size:.75em;padding:5px;background:#f3701e;color:#fff;border:none;border-radius:5px;cursor:pointer;font-weight:700;margin-bottom:6px">🔍 Chercher matchs</button>
     <div id="ls-fixture-list" style="max-height:120px;overflow-y:auto;margin-bottom:6px"></div>
     <div id="ls-selected" style="font-size:.72em;color:#2d3f52;font-weight:600;margin-bottom:6px;min-height:16px"></div>
@@ -6341,6 +6345,82 @@ flinkInit();
 // ── LIVE SYNC — API-Football ───────────────────────────────────────────────
 var LS_APIKEY_STORE = 'vdj_apisports_key';
 
+// Recherche par championnat : associe chaque compétition du registre à un
+// terme de recherche API-Football (+pays pour lever l'ambiguité). L'ID
+// réel est résolu une seule fois via /leagues puis mis en cache localStorage
+// (vdj_apisports_leagueids) — jamais codé en dur car non vérifiable sans clé.
+var LS_LEAGUES = {
+  all:     { label:'Toutes compétitions',      search:null,                  country:null,      seasonMode:'calendar' },
+  cdm:     { label:'🌍 Coupe du Monde 2026',     search:'World Cup',           country:null,      seasonMode:'calendar' },
+  pl2627:  { label:'🏴 Premier League',          search:'Premier League',      country:'England', seasonMode:'euro' },
+  jl2026:  { label:'🇯🇵 J1 League (Japon)',       search:'J1 League',           country:'Japan',   seasonMode:'calendar' },
+  jpl2627: { label:'🇧🇪 Jupiler Pro League',      search:'Jupiler Pro League',  country:'Belgium', seasonMode:'euro' },
+  bl2627:  { label:'🇩🇪 Bundesliga',              search:'Bundesliga',          country:'Germany', seasonMode:'euro' }
+};
+var LS_LEAGUEID_STORE = 'vdj_apisports_leagueids';
+
+function lsGetLeagueIdCache(){
+  try { return JSON.parse(localStorage.getItem(LS_LEAGUEID_STORE) || '{}'); } catch(e){ return {}; }
+}
+function lsSetLeagueIdCache(obj){
+  localStorage.setItem(LS_LEAGUEID_STORE, JSON.stringify(obj));
+}
+
+// Saison API-Football : les championnats "calendaires" (CDM, J-League) sont
+// indexés sur l'année de la date ; les championnats "européens" août→mai
+// (Premier League, JPL, Bundesliga) sont indexés sur l'année de DÉBUT de
+// saison (ex: saison 2026-27 → seasonId 2026, même en janvier/mai 2027).
+function lsSeasonForDate(dateStr, mode){
+  const year = parseInt((dateStr||'').slice(0,4)) || new Date().getFullYear();
+  if(mode !== 'euro') return year;
+  const month = parseInt((dateStr||'').slice(5,7)) || 1;
+  return month >= 7 ? year : year - 1;
+}
+
+function lsPopulateLeagueSelect(){
+  const sel = document.getElementById('ls-league-select');
+  if(!sel) return;
+  const prevVal = sel.value || (typeof ACTIVE_COMP !== 'undefined' && LS_LEAGUES[ACTIVE_COMP] ? ACTIVE_COMP : 'all');
+  sel.innerHTML = Object.keys(LS_LEAGUES).map(id =>
+    '<option value="'+id+'">'+LS_LEAGUES[id].label+'</option>'
+  ).join('');
+  sel.value = LS_LEAGUES[prevVal] ? prevVal : 'all';
+}
+
+function lsOnLeagueChange(){
+  // Rien de spécial à faire ici pour l'instant — la sélection est relue au
+  // clic sur "Chercher matchs". Fonction gardée pour extensions futures.
+}
+
+// Résout l'ID API-Football d'un championnat du registre (une fois, puis
+// mis en cache). Retourne null si introuvable — l'appelant doit alors
+// retomber sur la recherche générale (tous les matchs du jour).
+async function lsResolveLeagueId(compId, key){
+  const cache = lsGetLeagueIdCache();
+  if(cache[compId]) return cache[compId];
+  const cfg = LS_LEAGUES[compId];
+  if(!cfg || !cfg.search) return null;
+  lsLog('🔎 Recherche de l\'ID championnat pour '+cfg.label+'…');
+  try {
+    const url = 'https://v3.football.api-sports.io/leagues?search='+encodeURIComponent(cfg.search);
+    const resp = await lsFetch(url, { headers:{'x-apisports-key':key} });
+    const data = await resp.json();
+    let list = data.response || [];
+    if(cfg.country) list = list.filter(l => ((l.country && l.country.name) || '').toLowerCase() === cfg.country.toLowerCase());
+    if(list.length === 0){ lsLog('❌ Aucun championnat trouvé pour "'+cfg.search+'"'+(cfg.country?' ('+cfg.country+')':'')); return null; }
+    const exact = list.find(l => l.league.name.toLowerCase() === cfg.search.toLowerCase());
+    const best = exact || list[0];
+    const id = best.league.id;
+    cache[compId] = id;
+    lsSetLeagueIdCache(cache);
+    lsLog('✅ '+cfg.label+' → ID API-Football '+id+' ('+best.league.name+(best.country && best.country.name ? ', '+best.country.name : '')+')');
+    return id;
+  } catch(err){
+    lsLog('❌ Erreur résolution championnat: '+err.message);
+    return null;
+  }
+}
+
 lsInit();
 var LS_POLL_MS = 10 * 60 * 1000; // 10 minutes
 var _lsTimer = null, _lsCountdownTimer = null, _lsNextPoll = 0;
@@ -6359,6 +6439,7 @@ function lsInit(){
   const el = document.getElementById('ls-apikey');
   if(el) el.value = k;
   lsSetDate(0); // default to today
+  lsPopulateLeagueSelect();
   // Make panel draggable
   const bar = document.getElementById('ls-panel-bar');
   const panel = document.getElementById('ls-panel');
@@ -6401,19 +6482,41 @@ async function lsSearchFixtures(){
     const _di = document.getElementById('ls-date-input');
     const _ld = new Date(); const _def = _ld.getFullYear()+'-'+String(_ld.getMonth()+1).padStart(2,'0')+'-'+String(_ld.getDate()).padStart(2,'0');
     const today = (_di && _di.value) ? _di.value : _def;
-    // Fetch all live + all today, filter by CDM teams
-    lsLog('🔍 Recherche tous matchs aujourd\'hui…');
-    const [r1, r2] = await Promise.all([
-      lsFetch('https://v3.football.api-sports.io/fixtures?live=all', { headers:{'x-apisports-key':key} }),
-      lsFetch('https://v3.football.api-sports.io/fixtures?date='+today, { headers:{'x-apisports-key':key} })
-    ]);
-    lsLog('📡 Status: '+r1.status+' / '+r2.status);
-    const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
-    if(d1.errors && Object.keys(d1.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d1.errors));
-    if(d2.errors && Object.keys(d2.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d2.errors));
-    const seen = new Set();
-    let allFixtures = [...(d1.response||[]), ...(d2.response||[])].filter(f=>{ if(seen.has(f.fixture.id)) return false; seen.add(f.fixture.id); return true; });
-    lsLog('📅 '+allFixtures.length+' matchs trouvés au total');
+    const leagueSel = document.getElementById('ls-league-select');
+    const compId = leagueSel ? leagueSel.value : 'all';
+
+    let allFixtures = null;
+    if(compId !== 'all'){
+      const leagueId = await lsResolveLeagueId(compId, key);
+      if(leagueId){
+        const season = lsSeasonForDate(today, LS_LEAGUES[compId].seasonMode);
+        lsLog('🔍 Recherche '+LS_LEAGUES[compId].label+' — saison '+season+'…');
+        const r = await lsFetch('https://v3.football.api-sports.io/fixtures?league='+leagueId+'&season='+season+'&date='+today, { headers:{'x-apisports-key':key} });
+        lsLog('📡 Status: '+r.status);
+        const d = await r.json();
+        if(d.errors && Object.keys(d.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d.errors));
+        allFixtures = d.response || [];
+        lsLog('📅 '+allFixtures.length+' matchs trouvés pour '+LS_LEAGUES[compId].label);
+      } else {
+        lsLog('⚠️ Championnat introuvable via l\'API — recherche générale à la place.');
+      }
+    }
+
+    if(allFixtures === null){
+      // Fetch all live + all today, filter by CDM teams
+      lsLog('🔍 Recherche tous matchs aujourd\'hui…');
+      const [r1, r2] = await Promise.all([
+        lsFetch('https://v3.football.api-sports.io/fixtures?live=all', { headers:{'x-apisports-key':key} }),
+        lsFetch('https://v3.football.api-sports.io/fixtures?date='+today, { headers:{'x-apisports-key':key} })
+      ]);
+      lsLog('📡 Status: '+r1.status+' / '+r2.status);
+      const [d1, d2] = await Promise.all([r1.json(), r2.json()]);
+      if(d1.errors && Object.keys(d1.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d1.errors));
+      if(d2.errors && Object.keys(d2.errors).length) lsLog('❌ Erreur API: '+JSON.stringify(d2.errors));
+      const seen = new Set();
+      allFixtures = [...(d1.response||[]), ...(d2.response||[])].filter(f=>{ if(seen.has(f.fixture.id)) return false; seen.add(f.fixture.id); return true; });
+      lsLog('📅 '+allFixtures.length+' matchs trouvés au total');
+    }
     // Show all matches — user filters by name via search box
     // Sort: live first, then World (CDM/international), then others
     allFixtures.sort((a,b)=>{
@@ -6424,7 +6527,7 @@ async function lsSearchFixtures(){
       return (bW?1:0)-(aW?1:0);
     });
     const liveCount = allFixtures.filter(f=>['1H','2H','HT'].includes(f.fixture.status.short)).length;
-    lsLog((liveCount>0?'🔴 '+liveCount+' en direct — ':'')+'📅 '+allFixtures.length+' matchs — utilisez le filtre');
+    lsLog((liveCount>0?'🔴 '+liveCount+' en direct — ':'')+'📅 '+allFixtures.length+' matchs'+(compId==='all'?' — utilisez le filtre':''));
     const show = allFixtures;
     const listEl = document.getElementById('ls-fixture-list');
     if(show.length === 0){
