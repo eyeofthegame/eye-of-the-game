@@ -2733,66 +2733,100 @@ let _spPaFilter = '__all__';
 let _spTeamFilter = '__all__';
 let _spComboOnly = false; // Combinaison travaillée (Descriptif id 31) — filtre rapide
 
+// ── Filtres multi-select du bilan phases arrêtées ──────────────────────────
+// Chaque catégorie est un Set() de valeurs sélectionnées ; Set vide = pas de
+// restriction sur cette catégorie. Permet de cumuler plusieurs critères à la
+// fois (ex: "Gauche" + "Sortant" + "t+1" simultanément) en cliquant sur les
+// barres du bilan lui-même.
+let _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set() };
+
+function spToggleFilter(cat, value){
+  const s = _spFilters[cat];
+  if(!s) return;
+  if(s.has(value)) s.delete(value); else s.add(value);
+  renderSetpieces();
+}
+function spResetFilters(){
+  _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set() };
+  renderSetpieces();
+}
+function spFiltersActiveCount(){
+  return _spFilters.touches.size + _spFilters.finish.size + _spFilters.side.size + _spFilters.swing.size;
+}
+
+// ── Lecture du schéma phase arrêtée : touches, finition, côté/trajectoire ──
+// (fonctions partagées entre le filtre de renderSetpieces() et le bilan)
+function spTouchesOf(g){
+  const n = (g.setpieceSteps||[]).length;
+  return Math.max(0, n-1); // touches après la mise en jeu (corner/CF/touche)
+}
+function spTouchBucket(g){
+  const t = spTouchesOf(g);
+  return t>=3 ? 't3+' : ('t'+t);
+}
+function spLastFinish(g){
+  const steps = g.setpieceSteps||[];
+  if(!steps.length) return null;
+  const last = steps[steps.length-1];
+  if(last.action === 'but' && last.finish) return last.finish; // 'tete'|'pied'|'corps' — explicite
+  if(['tpro','trem'].includes(last.action)) return 'tete'; // ancien encodage sans "But" marqué
+  return 'inconnu'; // pas assez d'info pour trancher (ex: "But" marqué sans finition précisée)
+}
+function spIsCombo(g){
+  return parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31;
+}
+function spCornerSide(g){
+  if(parseInt(g.paType)!==1 || !(g.setpieceSteps||[]).length) return null;
+  return g.setpieceSteps[0].x < 0.5 ? (_lang==='en'?'Left':'Gauche') : (_lang==='en'?'Right':'Droite');
+}
+function spCornerSwing(g){
+  if(parseInt(g.paType)!==1 || !(g.setpieceSteps||[]).length) return null;
+  const c = g.setpieceSteps[0].curve || 0;
+  if(c === 0) return _lang==='en'?'Straight':'Droit';
+  return c < 0 ? (_lang==='en'?'Inswinging':'Entrant') : (_lang==='en'?'Outswinging':'Sortant');
+}
+
 // ── Bilan phases arrêtées : touches, finition, côté/trajectoire corner, ────
-// combinaison travaillée, "modèles" les plus utilisés (usage club/scouting)
+// combinaison travaillée, "modèles" les plus utilisés (usage club/scouting).
+// Les barres sont cliquables (multi-select, voir spToggleFilter) et pilotent
+// le même `filtered` que les fiches individuelles affichées en dessous.
 function buildSetpieceBilan(list){
   if(list.length === 0) return '';
 
-  function touchesOf(g){
-    const n = (g.setpieceSteps||[]).length;
-    return Math.max(0, n-1); // touches après la mise en jeu (corner/CF/touche)
-  }
-  function touchBucket(g){
-    const t = touchesOf(g);
-    return t>=3 ? 't3+' : ('t'+t);
-  }
-  function lastAction(g){
-    const steps = g.setpieceSteps||[];
-    return steps.length ? steps[steps.length-1].action : null;
-  }
-  function isAerial(g){
-    return ['tpro','trem'].includes(lastAction(g));
-  }
-  function isCombo(g){
-    return parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31;
-  }
-  function cornerSide(g){
-    if(parseInt(g.paType)!==1 || !(g.setpieceSteps||[]).length) return null;
-    return g.setpieceSteps[0].x < 0.5 ? (_lang==='en'?'Left':'Gauche') : (_lang==='en'?'Right':'Droite');
-  }
-  function cornerSwing(g){
-    if(parseInt(g.paType)!==1 || !(g.setpieceSteps||[]).length) return null;
-    const c = g.setpieceSteps[0].curve || 0;
-    if(c === 0) return _lang==='en'?'Straight':'Droit';
-    return c < 0 ? (_lang==='en'?'Inswinging':'Entrant') : (_lang==='en'?'Outswinging':'Sortant');
-  }
   const PA_NAMES_BILAN = {1:'Corner', 2:_lang==='en'?'Indirect FK':'CF indirect', 3:_lang==='en'?'Direct FK':'CF direct', 4:_lang==='en'?'Throw-in':'Touche'};
+  const FINISH_LABELS = {
+    tete:    _lang==='en'?'Header':'Tête',
+    pied:    _lang==='en'?'Foot':'Pied',
+    corps:   _lang==='en'?'Body':'Corps',
+    inconnu: _lang==='en'?'Not specified':'Non précisé',
+  };
 
   const touchCounts = {t0:0,t1:0,t2:0,'t3+':0};
-  list.forEach(g=>{ const b=touchBucket(g); touchCounts[b] = (touchCounts[b]||0)+1; });
+  list.forEach(g=>{ const b=spTouchBucket(g); touchCounts[b] = (touchCounts[b]||0)+1; });
 
-  const aerialCount = list.filter(isAerial).length;
-  const groundCount = list.length - aerialCount;
-  const comboCount = list.filter(isCombo).length;
+  const finishCounts = {tete:0,pied:0,corps:0,inconnu:0};
+  list.forEach(g=>{ const f=spLastFinish(g); if(f) finishCounts[f] = (finishCounts[f]||0)+1; });
+
+  const comboCount = list.filter(spIsCombo).length;
 
   const corners = list.filter(g=>parseInt(g.paType)===1 && (g.setpieceSteps||[]).length>0);
   const sideCounts = {}, swingCounts = {};
   corners.forEach(g=>{
-    const s = cornerSide(g); if(s) sideCounts[s]=(sideCounts[s]||0)+1;
-    const sw = cornerSwing(g); if(sw) swingCounts[sw]=(swingCounts[sw]||0)+1;
+    const s = spCornerSide(g); if(s) sideCounts[s]=(sideCounts[s]||0)+1;
+    const sw = spCornerSwing(g); if(sw) swingCounts[sw]=(swingCounts[sw]||0)+1;
   });
 
   // "Modèle" = signature combinant type de PA, côté/trajectoire (corners),
-  // finition (tête/pied), nombre de touches, combinaison travaillée ou non.
+  // finition, nombre de touches, combinaison travaillée ou non.
   const sigCounts = {};
   list.forEach(g=>{
     const parts = [];
     parts.push(PA_NAMES_BILAN[parseInt(g.paType)] || (_lang==='en'?'Set piece':'Phase arr.'));
-    const side = cornerSide(g); if(side) parts.push(side);
-    const swing = cornerSwing(g); if(swing && swing !== (_lang==='en'?'Straight':'Droit')) parts.push(swing);
-    parts.push(isAerial(g) ? (_lang==='en'?'Header':'Tête') : (_lang==='en'?'Foot/Ground':'Pied/Sol'));
-    parts.push('t+'+touchesOf(g));
-    if(isCombo(g)) parts.push(_lang==='en'?'Worked combo':'Combi. travaillée');
+    const side = spCornerSide(g); if(side) parts.push(side);
+    const swing = spCornerSwing(g); if(swing && swing !== (_lang==='en'?'Straight':'Droit')) parts.push(swing);
+    const fin = spLastFinish(g); if(fin) parts.push(FINISH_LABELS[fin]);
+    parts.push('t+'+spTouchesOf(g));
+    if(spIsCombo(g)) parts.push(_lang==='en'?'Worked combo':'Combi. travaillée');
     const sig = parts.join(' · ');
     sigCounts[sig] = (sigCounts[sig]||0)+1;
   });
@@ -2800,9 +2834,13 @@ function buildSetpieceBilan(list){
 
   const total = list.length;
   const pct = n => total ? Math.round(n/total*100) : 0;
-  function bar(label, n){
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
-      <div style="width:120px;font-size:.78em;color:#333;flex-shrink:0">${label}</div>
+
+  function bar(label, n, opts){
+    const clickable = !!(opts && opts.cat && opts.value != null);
+    const selected = clickable && _spFilters[opts.cat].has(opts.value);
+    const clickAttr = clickable ? ` onclick="spToggleFilter('${opts.cat}','${String(opts.value).replace(/'/g,"\\'")}')"` : '';
+    return `<div${clickAttr} style="display:flex;align-items:center;gap:8px;margin-bottom:4px;padding:2px 5px;border-radius:6px;border:1.5px solid ${selected?'#0e7c61':'transparent'};background:${selected?'#eafaf0':'transparent'};${clickable?'cursor:pointer':''}">
+      <div style="width:130px;font-size:.78em;color:#333;flex-shrink:0;font-weight:${selected?700:400}">${label}${selected?' ✓':''}</div>
       <div style="flex:1;background:#eee;border-radius:4px;overflow:hidden;height:14px">
         <div style="width:${pct(n)}%;background:#0e7c61;height:100%"></div>
       </div>
@@ -2812,15 +2850,17 @@ function buildSetpieceBilan(list){
 
   const touchesBlock = `
     <div style="margin-bottom:6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Touches after delivery':'Touches après la mise en jeu'}</div>
-    ${bar('t+0 ('+(_lang==='en'?'direct':'direct')+')', touchCounts.t0||0)}
-    ${bar('t+1', touchCounts.t1||0)}
-    ${bar('t+2', touchCounts.t2||0)}
-    ${bar('t+3+', touchCounts['t3+']||0)}
+    ${bar('t+0 ('+(_lang==='en'?'direct':'direct')+')', touchCounts.t0||0, {cat:'touches',value:'t0'})}
+    ${bar('t+1', touchCounts.t1||0, {cat:'touches',value:'t1'})}
+    ${bar('t+2', touchCounts.t2||0, {cat:'touches',value:'t2'})}
+    ${bar('t+3+', touchCounts['t3+']||0, {cat:'touches',value:'t3+'})}
   `;
   const finishBlock = `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Final touch':'Dernier geste'}</div>
-    ${bar(_lang==='en'?'Header':'Tête', aerialCount)}
-    ${bar(_lang==='en'?'Foot / ground':'Pied / sol', groundCount)}
+    ${bar(FINISH_LABELS.tete, finishCounts.tete, {cat:'finish',value:'tete'})}
+    ${bar(FINISH_LABELS.pied, finishCounts.pied, {cat:'finish',value:'pied'})}
+    ${bar(FINISH_LABELS.corps, finishCounts.corps, {cat:'finish',value:'corps'})}
+    ${bar(FINISH_LABELS.inconnu, finishCounts.inconnu, {cat:'finish',value:'inconnu'})}
   `;
   const comboBlock = `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🔧 ${_lang==='en'?'Worked combination':'Combinaison travaillée'}</div>
@@ -2829,8 +2869,8 @@ function buildSetpieceBilan(list){
   `;
   let cornerBlock = '';
   if(corners.length > 0){
-    const sideRows = Object.entries(sideCounts).map(([k,v])=>bar(k, v)).join('');
-    const swingRows = Object.entries(swingCounts).map(([k,v])=>bar(k, v)).join('');
+    const sideRows = Object.entries(sideCounts).map(([k,v])=>bar(k, v, {cat:'side',value:k})).join('');
+    const swingRows = Object.entries(swingCounts).map(([k,v])=>bar(k, v, {cat:'swing',value:k})).join('');
     cornerBlock = `
       <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Corners — side':'Corners — côté'} (${corners.length})</div>
       ${sideRows}
@@ -2848,8 +2888,17 @@ function buildSetpieceBilan(list){
     </div>
   ` : '';
 
+  const activeCount = spFiltersActiveCount();
+  const resetBtn = activeCount > 0
+    ? `<button onclick="spResetFilters()" style="font-size:.75em;padding:3px 10px;border-radius:14px;cursor:pointer;background:#fee;border:1px solid #f88;color:#c00;font-weight:600">✕ ${_lang==='en'?'Reset filters':'Réinitialiser les filtres'} (${activeCount})</button>`
+    : '';
+
   return `<div style="background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
-    <div style="font-weight:700;font-size:1em;color:#1a4a1a;margin-bottom:10px">📊 ${_lang==='en'?'Summary':'Bilan'} (${total} ${_lang==='en'?'goals':'buts'})</div>
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;flex-wrap:wrap;gap:8px">
+      <div style="font-weight:700;font-size:1em;color:#1a4a1a">📊 ${_lang==='en'?'Summary':'Bilan'} (${total} ${_lang==='en'?'goals':'buts'})</div>
+      ${resetBtn}
+    </div>
+    <div style="font-size:.72em;color:#888;margin-bottom:10px">${_lang==='en'?'Click a row to filter (multiple selections allowed).':'Clique sur une ligne pour filtrer (plusieurs sélections possibles).'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 30px">
       <div>${touchesBlock}${finishBlock}${comboBlock}</div>
       <div>${cornerBlock}${topSigsBlock}</div>
@@ -2866,7 +2915,11 @@ function renderSetpieces(){
   const filtered = goals.filter(g=>
     (_spTeamFilter==='__all__' || g.team===_spTeamFilter) &&
     (_spPaFilter==='__all__' || parseInt(g.paType)===parseInt(_spPaFilter)) &&
-    (!_spComboOnly || parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31)
+    (!_spComboOnly || spIsCombo(g)) &&
+    (_spFilters.touches.size===0 || _spFilters.touches.has(spTouchBucket(g))) &&
+    (_spFilters.finish.size===0  || _spFilters.finish.has(spLastFinish(g))) &&
+    (_spFilters.side.size===0    || _spFilters.side.has(spCornerSide(g))) &&
+    (_spFilters.swing.size===0   || _spFilters.swing.has(spCornerSwing(g)))
   );
 
   const PA_NAMES = {1:'Corner', 2:'CF indirect', 3:'CF direct', 4:'Touche', 5:'Penalty'};
