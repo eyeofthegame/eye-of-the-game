@@ -10830,6 +10830,8 @@ const LES_NOMS_RUBRICS = [
   {id:'lieu', key:'lieu', labelFr:'Lieu du tir', labelEn:'Shot location'}
 ];
 let _lesNomsRubricId = 'tactique1';
+let _grilleSortCol = null; // null | 'total' | journeeKey (number ou phase string)
+let _grilleSortDir = null; // null | 'desc' | 'asc'
 
 function _lesNomsCatVal(g, key){
   // Dupliqué volontairement depuis buildCrossTab() (même logique) — calcul
@@ -10879,8 +10881,19 @@ function buildJourneeCrossTab(key, opts={}){
 
 function lesNomsSelect(rubricId){
   _lesNomsRubricId = rubricId;
+  _grilleSortCol = null; _grilleSortDir = null; // Christian (14/07) : on repart d'un tri neutre à chaque changement de rubrique
   renderLesNoms();
 }
+
+function grilleSortBy(col){
+  col = (col==='total') ? 'total' : (isNaN(col) ? col : +col); // clés numériques (journées) restent numériques
+  if(_grilleSortCol === col){
+    if(_grilleSortDir==='desc') _grilleSortDir='asc';
+    else { _grilleSortCol=null; _grilleSortDir=null; }
+  } else { _grilleSortCol=col; _grilleSortDir='desc'; }
+  renderLesNoms();
+}
+function grilleSortReset(){ _grilleSortCol=null; _grilleSortDir=null; renderLesNoms(); }
 
 function showGoalDetailJournee(key, catVal, journeeKey, filterPa){
   loadData();
@@ -10917,8 +10930,12 @@ function renderLesNoms(){
     return `<button onclick="lesNomsSelect('${r.id}')" style="padding:4px 12px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit;white-space:nowrap">${label}</button>`;
   }).join('');
 
+  const resetBtn = _grilleSortCol!==null
+    ? `<button onclick="grilleSortReset()" style="margin-left:8px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:#fff;color:var(--accent);font-size:.78em;cursor:pointer;font-family:inherit">✕ ${_lang==='en'?'Clear sort':'Effacer le tri'}</button>`
+    : '';
+
   let html = `<div class="view-header"><h2>🔢 ${_lang==='en'?'Matchday Grid':'Grille par journée'}</h2></div>
-  <div style="display:flex;gap:6px;flex-wrap:wrap;margin:6px 0 14px">${pillsHtml}</div>`;
+  <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin:6px 0 14px">${pillsHtml}${resetBtn}</div>`;
 
   if(ct.journeeKeys.length===0 || ct.catKeys.every(k=>ct.catTotals[k]===0)){
     html += `<div class="no-data">${_lang==='en'?'No data available. Encode matches first.':'Aucune donnée disponible. Encodez des matchs d\'abord.'}</div>`;
@@ -10929,17 +10946,33 @@ function renderLesNoms(){
   let maxV = 1;
   ct.catKeys.forEach(k=>{ ct.journeeKeys.forEach(jk=>{ const v=(ct.counts[k]&&ct.counts[k][jk])||0; if(v>maxV) maxV=v; }); });
 
+  // Tri des lignes (catKeys) selon la colonne cliquée (journée/phase, ou "Total")
+  let sortedCatKeys = [...ct.catKeys];
+  if(_grilleSortCol !== null){
+    sortedCatKeys.sort((a,b)=>{
+      const va = _grilleSortCol==='total' ? (ct.catTotals[a]||0) : ((ct.counts[a]&&ct.counts[a][_grilleSortCol])||0);
+      const vb = _grilleSortCol==='total' ? (ct.catTotals[b]||0) : ((ct.counts[b]&&ct.counts[b][_grilleSortCol])||0);
+      return _grilleSortDir==='desc' ? vb-va : va-vb;
+    });
+  }
+
+  const sortIco = (isActive) => isActive ? (_grilleSortDir==='desc'?'▼':'▲') : '<span style="opacity:.3">⇅</span>';
+
   const paFlag = opts.filter==='pa' ? 'true' : 'false';
   html += `<div style="overflow-x:auto;max-width:100%;border:1px solid var(--border);border-radius:6px">`;
   html += `<table class="tableau" style="font-size:.72em;border-collapse:collapse;white-space:nowrap">`;
   html += `<tr><th style="position:sticky;left:0;background:#fafafa;z-index:1;text-align:left;padding:3px 8px;min-width:150px">${_lang==='en'?'Category':'Rubrique'}</th>`;
   ct.journeeKeys.forEach(jk=>{
     const colLabel = jrUsesJournees() ? jk : jrLabel(jk);
-    html += `<th style="padding:2px 3px;min-width:24px;text-align:center;font-weight:600;font-size:.9em">${colLabel}</th>`;
+    const isActive = _grilleSortCol===jk || String(_grilleSortCol)===String(jk);
+    const activeStyle = isActive ? 'outline:2px solid rgba(0,0,0,.15);outline-offset:-2px;' : '';
+    html += `<th style="padding:2px 3px;min-width:24px;text-align:center;font-weight:600;font-size:.9em;cursor:pointer;${activeStyle}" onclick="grilleSortBy('${jk}')" title="${_lang==='en'?'Sort':'Trier'}">${colLabel}<br>${sortIco(isActive)}</th>`;
   });
-  html += `<th style="padding:2px 6px;text-align:center">Total</th></tr>`;
+  const isActiveTot = _grilleSortCol==='total';
+  const activeTotStyle = isActiveTot ? 'outline:2px solid rgba(0,0,0,.15);outline-offset:-2px;' : '';
+  html += `<th style="padding:2px 6px;text-align:center;cursor:pointer;${activeTotStyle}" onclick="grilleSortBy('total')" title="${_lang==='en'?'Sort by total':'Trier par total'}">Total<br>${sortIco(isActiveTot)}</th></tr>`;
 
-  ct.catKeys.forEach(k=>{
+  sortedCatKeys.forEach(k=>{
     const row = ct.table[k];
     html += `<tr><td style="position:sticky;left:0;z-index:1;padding:3px 8px;font-weight:600;background:#${row.c1};color:#${row.c2}">${row.nom}</td>`;
     ct.journeeKeys.forEach(jk=>{
