@@ -2733,6 +2733,130 @@ let _spPaFilter = '__all__';
 let _spTeamFilter = '__all__';
 let _spComboOnly = false; // Combinaison travaillée (Descriptif id 31) — filtre rapide
 
+// ── Bilan phases arrêtées : touches, finition, côté/trajectoire corner, ────
+// combinaison travaillée, "modèles" les plus utilisés (usage club/scouting)
+function buildSetpieceBilan(list){
+  if(list.length === 0) return '';
+
+  function touchesOf(g){
+    const n = (g.setpieceSteps||[]).length;
+    return Math.max(0, n-1); // touches après la mise en jeu (corner/CF/touche)
+  }
+  function touchBucket(g){
+    const t = touchesOf(g);
+    return t>=3 ? 't3+' : ('t'+t);
+  }
+  function lastAction(g){
+    const steps = g.setpieceSteps||[];
+    return steps.length ? steps[steps.length-1].action : null;
+  }
+  function isAerial(g){
+    return ['tpro','trem'].includes(lastAction(g));
+  }
+  function isCombo(g){
+    return parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31;
+  }
+  function cornerSide(g){
+    if(parseInt(g.paType)!==1 || !(g.setpieceSteps||[]).length) return null;
+    return g.setpieceSteps[0].x < 0.5 ? (_lang==='en'?'Left':'Gauche') : (_lang==='en'?'Right':'Droite');
+  }
+  function cornerSwing(g){
+    if(parseInt(g.paType)!==1 || !(g.setpieceSteps||[]).length) return null;
+    const c = g.setpieceSteps[0].curve || 0;
+    if(c === 0) return _lang==='en'?'Straight':'Droit';
+    return c < 0 ? (_lang==='en'?'Inswinging':'Entrant') : (_lang==='en'?'Outswinging':'Sortant');
+  }
+  const PA_NAMES_BILAN = {1:'Corner', 2:_lang==='en'?'Indirect FK':'CF indirect', 3:_lang==='en'?'Direct FK':'CF direct', 4:_lang==='en'?'Throw-in':'Touche'};
+
+  const touchCounts = {t0:0,t1:0,t2:0,'t3+':0};
+  list.forEach(g=>{ const b=touchBucket(g); touchCounts[b] = (touchCounts[b]||0)+1; });
+
+  const aerialCount = list.filter(isAerial).length;
+  const groundCount = list.length - aerialCount;
+  const comboCount = list.filter(isCombo).length;
+
+  const corners = list.filter(g=>parseInt(g.paType)===1 && (g.setpieceSteps||[]).length>0);
+  const sideCounts = {}, swingCounts = {};
+  corners.forEach(g=>{
+    const s = cornerSide(g); if(s) sideCounts[s]=(sideCounts[s]||0)+1;
+    const sw = cornerSwing(g); if(sw) swingCounts[sw]=(swingCounts[sw]||0)+1;
+  });
+
+  // "Modèle" = signature combinant type de PA, côté/trajectoire (corners),
+  // finition (tête/pied), nombre de touches, combinaison travaillée ou non.
+  const sigCounts = {};
+  list.forEach(g=>{
+    const parts = [];
+    parts.push(PA_NAMES_BILAN[parseInt(g.paType)] || (_lang==='en'?'Set piece':'Phase arr.'));
+    const side = cornerSide(g); if(side) parts.push(side);
+    const swing = cornerSwing(g); if(swing && swing !== (_lang==='en'?'Straight':'Droit')) parts.push(swing);
+    parts.push(isAerial(g) ? (_lang==='en'?'Header':'Tête') : (_lang==='en'?'Foot/Ground':'Pied/Sol'));
+    parts.push('t+'+touchesOf(g));
+    if(isCombo(g)) parts.push(_lang==='en'?'Worked combo':'Combi. travaillée');
+    const sig = parts.join(' · ');
+    sigCounts[sig] = (sigCounts[sig]||0)+1;
+  });
+  const topSigs = Object.entries(sigCounts).sort((a,b)=>b[1]-a[1]).slice(0,8);
+
+  const total = list.length;
+  const pct = n => total ? Math.round(n/total*100) : 0;
+  function bar(label, n){
+    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:4px">
+      <div style="width:120px;font-size:.78em;color:#333;flex-shrink:0">${label}</div>
+      <div style="flex:1;background:#eee;border-radius:4px;overflow:hidden;height:14px">
+        <div style="width:${pct(n)}%;background:#0e7c61;height:100%"></div>
+      </div>
+      <div style="width:64px;font-size:.75em;color:#666;text-align:right;flex-shrink:0">${n} (${pct(n)}%)</div>
+    </div>`;
+  }
+
+  const touchesBlock = `
+    <div style="margin-bottom:6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Touches after delivery':'Touches après la mise en jeu'}</div>
+    ${bar('t+0 ('+(_lang==='en'?'direct':'direct')+')', touchCounts.t0||0)}
+    ${bar('t+1', touchCounts.t1||0)}
+    ${bar('t+2', touchCounts.t2||0)}
+    ${bar('t+3+', touchCounts['t3+']||0)}
+  `;
+  const finishBlock = `
+    <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Final touch':'Dernier geste'}</div>
+    ${bar(_lang==='en'?'Header':'Tête', aerialCount)}
+    ${bar(_lang==='en'?'Foot / ground':'Pied / sol', groundCount)}
+  `;
+  const comboBlock = `
+    <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🔧 ${_lang==='en'?'Worked combination':'Combinaison travaillée'}</div>
+    ${bar(_lang==='en'?'Worked':'Travaillée', comboCount)}
+    ${bar(_lang==='en'?'Spontaneous':'Non travaillée', total-comboCount)}
+  `;
+  let cornerBlock = '';
+  if(corners.length > 0){
+    const sideRows = Object.entries(sideCounts).map(([k,v])=>bar(k, v)).join('');
+    const swingRows = Object.entries(swingCounts).map(([k,v])=>bar(k, v)).join('');
+    cornerBlock = `
+      <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Corners — side':'Corners — côté'} (${corners.length})</div>
+      ${sideRows}
+      <div style="margin:10px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Corners — swing':'Corners — trajectoire'}</div>
+      ${swingRows}
+    `;
+  }
+  const topSigsBlock = topSigs.length ? `
+    <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🏆 ${_lang==='en'?'Most used models':'Modèles les plus utilisés'}</div>
+    <div style="display:flex;flex-direction:column;gap:5px">
+      ${topSigs.map(([sig,n],idx)=>`<div style="display:flex;justify-content:space-between;align-items:center;gap:10px;background:${idx===0?'#eafaf0':'#f7f7f7'};border-radius:6px;padding:5px 10px;font-size:.78em">
+        <span>${idx+1}. ${sig}</span>
+        <span style="font-weight:700;color:#0e7c61;flex-shrink:0">${n}</span>
+      </div>`).join('')}
+    </div>
+  ` : '';
+
+  return `<div style="background:#fff;border-radius:10px;padding:14px 16px;margin-bottom:16px;box-shadow:0 2px 8px rgba(0,0,0,.08)">
+    <div style="font-weight:700;font-size:1em;color:#1a4a1a;margin-bottom:10px">📊 ${_lang==='en'?'Summary':'Bilan'} (${total} ${_lang==='en'?'goals':'buts'})</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 30px">
+      <div>${touchesBlock}${finishBlock}${comboBlock}</div>
+      <div>${cornerBlock}${topSigsBlock}</div>
+    </div>
+  </div>`;
+}
+
 function renderSetpieces(){
   loadData();
   const allGoals = getAllGoals();
@@ -2912,6 +3036,7 @@ function renderSetpieces(){
     <div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">${teamPills.join('')}</div>
     <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">${paPills}${comboPill}</div>
     <div style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#f5f5f5;border-radius:8px">${legend}</div>
+    ${buildSetpieceBilan(filtered)}
     ${cards}
   </div>`;
 
