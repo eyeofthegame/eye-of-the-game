@@ -2738,7 +2738,7 @@ let _spComboOnly = false; // Combinaison travaillée (Descriptif id 31) — filt
 // restriction sur cette catégorie. Permet de cumuler plusieurs critères à la
 // fois (ex: "Gauche" + "Sortant" + "t+1" simultanément) en cliquant sur les
 // barres du bilan lui-même.
-let _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set() };
+let _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set(), kicktype: new Set() };
 
 function spToggleFilter(cat, value){
   const s = _spFilters[cat];
@@ -2747,11 +2747,11 @@ function spToggleFilter(cat, value){
   renderSetpieces();
 }
 function spResetFilters(){
-  _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set() };
+  _spFilters = { touches: new Set(), finish: new Set(), side: new Set(), swing: new Set(), kicktype: new Set() };
   renderSetpieces();
 }
 function spFiltersActiveCount(){
-  return _spFilters.touches.size + _spFilters.finish.size + _spFilters.side.size + _spFilters.swing.size;
+  return _spFilters.touches.size + _spFilters.finish.size + _spFilters.side.size + _spFilters.swing.size + _spFilters.kicktype.size;
 }
 
 // ── Lecture du schéma phase arrêtée : touches, finition, côté/trajectoire ──
@@ -2773,16 +2773,24 @@ function spTouchBucket(g){
 // (ajouté précédemment) reste disponible en cas d'exception (ex: un but de
 // la poitrine) et garde la priorité s'il a été renseigné explicitement.
 const SP_ACTIONS_TETE = [21,22,23];
+// Déviations (Christian, 12/07) : Action R5 encode déjà "Dévié par
+// coéquipier"(17) / "Dévié par adversaire"(18) — catégories propres dans
+// Dernier geste, prioritaires sur tête/pied (même logique que spKickType :
+// une donnée déjà encodée, pas de nouveau champ ni de retravail).
+const SP_ACTIONS_DEVIE = {17:'devie_coequipier', 18:'devie_adversaire'};
 function spLastFinish(g){
   const steps = g.setpieceSteps||[];
   const last = steps.length ? steps[steps.length-1] : null;
-  // 1) Override manuel explicite sur le schéma (prioritaire, gère les exceptions)
+  const actId = parseInt(g.actions);
+  // 1) Dévié coéquipier/adversaire : déduit de l'Action (R5)
+  if(SP_ACTIONS_DEVIE[actId]) return SP_ACTIONS_DEVIE[actId];
+  // 2) Override manuel explicite sur le schéma (prioritaire, gère les exceptions)
   if(last && last.action === 'but' && last.finish) return last.finish;
-  // 2) Déduit de la rubrique Action (R5), déjà encodée sur le but — pas de travail supplémentaire
+  // 3) Déduit de la rubrique Action (R5), déjà encodée sur le but — pas de travail supplémentaire
   if(g.actions !== undefined && g.actions !== null && g.actions !== ''){
-    return SP_ACTIONS_TETE.includes(parseInt(g.actions)) ? 'tete' : 'pied';
+    return SP_ACTIONS_TETE.includes(actId) ? 'tete' : 'pied';
   }
-  // 3) Ancien repli : dernière étape du schéma marquée tête (prolongée/remise)
+  // 4) Ancien repli : dernière étape du schéma marquée tête (prolongée/remise)
   if(last && ['tpro','trem'].includes(last.action)) return 'tete';
   return 'inconnu';
 }
@@ -2799,26 +2807,46 @@ function spCornerSwing(g){
   if(c === 0) return _lang==='en'?'Straight':'Droit';
   return c < 0 ? (_lang==='en'?'Inswinging':'Entrant') : (_lang==='en'?'Outswinging':'Sortant');
 }
+// Pied & trajectoire du tireur (Christian, 12/07) : déjà encodé dans le
+// "Descriptif" (tactique2/tactique2b) via 6 valeurs précises — pas besoin
+// d'un nouveau champ ni de retravail, même logique que spLastFinish()/Action.
+const SP_KICK_TYPE_IDS = [9,10,11,12,42,43];
+function spKickType(g){
+  const t2 = parseInt(g.tactique2), t2b = parseInt(g.tactique2b);
+  if(SP_KICK_TYPE_IDS.includes(t2)) return t2;
+  if(SP_KICK_TYPE_IDS.includes(t2b)) return t2b;
+  return null;
+}
 
 // ── Bilan phases arrêtées : touches, finition, côté/trajectoire corner, ────
 // combinaison travaillée, "modèles" les plus utilisés (usage club/scouting).
 // Les barres sont cliquables (multi-select, voir spToggleFilter) et pilotent
 // le même `filtered` que les fiches individuelles affichées en dessous.
-function buildSetpieceBilan(list){
+function buildSetpieceBilan(list, paFilter){
   if(list.length === 0) return '';
+
+  // Un but direct (t+0) est réglementairement impossible sur coup franc
+  // indirect (2) et sur une rentrée de touche (4) — le ballon doit toucher
+  // un autre joueur avant de rentrer, sinon ce n'est pas but. On masque donc
+  // la ligne "t+0" quand le filtre est restreint à l'un de ces deux types.
+  const T0_IMPOSSIBLE_TYPES = [2, 4];
+  const paFilterInt = (paFilter === undefined || paFilter === '__all__') ? null : parseInt(paFilter);
+  const hideT0 = paFilterInt !== null && T0_IMPOSSIBLE_TYPES.includes(paFilterInt);
 
   const PA_NAMES_BILAN = {1:'Corner', 2:_lang==='en'?'Indirect FK':'CF indirect', 3:_lang==='en'?'Direct FK':'CF direct', 4:_lang==='en'?'Throw-in':'Touche'};
   const FINISH_LABELS = {
     tete:    _lang==='en'?'Header':'Tête',
     pied:    _lang==='en'?'Foot':'Pied',
     corps:   _lang==='en'?'Body':'Corps',
+    devie_coequipier: _lang==='en'?'Deflected off teammate':'Dévié par un coéquipier',
+    devie_adversaire: _lang==='en'?'Deflected off opponent':'Dévié par un adversaire',
     inconnu: _lang==='en'?'Not specified':'Non précisé',
   };
 
   const touchCounts = {t0:0,t1:0,t2:0,'t3+':0};
   list.forEach(g=>{ const b=spTouchBucket(g); touchCounts[b] = (touchCounts[b]||0)+1; });
 
-  const finishCounts = {tete:0,pied:0,corps:0,inconnu:0};
+  const finishCounts = {tete:0,pied:0,corps:0,devie_coequipier:0,devie_adversaire:0,inconnu:0};
   list.forEach(g=>{ const f=spLastFinish(g); if(f) finishCounts[f] = (finishCounts[f]||0)+1; });
 
   const comboCount = list.filter(spIsCombo).length;
@@ -2829,6 +2857,11 @@ function buildSetpieceBilan(list){
     const s = spCornerSide(g); if(s) sideCounts[s]=(sideCounts[s]||0)+1;
     const sw = spCornerSwing(g); if(sw) swingCounts[sw]=(swingCounts[sw]||0)+1;
   });
+
+  // Pied & trajectoire du tireur (toutes phases arrêtées confondues, pas
+  // seulement corners) — déduit de tactique2/tactique2b, cf. spKickType().
+  const kickTypeCounts = {};
+  list.forEach(g=>{ const k = spKickType(g); if(k) kickTypeCounts[k]=(kickTypeCounts[k]||0)+1; });
 
   // "Modèle" = signature combinant type de PA, côté/trajectoire (corners),
   // finition, nombre de touches, combinaison travaillée ou non.
@@ -2862,29 +2895,42 @@ function buildSetpieceBilan(list){
     </div>`;
   }
 
-  const touchesBlock = `
+  // Christian (12/07) : masquer dynamiquement toute ligne à 0 plutôt que de
+  // lister au cas par cas les catégories non pertinentes selon le type de
+  // phase arrêtée filtré (ex: t+2/t+3+/Tête/Corps pour un CF direct).
+  const touchRows = [
+    hideT0 ? null : ['t+0 ('+(_lang==='en'?'direct':'direct')+')', touchCounts.t0||0, {cat:'touches',value:'t0'}],
+    ['t+1', touchCounts.t1||0, {cat:'touches',value:'t1'}],
+    ['t+2', touchCounts.t2||0, {cat:'touches',value:'t2'}],
+    ['t+3+', touchCounts['t3+']||0, {cat:'touches',value:'t3+'}],
+  ].filter(r=>r && r[1]>0);
+  const touchesBlock = touchRows.length ? `
     <div style="margin-bottom:6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Touches after delivery':'Touches après la mise en jeu'}</div>
-    ${bar('t+0 ('+(_lang==='en'?'direct':'direct')+')', touchCounts.t0||0, {cat:'touches',value:'t0'})}
-    ${bar('t+1', touchCounts.t1||0, {cat:'touches',value:'t1'})}
-    ${bar('t+2', touchCounts.t2||0, {cat:'touches',value:'t2'})}
-    ${bar('t+3+', touchCounts['t3+']||0, {cat:'touches',value:'t3+'})}
-  `;
-  const finishBlock = `
+    ${touchRows.map(([label,n,opts])=>bar(label,n,opts)).join('')}
+  ` : '';
+  const finishRows = [
+    ['tete', FINISH_LABELS.tete, finishCounts.tete],
+    ['pied', FINISH_LABELS.pied, finishCounts.pied],
+    ['corps', FINISH_LABELS.corps, finishCounts.corps],
+    ['devie_coequipier', FINISH_LABELS.devie_coequipier, finishCounts.devie_coequipier],
+    ['devie_adversaire', FINISH_LABELS.devie_adversaire, finishCounts.devie_adversaire],
+  ].filter(([,,n])=>n>0);
+  const finishBlock = finishRows.length ? `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Final touch':'Dernier geste'}</div>
-    ${bar(FINISH_LABELS.tete, finishCounts.tete, {cat:'finish',value:'tete'})}
-    ${bar(FINISH_LABELS.pied, finishCounts.pied, {cat:'finish',value:'pied'})}
-    ${bar(FINISH_LABELS.corps, finishCounts.corps, {cat:'finish',value:'corps'})}
-    ${bar(FINISH_LABELS.inconnu, finishCounts.inconnu, {cat:'finish',value:'inconnu'})}
-  `;
-  const comboBlock = `
+    ${finishRows.map(([val,label,n])=>bar(label,n,{cat:'finish',value:val})).join('')}
+  ` : '';
+  const comboBlock = comboCount>0 ? `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🔧 ${_lang==='en'?'Worked combination':'Combinaison travaillée'}</div>
     ${bar(_lang==='en'?'Worked':'Travaillée', comboCount)}
-    ${bar(_lang==='en'?'Spontaneous':'Non travaillée', total-comboCount)}
-  `;
+  ` : '';
   let cornerBlock = '';
   if(corners.length > 0){
     const sideRows = Object.entries(sideCounts).map(([k,v])=>bar(k, v, {cat:'side',value:k})).join('');
-    const swingRows = Object.entries(swingCounts).map(([k,v])=>bar(k, v, {cat:'swing',value:k})).join('');
+    // "Droit" (pas de courbe) volontairement masqué (Christian, 12/07) :
+    // catégorie jugée pas assez informative pour un corner — seuls
+    // Entrant/Sortant restent affichés ici.
+    const straightLabel = _lang==='en'?'Straight':'Droit';
+    const swingRows = Object.entries(swingCounts).filter(([k])=>k!==straightLabel).map(([k,v])=>bar(k, v, {cat:'swing',value:k})).join('');
     cornerBlock = `
       <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">${_lang==='en'?'Corners — side':'Corners — côté'} (${corners.length})</div>
       ${sideRows}
@@ -2892,6 +2938,10 @@ function buildSetpieceBilan(list){
       ${swingRows}
     `;
   }
+  const kickTypeBlock = Object.keys(kickTypeCounts).length ? `
+    <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🦵 ${_lang==='en'?'Kicker — foot & swing':'Pied & trajectoire du tireur'}</div>
+    ${SP_KICK_TYPE_IDS.filter(id=>kickTypeCounts[id]>0).map(id=>bar(VDJ.tactique2[id].nom, kickTypeCounts[id], {cat:'kicktype',value:String(id)})).join('')}
+  ` : '';
   const topSigsBlock = topSigs.length ? `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🏆 ${_lang==='en'?'Most used models':'Modèles les plus utilisés'}</div>
     <div style="display:flex;flex-direction:column;gap:5px">
@@ -2915,7 +2965,7 @@ function buildSetpieceBilan(list){
     <div style="font-size:.72em;color:#888;margin-bottom:10px">${_lang==='en'?'Click a row to filter (multiple selections allowed).':'Clique sur une ligne pour filtrer (plusieurs sélections possibles).'}</div>
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 30px">
       <div>${touchesBlock}${finishBlock}${comboBlock}</div>
-      <div>${cornerBlock}${topSigsBlock}</div>
+      <div>${cornerBlock}${kickTypeBlock}${topSigsBlock}</div>
     </div>
   </div>`;
 }
@@ -2933,7 +2983,8 @@ function renderSetpieces(){
     (_spFilters.touches.size===0 || _spFilters.touches.has(spTouchBucket(g))) &&
     (_spFilters.finish.size===0  || _spFilters.finish.has(spLastFinish(g))) &&
     (_spFilters.side.size===0    || _spFilters.side.has(spCornerSide(g))) &&
-    (_spFilters.swing.size===0   || _spFilters.swing.has(spCornerSwing(g)))
+    (_spFilters.swing.size===0   || _spFilters.swing.has(spCornerSwing(g))) &&
+    (_spFilters.kicktype.size===0 || _spFilters.kicktype.has(String(spKickType(g))))
   );
 
   const PA_NAMES = {1:'Corner', 2:'CF indirect', 3:'CF direct', 4:'Touche', 5:'Penalty'};
@@ -3103,7 +3154,7 @@ function renderSetpieces(){
     <div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">${teamPills.join('')}</div>
     <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">${paPills}${comboPill}</div>
     <div style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#f5f5f5;border-radius:8px">${legend}</div>
-    ${buildSetpieceBilan(filtered)}
+    ${buildSetpieceBilan(filtered, _spPaFilter)}
     ${cards}
   </div>`;
 
