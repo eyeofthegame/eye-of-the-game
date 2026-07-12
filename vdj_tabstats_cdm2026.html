@@ -706,6 +706,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 
 <h3 id="sb-h-journalists">🎙️ Journalistes</h3>
 <a href="#" onclick="showView('ficheMatch')" id="nav-ficheMatch" data-i18n="nav-ficheMatch">🎙️ Fiche Match</a>
+<a href="#" onclick="showView('journee')" id="nav-journee" data-i18n="nav-journee">📆 Résumé par journée</a>
 
 <div style="margin-top:1.2em;padding-top:.8em;border-top:1px solid rgba(255,255,255,.15);font-size:.75em">
   <div id="sb-sync-label" style="color:var(--sidebar-section);font-weight:bold;margin-bottom:.3em">Sync fichier</div>
@@ -746,6 +747,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <div id="view-rapport" style="display:none"></div>
 <div id="view-papoints" style="display:none"></div>
 <div id="view-jeupoints" style="display:none"></div>
+<div id="view-journee" style="display:none"></div>
 </main>
 </div>
 
@@ -2957,7 +2959,12 @@ function spChanceType(g){
 // combinaison travaillée, "modèles" les plus utilisés (usage club/scouting).
 // Les barres sont cliquables (multi-select, voir spToggleFilter) et pilotent
 // le même `filtered` que les fiches individuelles affichées en dessous.
-function buildSetpieceBilan(list, paFilter){
+// Christian (13/07) : readOnly permet de réutiliser ce bilan dans d'autres
+// pages (ex: Résumé par journée) sans câbler les clics sur les filtres
+// globaux _spFilters/spToggleFilter, qui sont spécifiques à la page
+// Schémas PA (renderSetpieces()) — évite de modifier l'état d'une autre
+// vue en arrière-plan quand on affiche juste un bilan en lecture seule.
+function buildSetpieceBilan(list, paFilter, readOnly){
   if(list.length === 0) return '';
 
   // Un but direct (t+0) est réglementairement impossible sur coup franc
@@ -3022,7 +3029,7 @@ function buildSetpieceBilan(list, paFilter){
   const pct = n => total ? Math.round(n/total*100) : 0;
 
   function bar(label, n, opts){
-    const clickable = !!(opts && opts.cat && opts.value != null);
+    const clickable = !!(opts && opts.cat && opts.value != null) && !readOnly;
     const selected = clickable && _spFilters[opts.cat].has(opts.value);
     const clickAttr = clickable ? ` onclick="spToggleFilter('${opts.cat}','${String(opts.value).replace(/'/g,"\\'")}')"` : '';
     return `<div${clickAttr} style="display:flex;align-items:center;gap:8px;margin-bottom:4px;padding:2px 5px;border-radius:6px;border:1.5px solid ${selected?'#0e7c61':'transparent'};background:${selected?'#eafaf0':'transparent'};${clickable?'cursor:pointer':''}">
@@ -3099,7 +3106,7 @@ function buildSetpieceBilan(list, paFilter){
     </div>
   ` : '';
 
-  const activeCount = spFiltersActiveCount();
+  const activeCount = readOnly ? 0 : spFiltersActiveCount();
   const resetBtn = activeCount > 0
     ? `<button onclick="spResetFilters()" style="font-size:.75em;padding:3px 10px;border-radius:14px;cursor:pointer;background:#fee;border:1px solid #f88;color:#c00;font-weight:600">✕ ${_lang==='en'?'Reset filters':'Réinitialiser les filtres'} (${activeCount})</button>`
     : '';
@@ -3109,7 +3116,7 @@ function buildSetpieceBilan(list, paFilter){
       <div style="font-weight:700;font-size:1em;color:#1a4a1a">📊 ${_lang==='en'?'Summary':'Bilan'} (${total} ${_lang==='en'?'goals':'buts'})</div>
       ${resetBtn}
     </div>
-    <div style="font-size:.72em;color:#888;margin-bottom:10px">${_lang==='en'?'Click a row to filter (multiple selections allowed).':'Clique sur une ligne pour filtrer (plusieurs sélections possibles).'}</div>
+    ${readOnly ? '' : `<div style="font-size:.72em;color:#888;margin-bottom:10px">${_lang==='en'?'Click a row to filter (multiple selections allowed).':'Clique sur une ligne pour filtrer (plusieurs sélections possibles).'}</div>`}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 30px">
       <div>${touchesBlock}${finishBlock}${comboBlock}${chanceBlock}</div>
       <div>${cornerBlock}${kickTypeBlock}</div>
@@ -3618,6 +3625,7 @@ function showView(name){
   else if(name==='setpieces') _safeRender(renderSetpieces);
   else if(name==='papoints') _safeRender(renderPaPoints);
   else if(name==='jeupoints') _safeRender(renderJeuPoints);
+  else if(name==='journee') _safeRender(renderJourneeSummary);
 }
 
 function showAnalysis(key, opts={}){
@@ -10624,6 +10632,179 @@ function renderEvolutionPhase(){
   el.innerHTML = html;
 }
 
+// ══════════════════════════════════════════════════════════════════════════
+// 📆 RÉSUMÉ PAR JOURNÉE (Christian, 13/07) — vue globale (toutes équipes)
+// pour suivre l'évolution des tendances tactiques journée par journée
+// (ou phase par phase pour la CDM, qui n'a pas de journées numérotées).
+// Pensé pour un accès rapide côté journalistes : sélection simple (pilules,
+// même principe que Schémas PA) + six rubriques déjà connues du reste de
+// l'outil — Bilan tactique, Rubriques tactiques, Actions, Origines, Phases
+// arrêtées, Détail des phases arrêtées (réutilise buildSetpieceBilan en
+// lecture seule, cf. son 3e paramètre readOnly ajouté pour cette page).
+// ══════════════════════════════════════════════════════════════════════════
+let _jrSelected = '__all__';
+
+// Compétitions organisées en journées numérotées (m.group = "Journée N").
+// Les autres formats (CDM : groupes + élimination directe) utilisent
+// m.phase à la place — pas de journées numérotées à proprement parler.
+const JOURNEE_COMPS = ['pl2627','bl2627','jpl2627','jl2026'];
+function jrUsesJournees(){ return JOURNEE_COMPS.includes(ACTIVE_COMP); }
+function jrGetKey(m){
+  if(!m) return null;
+  if(jrUsesJournees()){
+    // Christian (13/07) : m.phase contient "Journée N" pour les 4
+    // championnats (PL/Bundesliga/Jupiler/J-League) — m.group N'EST PAS
+    // fiable pour ça : pour J-League 2026, m.group vaut "Groupe Est"/
+    // "Groupe Ouest" (tour régional spécial), c'est m.phase qui porte le
+    // numéro de journée dans ce cas précis. Donc on lit toujours m.phase.
+    const mm = String(m.phase||'').match(/(\d+)/);
+    return mm ? parseInt(mm[1]) : null;
+  }
+  return m.phase || null;
+}
+function jrKeyList(){
+  if(jrUsesJournees()){
+    const keys = new Set();
+    MATCHES.forEach(m=>{ const k=jrGetKey(m); if(k!=null) keys.add(k); });
+    return [...keys].sort((a,b)=>a-b);
+  }
+  const PHASE_ORDER = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
+  return PHASE_ORDER.filter(p=>MATCHES.some(m=>m.phase===p));
+}
+function jrLabel(key){
+  if(jrUsesJournees()) return (_lang==='en'?'Matchday ':'Journée ')+key;
+  const PHASE_SHORT = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R16':'16e','8e de finale':_lang==='en'?'R8':'8e','Quart de finale':_lang==='en'?'QF':'Quart','Demi-finale':_lang==='en'?'SF':'Demi','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
+  return PHASE_SHORT[key] || key;
+}
+function jrSelect(key){ _jrSelected = key; renderJourneeSummary(); }
+
+// Barre de badges colorés génériques (une rubrique VDJ → un badge par
+// catégorie non nulle, trié par fréquence décroissante).
+function jrDistBar(vdjCat, catKeys, goalsArr, field){
+  const counts = {};
+  catKeys.forEach(k=>{ counts[k]=0; });
+  goalsArr.forEach(g=>{ const v=g[field]; if(v!==undefined && v!==null && v!=='' && counts[v]!==undefined) counts[v]++; });
+  const rows = catKeys.filter(k=>counts[k]>0).sort((a,b)=>counts[b]-counts[a]);
+  if(!rows.length) return `<div style="font-size:.78em;color:var(--muted)">—</div>`;
+  return rows.map(k=>{
+    const v = counts[k];
+    const col = '#'+(vdjCat[k]?vdjCat[k].c1:'888888');
+    const tc = '#'+(vdjCat[k]?vdjCat[k].c2:'ffffff');
+    const nom = vdjCat[k]?vdjCat[k].nom:String(k);
+    return `<span style="display:inline-flex;align-items:center;background:${col};color:${tc};padding:3px 9px;border-radius:4px;font-size:.76em;white-space:nowrap;margin:2px 4px 2px 0;gap:5px">${nom}<b>${v}</b></span>`;
+  }).join('');
+}
+function jrSection(icon, title, bodyHtml){
+  return `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:16px 18px;margin-bottom:14px">
+    <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${icon} ${title}</div>
+    ${bodyHtml}
+  </div>`;
+}
+
+function renderJourneeSummary(){
+  loadData();
+  const el = document.getElementById('view-journee');
+  if(!el) return;
+  const allGoals = getAllGoals();
+  const keys = jrKeyList();
+
+  let html = `<div class="view-header"><h2>📆 ${_lang==='en'?'Matchday Summary':'Résumé par journée'}</h2></div>
+  <div style="padding:16px">`;
+
+  if(keys.length===0 || allGoals.length===0){
+    html += `<div class="no-data">${_lang==='en'?'No goals encoded yet.':'Aucun but encodé pour le moment.'}</div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  // ── Vue d'ensemble : évolution des buts par journée/phase (comparaison
+  // en un coup d'œil, cliquable pour se rendre directement à une journée) ──
+  const byKeyGoals = {};
+  keys.forEach(k=>{ byKeyGoals[k] = []; });
+  allGoals.forEach(g=>{
+    const k = jrGetKey(g.match);
+    if(k!=null && byKeyGoals[k]) byKeyGoals[k].push(g);
+  });
+  const maxG = Math.max(...keys.map(k=>byKeyGoals[k].length), 1);
+
+  html += `<div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:18px;margin-bottom:16px">
+    <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:14px">${_lang==='en'?'Evolution — goals by matchday':'Évolution — buts par journée'}</div>
+    <div style="display:flex;align-items:flex-end;gap:4px;height:90px;overflow-x:auto;padding-bottom:2px">
+      ${keys.map(k=>{
+        const n = byKeyGoals[k].length;
+        const h = Math.max(Math.round(n/maxG*70), n>0?3:0);
+        const active = String(_jrSelected)===String(k);
+        return `<div onclick="jrSelect('${k}')" style="cursor:pointer;flex:1;min-width:14px;display:flex;flex-direction:column;align-items:center;gap:2px" title="${jrLabel(k)} — ${n} ${_lang==='en'?'goals':'buts'}">
+          <span style="font-size:.6em;font-weight:700;color:${active?'#0e7c61':'var(--muted)'}">${n||''}</span>
+          <div style="width:100%;height:${h}px;background:${active?'#0e7c61':'#8fbfa8'};border-radius:2px 2px 0 0;min-height:2px"></div>
+        </div>`;
+      }).join('')}
+    </div>
+  </div>`;
+
+  // ── Sélecteur de journée/phase (pilules, même principe que Schémas PA) ──
+  const allPill = `<button onclick="jrSelect('__all__')" style="padding:4px 12px;border-radius:14px;font-size:.78em;font-weight:${_jrSelected==='__all__'?700:400};cursor:pointer;border:1.5px solid ${_jrSelected==='__all__'?'var(--accent)':'#ccc'};background:${_jrSelected==='__all__'?'var(--accent)':'transparent'};color:${_jrSelected==='__all__'?'#fff':'var(--text)'}">${_lang==='en'?'All (cumulative)':'Toutes (cumulé)'}</button>`;
+  const keyPills = keys.map(k=>{
+    const active = String(_jrSelected)===String(k);
+    return `<button onclick="jrSelect('${k}')" style="padding:4px 12px;border-radius:14px;font-size:.78em;font-weight:${active?700:400};cursor:pointer;border:1.5px solid ${active?'var(--accent)':'#ccc'};background:${active?'var(--accent)':'transparent'};color:${active?'#fff':'var(--text)'}">${jrLabel(k)}</button>`;
+  }).join('');
+  html += `<div style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:18px">${allPill}${keyPills}</div>`;
+
+  // ── Buts de la sélection ──────────────────────────────────────────────
+  const selGoals = _jrSelected==='__all__' ? allGoals : allGoals.filter(g=>String(jrGetKey(g.match))===String(_jrSelected));
+
+  if(selGoals.length===0){
+    html += `<div class="no-data">${_lang==='en'?'No goals for this selection.':'Aucun but pour cette sélection.'}</div></div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  const total = selGoals.length;
+  const selLabel = _jrSelected==='__all__' ? (_lang==='en'?'All matchdays':'Toutes journées') : jrLabel(_jrSelected);
+  html += `<div style="font-size:.85em;color:var(--muted);margin-bottom:12px">${selLabel} — <b>${total}</b> ${_lang==='en'?'goals':'buts'}</div>`;
+
+  // 1) Bilan tactique (tactique1)
+  html += jrSection('🎯', _lang==='en'?'Tactical summary':'Bilan tactique', jrDistBar(VDJ.tactique1, getKeys('tactique1'), selGoals, 'tactique1'));
+
+  // 2) Rubriques tactiques (Descriptif : tactique2 + tactique2b combinés —
+  // "-" (id 1, valeur par défaut) exclu, pas une vraie rubrique).
+  const t2Counts = {};
+  getKeys('tactique2').forEach(k=>{ t2Counts[k]=0; });
+  selGoals.forEach(g=>{
+    [g.tactique2, g.tactique2b].forEach(v=>{ if(v!==undefined && v!==null && v!=='' && t2Counts[v]!==undefined) t2Counts[v]++; });
+  });
+  const t2Rows = Object.keys(t2Counts).map(Number).filter(k=>k!==1 && t2Counts[k]>0).sort((a,b)=>t2Counts[b]-t2Counts[a]);
+  const t2Html = t2Rows.length ? t2Rows.map(k=>{
+    const v=t2Counts[k], col='#'+(VDJ.tactique2[k]?VDJ.tactique2[k].c1:'888888'), tc='#'+(VDJ.tactique2[k]?VDJ.tactique2[k].c2:'ffffff'), nom=VDJ.tactique2[k]?VDJ.tactique2[k].nom:String(k);
+    return `<span style="display:inline-flex;align-items:center;background:${col};color:${tc};padding:3px 9px;border-radius:4px;font-size:.76em;white-space:nowrap;margin:2px 4px 2px 0;gap:5px">${nom}<b>${v}</b></span>`;
+  }).join('') : `<div style="font-size:.78em;color:var(--muted)">—</div>`;
+  html += jrSection('📋', _lang==='en'?'Tactical categories (Description)':'Rubriques tactiques (Descriptif)', t2Html);
+
+  // 3) Actions
+  html += jrSection('⚡', _lang==='en'?'Actions':'Actions', jrDistBar(VDJ.actions, getKeys('actions'), selGoals, 'actions'));
+
+  // 4) Origines
+  html += jrSection('🔀', _lang==='en'?'Origins':'Origines', jrDistBar(VDJ.origine1, getKeys('origine1'), selGoals, 'origine1'));
+
+  // 5) Phases arrêtées — répartition par type (parmi les buts phase
+  // arrêtée/penalty, tactique1 5 ou 6, même filtre que Valeur PA en points)
+  const spGoalsType = selGoals.filter(g=>g.tactique1===5 || g.tactique1===6);
+  html += jrSection('🚩', _lang==='en'?'Set pieces — by type':'Phases arrêtées — par type', jrDistBar(VDJ.paType, getKeys('paType'), spGoalsType, 'paType'));
+
+  // 6) Détail des phases arrêtées — réutilise le bilan déjà construit pour
+  // Schémas PA (touches, finition, côté/trajectoire, combinaison, pied du
+  // tireur, 2e/3e chance…), en lecture seule pour ne pas interférer avec
+  // l'état de filtre de l'autre page.
+  const spGoalsDetail = selGoals.filter(g=>g.tactique1===5 && (g.setpieceSteps||[]).length>0);
+  const detailBilan = spGoalsDetail.length
+    ? buildSetpieceBilan(spGoalsDetail, '__all__', true)
+    : `<div style="font-size:.78em;color:var(--muted)">${_lang==='en'?'No set piece schema encoded for this selection.':'Aucun schéma de phase arrêtée encodé pour cette sélection.'}</div>`;
+  html += jrSection('🗺', _lang==='en'?'Set pieces — detail':'Détail des phases arrêtées', detailBilan);
+
+  html += `</div>`;
+  el.innerHTML = html;
+}
+
 // ══════════════════════════════════════════════════════════════════════════════
 // 📄 RAPPORT PDF
 // ══════════════════════════════════════════════════════════════════════════════
@@ -11791,6 +11972,7 @@ const _SIDEBAR_EN = {
   "nav-evolutionphase":"📉 Phase Evolution",
   "nav-rapport":"📄 PDF Report",
   "nav-ficheMatch":"🎙️ Match Report",
+  "nav-journee":"📆 Matchday Summary",
   "nav-recherche":"🔬 Custom Search",
   "nav-preview":"🎯 Opponent Preview",
   "nav-papoints":"📊 Set Piece Value in Points",
@@ -11843,6 +12025,7 @@ const _SIDEBAR_FR = {
   "nav-evolutionphase":"📉 Évolution par phase",
   "nav-rapport":"📄 Rapport PDF",
   "nav-ficheMatch":"🎙️ Fiche Match",
+  "nav-journee":"📆 Résumé par journée",
   "nav-recherche":"🔬 Recherche personnalisée",
   "nav-preview":"🎯 Preview adversaire",
   "nav-papoints":"📊 Valeur PA en points",
