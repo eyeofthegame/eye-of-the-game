@@ -6152,7 +6152,7 @@ let JOUEURS_FLAT = [];
 
 function loadPlayersForComp(){
   const c = COMPETITIONS[ACTIVE_COMP];
-  JOUEURS_FLAT = c.players.map(j=>({n:j.n, e:j.e, nom:j.n, equipe:j.e}));
+  JOUEURS_FLAT = (c.players || []).map(j=>({n:j.n, e:j.e, nom:j.n, equipe:j.e}));
   mergeCustomPlayers();
 }
 
