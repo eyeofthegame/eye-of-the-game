@@ -2481,7 +2481,12 @@ function confirmScore(){
 // on demande le score des tirs au but plutôt que de valider silencieusement
 // un score nul, ce qui masquait qui se qualifiait (ex: Suisse-Colombie).
 function isKnockoutMatch(m){
-  return !!m && m.phase !== 'Phase de groupes';
+  // Christian (17/07) : les tirs au but ne s'appliquent qu'aux vraies phases
+  // à élimination directe (ex. CDM : 8e/quarts/demies/finale). Une "Journée N"
+  // de championnat (Premier League, J-League phase régulière, Jupiler Pro
+  // League, Bundesliga...) n'est PAS une élimination directe, même en cas
+  // d'égalité : ailleurs qu'en CDM, un match nul reste un match nul.
+  return !!m && m.phase !== 'Phase de groupes' && !/^Journée\b/.test(m.phase || '');
 }
 function needsTabScore(md, m){
   return isKnockoutMatch(m) && !!md.score && md.score.dom === md.score.ext && !md.tab;
