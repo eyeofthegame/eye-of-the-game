@@ -3365,6 +3365,34 @@ function spCornerSwing(g){
   if(c === 0) return _lang==='en'?'Straight':'Droit';
   return c < 0 ? (_lang==='en'?'Inswinging':'Entrant') : (_lang==='en'?'Outswinging':'Sortant');
 }
+// Pied déduit du tireur, à partir du côté + de la trajectoire du corner
+// (Christian, 17/07) : un corner tiré du côté droit qui rentre vers le but
+// (trajectoire "Entrant") vient forcément d'un gaucher ; s'il sort
+// (trajectoire "Sortant"), d'un droitier. Inversion symétrique côté gauche.
+// Sert de vérification croisée avec la valeur choisie manuellement dans le
+// Descriptif (tactique2) — ne la remplace pas, voir spKickTypeManualFoot().
+// Un corner "Droit" (sans courbe) ne permet pas de déduire le pied.
+function spDeducedFoot(side, swing){
+  if(!side || !swing) return null;
+  const isRight = (side === 'Droite' || side === 'Right');
+  const isIn = (swing === 'Entrant' || swing === 'Inswinging');
+  const isOut = (swing === 'Sortant' || swing === 'Outswinging');
+  if(!isIn && !isOut) return null;
+  const droitier = _lang==='en' ? 'Right-footed (deduced)' : 'Droitier (déduit)';
+  const gaucher = _lang==='en' ? 'Left-footed (deduced)' : 'Gaucher (déduit)';
+  if(isRight) return isIn ? gaucher : droitier;
+  return isIn ? droitier : gaucher;
+}
+// Pied choisi manuellement dans le Descriptif (tactique2/tactique2b), réduit
+// à juste "Droitier"/"Gaucher" (sans rentrant/sortant) pour comparaison avec
+// spDeducedFoot(). Les valeurs "Cou de Pied" (42/43) sont exclues : ce type
+// de frappe ne suit pas la même logique côté/trajectoire → pas comparable.
+function spKickTypeManualFoot(g){
+  const k = spKickType(g);
+  if(k===9 || k===10) return 'droitier';
+  if(k===11 || k===12) return 'gaucher';
+  return null;
+}
 // Pied & trajectoire du tireur (Christian, 12/07) : déjà encodé dans le
 // "Descriptif" (tactique2/tactique2b) via 6 valeurs précises — pas besoin
 // d'un nouveau champ ni de retravail, même logique que spLastFinish()/Action.
@@ -3430,6 +3458,23 @@ function buildSetpieceBilan(list, paFilter, readOnly){
   corners.forEach(g=>{
     const s = spCornerSide(g); if(s) sideCounts[s]=(sideCounts[s]||0)+1;
     const sw = spCornerSwing(g); if(sw) swingCounts[sw]=(swingCounts[sw]||0)+1;
+  });
+
+  // Pied déduit (côté + trajectoire) — affichage de contrôle en complément
+  // du choix manuel (Christian, 17/07) : ne modifie jamais l'encodage,
+  // sert juste à vérifier / compléter le Bilan quand le champ manuel a été
+  // oublié, et à signaler les cas où les deux ne concordent pas.
+  const deducedFootCounts = {};
+  let footMismatchCount = 0;
+  corners.forEach(g=>{
+    const deduced = spDeducedFoot(spCornerSide(g), spCornerSwing(g));
+    if(!deduced) return;
+    deducedFootCounts[deduced] = (deducedFootCounts[deduced]||0)+1;
+    const manualFoot = spKickTypeManualFoot(g);
+    if(manualFoot){
+      const deducedFoot = deduced.startsWith('Droitier') || deduced.startsWith('Right') ? 'droitier' : 'gaucher';
+      if(manualFoot !== deducedFoot) footMismatchCount++;
+    }
   });
 
   // Pied & trajectoire du tireur (toutes phases arrêtées confondues, pas
@@ -3524,6 +3569,11 @@ function buildSetpieceBilan(list, paFilter, readOnly){
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🦵 ${_lang==='en'?'Kicker — foot & swing':'Pied & trajectoire du tireur'}</div>
     ${SP_KICK_TYPE_IDS.filter(id=>kickTypeCounts[id]>0).map(id=>bar(VDJ.tactique2[id].nom, kickTypeCounts[id], {cat:'kicktype',value:String(id)})).join('')}
   ` : '';
+  const deducedFootBlock = Object.keys(deducedFootCounts).length ? `
+    <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🧮 ${_lang==='en'?'Foot — deduced from corner side + swing':'Pied déduit (côté + trajectoire du corner)'}</div>
+    ${Object.entries(deducedFootCounts).map(([k,v])=>bar(k, v)).join('')}
+    ${footMismatchCount>0 ? `<div style="margin-top:4px;padding:4px 6px;font-size:.75em;color:#a05a00;background:#fff6e8;border-radius:5px;font-weight:600">⚠️ ${footMismatchCount} ${_lang==='en'?'goal(s): manual foot disagrees with side+swing deduction':'but(s) où le pied encodé manuellement ne correspond pas au pied déduit'}</div>` : ''}
+  ` : '';
   const chanceBlock = Object.keys(chanceCounts).length ? `
     <div style="margin:12px 0 6px;font-weight:700;font-size:.85em;color:#1a4a1a">🔁 ${_lang==='en'?'2nd / 3rd+ chance':'Deuxième / 3e chance ou +'}</div>
     ${SP_CHANCE_IDS.filter(id=>chanceCounts[id]>0).map(id=>bar(VDJ.tactique2[id].nom, chanceCounts[id], {cat:'chance',value:String(id)})).join('')}
@@ -3551,7 +3601,7 @@ function buildSetpieceBilan(list, paFilter, readOnly){
     ${readOnly ? '' : `<div style="font-size:.72em;color:#888;margin-bottom:10px">${_lang==='en'?'Click a row to filter (multiple selections allowed).':'Clique sur une ligne pour filtrer (plusieurs sélections possibles).'}</div>`}
     <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px 30px">
       <div>${touchesBlock}${finishBlock}${comboBlock}${chanceBlock}</div>
-      <div>${cornerBlock}${kickTypeBlock}</div>
+      <div>${cornerBlock}${kickTypeBlock}${deducedFootBlock}</div>
     </div>
     ${topSigsBlock}
   </div>`;
