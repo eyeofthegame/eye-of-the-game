@@ -2154,6 +2154,10 @@ function switchComp(id){
   currentMatchId = null;
   updateCompUI();
   showPage('matches');
+  // 18 juillet 2026 — chaque compétition a son propre fichier lié
+  // (voir _flinkKeyForComp) : on relit son handle à chaque changement de
+  // compétition, comme au démarrage de l'appli.
+  flinkInit();
 }
 
 function updateCompUI(){
@@ -2263,6 +2267,10 @@ function renderLineupSection(){
   }
 
   el.innerHTML = `<h3>👥 Compositions &amp; temps de jeu <span style="font-size:.68em;color:var(--muted);font-weight:400">(optionnel — à remplir quand tu as l'info)</span></h3>
+    <div style="margin-bottom:8px;display:flex;gap:8px;flex-wrap:wrap">
+      <button type="button" class="btn" onclick="lsFetchLineupsForMatch(currentMatchId).then(()=>renderLineupSection())">🔄 Récupérer via API-Football (ce match)</button>
+      <button type="button" class="btn" onclick="lsFetchLineupsBulk()">🔄 Récupérer pour tous les matchs validés de cette compétition</button>
+    </div>
     <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:8px">
       ${sideBlock('dom', m.dom)}
       ${sideBlock('ext', m.ext)}
@@ -4043,6 +4051,15 @@ function saveGoals(){
   md.validated = true;
   saveData();
   toast('Encodage VDJ enregistré !');
+  // 18 juillet 2026 — tentative automatique (silencieuse, sans bloquer ni
+  // alerter) de récupération des compositions/remplacements via
+  // API-Football juste après la validation du match. Ne fait rien si :
+  // pas de clé configurée, championnat absent de LS_LEAGUES, match
+  // introuvable côté API, ou compositions déjà présentes (voir
+  // lsIsLineupEmpty — jamais d'écrasement). Les échecs/succès sont
+  // seulement journalisés dans le panneau Live Sync (lsLog), jamais en
+  // toast/alert, pour ne pas interrompre l'encodage.
+  try { lsFetchLineupsForMatch(currentMatchId); } catch(e){}
   // Rappel sauvegarde tous les 5 matchs encodés
   const totalEncoded = Object.values(data).filter(m=>m.validated).length;
   if(totalEncoded % 5 === 0){
@@ -6463,28 +6480,37 @@ function _flinkOpenIDB() {
     req.onerror   = e => rej(e.target.error);
   });
 }
+// 18 juillet 2026 — généralisé à toutes les compétitions (avant : un seul
+// handle global, forcément la Coupe du Monde) : chaque compétition a
+// désormais sa propre clé de stockage, donc son propre fichier lié, sans
+// risque qu'un lien fait sur une ligue n'écrase/ne soit écrasé par celui
+// de la Coupe du Monde (ou d'une autre ligue).
+function _flinkKeyForComp() { return _FLINK_KEY + '_' + ACTIVE_COMP; }
 async function _flinkSaveHandle(h) {
   const db = await _flinkOpenIDB();
+  const key = _flinkKeyForComp();
   return new Promise((res, rej) => {
     const tx = db.transaction(_FLINK_STORE, 'readwrite');
-    tx.objectStore(_FLINK_STORE).put(h, _FLINK_KEY);
+    tx.objectStore(_FLINK_STORE).put(h, key);
     tx.oncomplete = res; tx.onerror = rej;
   });
 }
 async function _flinkLoadHandle() {
   const db = await _flinkOpenIDB();
+  const key = _flinkKeyForComp();
   return new Promise((res, rej) => {
     const tx = db.transaction(_FLINK_STORE, 'readonly');
-    const req = tx.objectStore(_FLINK_STORE).get(_FLINK_KEY);
+    const req = tx.objectStore(_FLINK_STORE).get(key);
     req.onsuccess = e => res(e.target.result || null);
     req.onerror   = e => rej(e.target.error);
   });
 }
 async function _flinkDelHandle() {
   const db = await _flinkOpenIDB();
+  const key = _flinkKeyForComp();
   return new Promise((res, rej) => {
     const tx = db.transaction(_FLINK_STORE, 'readwrite');
-    tx.objectStore(_FLINK_STORE).delete(_FLINK_KEY);
+    tx.objectStore(_FLINK_STORE).delete(key);
     tx.oncomplete = res; tx.onerror = rej;
   });
 }
@@ -6558,7 +6584,9 @@ async function flinkLoad() {
 
 async function flinkSave() {
   if (!_flinkReady || !_flinkHandle) return;
-  if (ACTIVE_COMP !== 'cdm') return; // ce lien de fichier ne concerne que la Coupe du Monde 2026
+  // 18 juillet 2026 — le lien fichier est désormais par compétition
+  // (voir _flinkKeyForComp) : plus besoin de restreindre à la CDM ici,
+  // chaque compétition a son propre handle et son propre fichier.
   try {
     const perm = await _flinkHandle.queryPermission({ mode: 'readwrite' });
     if (perm !== 'granted') {
@@ -7068,7 +7096,14 @@ var LS_LEAGUES = {
   all:     { label:'Toutes compétitions',      search:null,                  country:null,      seasonMode:'calendar' },
   cdm:     { label:'🌍 Coupe du Monde 2026',     search:'World Cup',           country:null,      seasonMode:'calendar' },
   pl2627:  { label:'🏴 Premier League',          search:'Premier League',      country:'England', seasonMode:'euro' },
-  jl2026:  { label:'🇯🇵 J1 League (Japon)',       search:'J1 League',           country:'Japan',   seasonMode:'calendar' },
+  // 18 juillet 2026 — ajoutée (manquait) : nécessaire pour la récupération
+  // automatique des compositions/temps de jeu de la saison 2025-26, déjà
+  // terminée. Même championnat que pl2627 (même "search"/"country"), seule
+  // la saison résolue diffère (2025 au lieu de 2026-27) — voir
+  // lsSeasonForMatchDate(), qui calcule la saison depuis la date du match
+  // et non depuis "aujourd'hui" (indispensable pour une saison passée).
+  pl2526:  { label:'🏴 Premier League 25-26',    search:'Premier League',      country:'England', seasonMode:'euro' },
+  jl2026: { label:'🇯🇵 J1 League (Japon)',       search:'J1 League',           country:'Japan',   seasonMode:'calendar' },
   jpl2627: { label:'🇧🇪 Jupiler Pro League',      search:'Jupiler Pro League',  country:'Belgium', seasonMode:'euro' },
   bl2627:  { label:'🇩🇪 Bundesliga',              search:'Bundesliga',          country:'Germany', seasonMode:'euro' }
 };
@@ -7135,6 +7170,212 @@ async function lsResolveLeagueId(compId, key){
     return null;
   }
 }
+
+// ══════════════════════════════════════════════════════════════════
+// 👥 COMPOSITIONS AUTOMATIQUES VIA API-FOOTBALL (18 juillet 2026)
+// ══════════════════════════════════════════════════════════════════
+// Réutilise la même clé/proxy que le Live Sync des buteurs (lsFetch,
+// LS_APIKEY_STORE, lsResolveLeagueId, lsNorm, lsMatchPlayer) — mais ici
+// pour des matchs déjà joués : un seul aller-retour par match (pas de
+// polling), puisque les compositions et remplacements d'un match terminé
+// ne changent plus.
+//
+// Sécurité anti-écrasement : si `md.lineup` contient déjà le moindre nom
+// (saisi à la main par Christian), le match est ignoré — jamais de
+// fusion champ par champ risquée, on ne remplit que ce qui est
+// entièrement vide (voir lsIsLineupEmpty).
+var _lsSeasonFixturesCache = {}; // compId -> [{id, date:'YYYY-MM-DD', home, away}]
+
+// Comme lsSeasonForDate, mais à partir de la date d'UN MATCH (format VDJ
+// "DD/MM/YYYY") plutôt que d'"aujourd'hui" — indispensable pour une
+// saison déjà terminée (ex: PL 2025-26 vue depuis juillet 2026).
+function lsSeasonForMatchDate(dateStr, mode){
+  const parts = (dateStr||'').split('/');
+  const year = parseInt(parts[2]) || new Date().getFullYear();
+  if(mode !== 'euro') return year;
+  const month = parseInt(parts[1]) || 1;
+  return month >= 7 ? year : year - 1;
+}
+
+function _lsDateVDJToISO(dateStr){
+  const parts = (dateStr||'').split('/');
+  if(parts.length !== 3) return '';
+  return parts[2]+'-'+parts[1].padStart(2,'0')+'-'+parts[0].padStart(2,'0');
+}
+
+async function lsFetchSeasonFixtures(compId, key){
+  if(_lsSeasonFixturesCache[compId]) return _lsSeasonFixturesCache[compId];
+  const cfg = LS_LEAGUES[compId];
+  if(!cfg){ lsLog('❌ Compétition "'+compId+'" absente de LS_LEAGUES — impossible de résoudre les matchs.'); return null; }
+  const leagueId = await lsResolveLeagueId(compId, key);
+  if(!leagueId) return null;
+  const compMatches = (COMPETITIONS[compId] && COMPETITIONS[compId].matches) || [];
+  const sampleDate = (compMatches[0] && compMatches[0].date) || '';
+  const season = lsSeasonForMatchDate(sampleDate, cfg.seasonMode);
+  lsLog('🔎 Récupération du calendrier '+cfg.label+' (saison '+season+')…');
+  try {
+    const url = 'https://v3.football.api-sports.io/fixtures?league='+leagueId+'&season='+season;
+    const resp = await lsFetch(url, { headers:{'x-apisports-key':key} });
+    const data = await resp.json();
+    const list = (data.response || []).map(f => ({
+      id: f.fixture.id,
+      date: (f.fixture.date||'').slice(0,10),
+      home: f.teams.home.name,
+      away: f.teams.away.name
+    }));
+    _lsSeasonFixturesCache[compId] = list;
+    lsLog('✅ '+list.length+' matchs trouvés pour la saison '+season+'.');
+    return list;
+  } catch(err){
+    lsLog('❌ Erreur récupération calendrier: '+err.message);
+    return null;
+  }
+}
+
+function lsFindFixtureForMatch(m, fixtures){
+  const iso = _lsDateVDJToISO(m.date);
+  const nDom = lsNorm(m.dom), nExt = lsNorm(m.ext);
+  let f = fixtures.find(f => f.date === iso && lsNorm(f.home) === nDom && lsNorm(f.away) === nExt);
+  if(f) return f;
+  f = fixtures.find(f => lsNorm(f.home) === nDom && lsNorm(f.away) === nExt);
+  if(f) return f;
+  const domFirst = nDom.split(' ')[0], extFirst = nExt.split(' ')[0];
+  f = fixtures.find(f => domFirst && extFirst && lsNorm(f.home).includes(domFirst) && lsNorm(f.away).includes(extFirst));
+  return f || null;
+}
+
+function lsIsLineupEmpty(lu){
+  if(!lu) return true;
+  return ['dom','ext'].every(side => {
+    const s = lu[side];
+    if(!s) return true;
+    const starters = s.starters || [], subs = s.subs || [];
+    return starters.every(p => !p.name || !p.name.trim()) && subs.every(p => !p.name || !p.name.trim());
+  });
+}
+
+// Fonction pure (testable isolément) : construit un objet lineup VDJ à
+// partir des réponses brutes API-Football /fixtures/lineups et
+// /fixtures/events. Pour un événement "subst", `player` = joueur qui
+// ENTRE, `assist` = joueur qui SORT (convention API-Football v3).
+function lsParseLineupResponse(lineupsResp, eventsResp, domTeamName, extTeamName){
+  const lineupList = (lineupsResp && lineupsResp.response) || [];
+  const events = (eventsResp && eventsResp.response) || [];
+  const subEvents = events.filter(e => e.type === 'subst');
+
+  function sideFor(teamName){
+    const nTeam = lsNorm(teamName);
+    return lineupList.find(l => lsNorm(l.team && l.team.name) === nTeam) || null;
+  }
+
+  function elapsedOf(evt){
+    return (evt.time && (evt.time.elapsed||0) + (evt.time.extra||0)) || null;
+  }
+
+  function buildSide(teamName){
+    const side = sideFor(teamName);
+    if(!side) return { starters: [], subs: [] };
+    const nTeam = lsNorm(teamName);
+    const startXINames = (side.startXI || []).map(x => x.player && x.player.name).filter(Boolean);
+    const subsForTeam = subEvents.filter(e => lsNorm(e.team && e.team.name) === nTeam);
+
+    const starters = startXINames.map(name => {
+      const outEvt = subsForTeam.find(e => e.assist && lsNorm(e.assist.name) === lsNorm(name));
+      return { name: lsMatchPlayer(name) || name, outMin: outEvt ? elapsedOf(outEvt) : null };
+    });
+
+    const subs = subsForTeam.map(e => {
+      const inName = e.player && e.player.name;
+      if(!inName) return null;
+      const outEvt2 = subsForTeam.find(e2 => e2 !== e && e2.assist && lsNorm(e2.assist.name) === lsNorm(inName));
+      return {
+        name: lsMatchPlayer(inName) || inName,
+        inMin: elapsedOf(e),
+        outMin: outEvt2 ? elapsedOf(outEvt2) : null
+      };
+    }).filter(Boolean);
+
+    return { starters, subs };
+  }
+
+  return { dom: buildSide(domTeamName), ext: buildSide(extTeamName) };
+}
+
+async function lsFetchLineupsForMatch(matchId, opts){
+  opts = opts || {};
+  const key = localStorage.getItem(LS_APIKEY_STORE) || '';
+  if(!key){ lsLog('❌ Clé API-Football manquante — configure-la dans le panneau Live Sync.'); return false; }
+  const m = MATCHES.find(x => x.id === matchId);
+  if(!m) return false;
+  const md = getMatchData(matchId);
+
+  if(!lsIsLineupEmpty(md.lineup)){
+    if(!opts.silent) lsLog('⏭️ '+m.dom+' vs '+m.ext+' — compositions déjà présentes, ignoré (aucune écrasée).');
+    return false;
+  }
+
+  const fixtures = await lsFetchSeasonFixtures(ACTIVE_COMP, key);
+  if(!fixtures) return false;
+  const fixture = lsFindFixtureForMatch(m, fixtures);
+  if(!fixture){
+    lsLog('❌ Match introuvable côté API-Football : '+m.dom+' vs '+m.ext+' ('+m.date+')');
+    return false;
+  }
+
+  try {
+    const [lResp, eResp] = await Promise.all([
+      lsFetch('https://v3.football.api-sports.io/fixtures/lineups?fixture='+fixture.id, { headers:{'x-apisports-key':key} }),
+      lsFetch('https://v3.football.api-sports.io/fixtures/events?fixture='+fixture.id, { headers:{'x-apisports-key':key} })
+    ]);
+    const lData = await lResp.json();
+    const eData = await eResp.json();
+    const lineup = lsParseLineupResponse(lData, eData, m.dom, m.ext);
+
+    if(lsIsLineupEmpty(lineup)){
+      lsLog('⚠️ Aucune composition disponible côté API-Football pour '+m.dom+' vs '+m.ext+' (fréquent pour les matchs anciens ou moins couverts).');
+      return false;
+    }
+
+    md.lineup = lineup;
+    saveData();
+    lsLog('✅ Compositions récupérées : '+m.dom+' vs '+m.ext);
+    return true;
+  } catch(err){
+    lsLog('❌ Erreur compositions '+m.dom+' vs '+m.ext+' : '+err.message);
+    return false;
+  }
+}
+
+var _lsBulkLineupRunning = false;
+async function lsFetchLineupsBulk(){
+  if(_lsBulkLineupRunning){ lsLog('⏳ Récupération déjà en cours…'); return; }
+  const key = localStorage.getItem(LS_APIKEY_STORE) || '';
+  if(!key){ lsLog('❌ Clé API-Football manquante — configure-la dans le panneau Live Sync.'); return; }
+  _lsBulkLineupRunning = true;
+  const compLabel = (COMPETITIONS[ACTIVE_COMP] && COMPETITIONS[ACTIVE_COMP].label) || ACTIVE_COMP;
+  lsLog('🚀 Récupération des compositions — '+compLabel+'…');
+  const targets = MATCHES.filter(m => {
+    const md = data[m.id];
+    return md && md.validated && lsIsLineupEmpty(md.lineup);
+  });
+  if(targets.length === 0){
+    lsLog('ℹ️ Rien à faire — aucun match validé sans compositions.');
+    _lsBulkLineupRunning = false;
+    return;
+  }
+  lsLog(targets.length+' match(s) à traiter (≈'+(targets.length*2)+' requêtes — quota gratuit API-Football : 100/jour).');
+  let done = 0, ok = 0;
+  for(const m of targets){
+    const success = await lsFetchLineupsForMatch(m.id, { silent:true });
+    if(success) ok++;
+    done++;
+    await new Promise(r => setTimeout(r, 1200)); // reste sous 10 requêtes/minute
+  }
+  lsLog('🏁 Terminé : '+ok+'/'+done+' match(s) complétés.');
+  if(currentMatchId) renderLineupSection();
+  _lsBulkLineupRunning = false;
+}
+
 
 lsInit();
 var LS_POLL_MS = 10 * 60 * 1000; // 10 minutes

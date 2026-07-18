@@ -2551,6 +2551,10 @@ function switchComp(id){
   updateCompUI();
   loadData();
   showView(currentView === 'analysis' ? 'home' : currentView);
+  // 18 juillet 2026 — chaque compétition a son propre fichier lié
+  // (voir _flinkKeyForComp) : on relit son handle à chaque changement de
+  // compétition, comme au démarrage de l'appli.
+  flinkInit();
 }
 
 function updateCompUI(){
@@ -6980,28 +6984,35 @@ function _flinkOpenIDB() {
     req.onerror   = e => rej(e.target.error);
   });
 }
+// 18 juillet 2026 — généralisé à toutes les compétitions, en miroir du
+// même changement dans VDJ_Encodage_CDM2026.html : chaque compétition a
+// sa propre clé de stockage, donc son propre fichier lié.
+function _flinkKeyForComp() { return _FLINK_KEY + '_' + ACTIVE_COMP; }
 async function _flinkSaveHandle(h) {
   const db = await _flinkOpenIDB();
+  const key = _flinkKeyForComp();
   return new Promise((res, rej) => {
     const tx = db.transaction(_FLINK_STORE, 'readwrite');
-    tx.objectStore(_FLINK_STORE).put(h, _FLINK_KEY);
+    tx.objectStore(_FLINK_STORE).put(h, key);
     tx.oncomplete = res; tx.onerror = rej;
   });
 }
 async function _flinkLoadHandle() {
   const db = await _flinkOpenIDB();
+  const key = _flinkKeyForComp();
   return new Promise((res, rej) => {
     const tx = db.transaction(_FLINK_STORE, 'readonly');
-    const req = tx.objectStore(_FLINK_STORE).get(_FLINK_KEY);
+    const req = tx.objectStore(_FLINK_STORE).get(key);
     req.onsuccess = e => res(e.target.result || null);
     req.onerror   = e => rej(e.target.error);
   });
 }
 async function _flinkDelHandle() {
   const db = await _flinkOpenIDB();
+  const key = _flinkKeyForComp();
   return new Promise((res, rej) => {
     const tx = db.transaction(_FLINK_STORE, 'readwrite');
-    tx.objectStore(_FLINK_STORE).delete(_FLINK_KEY);
+    tx.objectStore(_FLINK_STORE).delete(key);
     tx.oncomplete = res; tx.onerror = rej;
   });
 }
