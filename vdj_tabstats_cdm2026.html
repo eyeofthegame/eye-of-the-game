@@ -3370,6 +3370,16 @@ function spLastFinish(g){
   if(last && ['tpro','trem'].includes(last.action)) return 'tete';
   return 'inconnu';
 }
+const SP_FINISH_LABELS = {
+  tete: _lang==='en'?'Header':'Tête',
+  pied: _lang==='en'?'Foot':'Pied',
+  corps: _lang==='en'?'Body':'Corps',
+  devie_coequipier: _lang==='en'?'Deflected off teammate':'Dévié par un coéquipier',
+  devie_adversaire: _lang==='en'?'Deflected off opponent':'Dévié par un adversaire',
+  inconnu: _lang==='en'?'Not specified':'Non précisé',
+};
+const SP_FINISH_ICONS = { tete:'🎯', pied:'⚽', corps:'🫸', devie_coequipier:'↩️', devie_adversaire:'🔁', inconnu:'' };
+
 function spIsCombo(g){
   return parseInt(g.tactique2)===31 || parseInt(g.tactique2b)===31;
 }
@@ -3762,6 +3772,8 @@ function renderSetpieces(){
     const paTypeInt = parseInt(g.paType)||0;
     const paLabel = (paTypeInt && paTypeInt !== 5 && PA_NAMES[paTypeInt]) ? (_lang==='en'?(PA_NAMES_EN[paTypeInt]||PA_NAMES[paTypeInt]):PA_NAMES[paTypeInt]) : null;
     const paBadge = paLabel ? `<span style="background:${PA_COLORS[paTypeInt]||'#555'};color:#fff;font-size:.72em;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.02em;white-space:nowrap">${paLabel.toUpperCase()}</span>` : '';
+    const finishKey = spLastFinish(g);
+    const finishBadge = (finishKey && finishKey !== 'inconnu') ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72em;background:#eef2f7;color:#334;padding:2px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${SP_FINISH_ICONS[finishKey]||''} ${SP_FINISH_LABELS[finishKey]}</span>` : '';
     return `<div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)">
       <div style="padding:8px 10px;background:#1a3a1a;color:#fff">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
@@ -3773,7 +3785,7 @@ function renderSetpieces(){
       </div>
       ${svg}
       <div style="padding:8px 10px">
-        <div style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:4px">${stepsLegend}</div>
+        <div style="display:flex;flex-wrap:wrap;align-items:center;gap:4px;margin-bottom:4px">${stepsLegend}${finishBadge}</div>
         ${videoBtn}
       </div>
     </div>`;
