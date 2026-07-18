@@ -4158,6 +4158,12 @@ function showAnalysis(key, opts={}){
 
 let _homeTypePhase = '';
 function setHomeTypePhase(v){ _homeTypePhase = v; renderHome(); }
+let _homeTypeJournees = []; // [] = toutes les journées (ligues uniquement)
+function _toggleHomeTypeJournee(k){
+  if(k==='__all__'){ _homeTypeJournees = []; }
+  else { const i=_homeTypeJournees.indexOf(k); if(i>=0) _homeTypeJournees.splice(i,1); else _homeTypeJournees.push(k); }
+  renderHome();
+}
 
 function renderHome(){
   loadData();
@@ -4182,22 +4188,42 @@ function renderHome(){
 
   const PHASE_ORDER_HOME = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
   const PHASE_SHORT_HOME = {'Phase de groupes':_lang==='en'?'Groups':'Groupes','16e de finale':_lang==='en'?'R16':'16e','8e de finale':_lang==='en'?'R8':'8e','Quart de finale':_lang==='en'?'QF':'Quarts','Demi-finale':_lang==='en'?'SF':'Demis','Match 3e place':_lang==='en'?'3rd':'3e pl.','Finale':_lang==='en'?'Final':'Finale'};
-  const goalsForType = _homeTypePhase ? goals.filter(g=>g.match&&g.match.phase===_homeTypePhase) : goals;
+  const isJourneeComp = jrUsesJournees();
+  const goalsForType = isJourneeComp
+    ? (_homeTypeJournees.length===0 ? goals : goals.filter(g=>_homeTypeJournees.includes(jrGetKey(g.match))))
+    : (_homeTypePhase ? goals.filter(g=>g.match&&g.match.phase===_homeTypePhase) : goals);
   const nPleinJeu = goalsForType.filter(g=>g.tactique1!==5&&g.tactique1!==6).length;
   const nPA = goalsForType.filter(g=>g.tactique1===5).length;
   const nPen = goalsForType.filter(g=>g.tactique1===6).length;
   const nRecup = goalsForType.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1)))).length;
   const total = goalsForType.length;
   const pct = (n,t) => t>0 ? Math.round(n/t*100)+'%' : '—';
+  const _compLabelHome = (COMPETITIONS[ACTIVE_COMP] && (COMPETITIONS[ACTIVE_COMP].shortLabel || COMPETITIONS[ACTIVE_COMP].label)) || (_lang==='en'?'WC 2026':'CDM 2026');
 
-  let html = `<h1>${_lang==='en'?'Overview':'Vue d\u2019ensemble'} — ${_lang==='en'?'WC 2026':'CDM 2026'}</h1>
+  // Filtre : selection multiple par journee (ligues) ou menu deroulant par phase (competitions a elimination directe, ex. CDM)
+  let phaseFilterHtml;
+  if(isJourneeComp){
+    const journeeKeys = jrKeyList().filter(k=>goals.some(g=>jrGetKey(g.match)===k));
+    const isAllJ = _homeTypeJournees.length===0;
+    const jChipStyle = (active) => `padding:4px 11px;border-radius:16px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};background:${active?'var(--accent)':'transparent'};color:${active?'#fff':'var(--text)'};font-size:.78em;font-weight:${active?800:600};cursor:pointer;white-space:nowrap`;
+    phaseFilterHtml = `<div style="display:flex;align-items:center;flex-wrap:wrap;gap:6px;margin-top:14px;margin-bottom:2px">
+      <span style="font-size:.75em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${_lang==='en'?'Filter by matchday:':'Filtrer par journée :'}</span>
+      <button onclick="_toggleHomeTypeJournee('__all__')" style="${jChipStyle(isAllJ)}">${_lang==='en'?'All':'Toutes'}</button>
+      ${journeeKeys.map(k=>`<button onclick="_toggleHomeTypeJournee(${k})" style="${jChipStyle(_homeTypeJournees.includes(k))}">${k}</button>`).join('')}
+    </div>`;
+  } else {
+    phaseFilterHtml = `<div style="display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:2px"><span style="font-size:.75em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${_lang==='en'?'Filter by phase:':'Filtrer par phase :'}</span><select onchange="setHomeTypePhase(this.value)" style="font-size:.82em;padding:4px 10px;border-radius:6px;border:1px solid var(--border)"><option value="">${_lang==='en'?'All phases':'Toutes les phases'}</option>${PHASE_ORDER_HOME.filter(p=>goals.some(g=>g.match&&g.match.phase===p)).map(p=>`<option value="${p}" ${p===_homeTypePhase?'selected':''}>${PHASE_SHORT_HOME[p]}</option>`).join('')}</select></div>`;
+  }
+
+  let html = `<h1>${_lang==='en'?'Overview':'Vue d’ensemble'} — ${_compLabelHome}</h1>
   <div class="stats-summary">
     <div class="stat-card"><div class="num">${matchesEncoded}</div><div class="lbl">${_lang==='en'?'Matches encoded':'Matchs encodés'}</div></div>
     <div class="stat-card"><div class="num">${goals.length}</div><div class="lbl">${_lang==='en'?'Goals analysed':'Buts analysés'}</div></div>
     <div class="stat-card"><div class="num">${teams.length}</div><div class="lbl">${_lang==='en'?'Teams':'Équipes'}</div></div>
     <div class="stat-card"><div class="num">${matchesWithScore}</div><div class="lbl">${_lang==='en'?'Scores entered':'Scores entrés'}</div></div>
   </div>
-  <div style="display:flex;align-items:center;gap:8px;margin-top:14px;margin-bottom:2px"><span style="font-size:.75em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">${_lang==='en'?'Filter by phase:':'Filtrer par phase :'}</span><select onchange="setHomeTypePhase(this.value)" style="font-size:.82em;padding:4px 10px;border-radius:6px;border:1px solid var(--border)"><option value="">${_lang==='en'?'All phases':'Toutes les phases'}</option>${PHASE_ORDER_HOME.filter(p=>goals.some(g=>g.match&&g.match.phase===p)).map(p=>`<option value="${p}" ${p===_homeTypePhase?'selected':''}>${PHASE_SHORT_HOME[p]}</option>`).join('')}</select></div>
+  ${phaseFilterHtml}
+
   <div class="stats-summary" style="margin-top:10px">
     <div class="stat-card"><div class="num" style="color:#1a44cc">${nPleinJeu}</div><div class="lbl">${_lang==='en'?'Open play goals':'Buts de plein jeu'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPleinJeu,total)}</div></div>
     <div class="stat-card"><div class="num" style="color:#aa8800">${nPA}</div><div class="lbl">${_lang==='en'?'Set piece goals':'Buts sur phase arrêtée'}</div><div style="font-size:.85em;color:var(--muted)">${pct(nPA,total)}</div></div>
@@ -11204,7 +11230,7 @@ let _jrSelected = '__all__';
 // Compétitions organisées en journées numérotées (m.group = "Journée N").
 // Les autres formats (CDM : groupes + élimination directe) utilisent
 // m.phase à la place — pas de journées numérotées à proprement parler.
-const JOURNEE_COMPS = ['pl2627','bl2627','jpl2627','jl2026'];
+const JOURNEE_COMPS = ['pl2627','pl2526','bl2627','jpl2627','jl2026'];
 function jrUsesJournees(){ return JOURNEE_COMPS.includes(ACTIVE_COMP); }
 function jrGetKey(m){
   if(!m) return null;
