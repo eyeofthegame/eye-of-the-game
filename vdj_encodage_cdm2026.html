@@ -300,6 +300,8 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 <div id="page-encode" class="hidden">
 <h1 id="encode-title">Encodage VDJ</h1>
 <div id="encode-match-info" class="step-box"></div>
+<div id="lineup-container" class="step-box"></div>
+<datalist id="lineup-players-datalist"></datalist>
 <div id="encode-score" class="step-box hidden">
 <h3>Score du match <button id="btn-modify-score" onclick="toggleModifyScore()" class="btn" style="font-size:.8em;margin-left:12px;display:none">✏️ Modifier</button></h3>
 <div class="row" style="margin-top:8px">
@@ -2213,6 +2215,124 @@ function getMatchData(id){
   if(!data[id]) data[id] = {score:null, goals:[], validated:false};
   return data[id];
 }
+// ==========================================
+// 👥 COMPOSITIONS & TEMPS DE JEU (titulaires, remplaçants, minutes)
+// ==========================================
+function getLineup(md){
+  if(!md.lineup){
+    md.lineup = {
+      dom: { starters: Array.from({length:11}, ()=>({name:'', outMin:null})), subs: [] },
+      ext: { starters: Array.from({length:11}, ()=>({name:'', outMin:null})), subs: [] }
+    };
+  }
+  return md.lineup;
+}
+
+function refreshLineupDatalist(){
+  const dl = document.getElementById('lineup-players-datalist');
+  if(!dl) return;
+  dl.innerHTML = (JOUEURS_FLAT||[]).map(j=>`<option value="${(j.nom||'').replace(/"/g,'&quot;')}">`).join('');
+}
+
+function renderLineupSection(){
+  const md = getMatchData(currentMatchId);
+  const m = MATCHES.find(x=>x.id===currentMatchId);
+  const lu = getLineup(md);
+  const el = document.getElementById('lineup-container');
+  if(!el || !m) return;
+
+  function starterRow(side, p, i){
+    return `<div class="row" style="gap:6px;margin-bottom:3px;align-items:center">
+      <span style="width:18px;font-size:.75em;color:var(--muted);text-align:right">${i+1}</span>
+      <input type="text" list="lineup-players-datalist" value="${(p.name||'').replace(/"/g,'&quot;')}" placeholder="Nom du joueur" style="flex:1" oninput="setLineupStarterName('${side}',${i},this.value)">
+      <input type="number" min="1" max="130" value="${p.outMin==null?'':p.outMin}" placeholder="sorti min" title="Minute de sortie (vide = a joué tout le match)" style="width:78px" oninput="setLineupStarterOut('${side}',${i},this.value)">
+    </div>`;
+  }
+
+  function sideBlock(side, teamName){
+    const s = lu[side];
+    let h = `<div style="flex:1;min-width:280px">
+      <div style="font-weight:700;margin-bottom:6px">${teamName}</div>
+      <div style="font-size:.76em;color:var(--muted);margin-bottom:4px">Titulaires — minute de sortie si remplacé (vide = a joué tout le match)</div>`;
+    h += s.starters.map((p,i)=>starterRow(side,p,i)).join('');
+    h += `<div style="font-size:.76em;color:var(--muted);margin:8px 0 4px">Remplaçants entrés en jeu</div>
+      <div id="lineup-subs-${side}"></div>
+      <button type="button" class="btn" style="font-size:.8em;margin-top:4px" onclick="addLineupSub('${side}')">➕ Ajouter un remplaçant</button>
+    </div>`;
+    return h;
+  }
+
+  el.innerHTML = `<h3>👥 Compositions &amp; temps de jeu <span style="font-size:.68em;color:var(--muted);font-weight:400">(optionnel — à remplir quand tu as l'info)</span></h3>
+    <div style="display:flex;gap:24px;flex-wrap:wrap;margin-top:8px">
+      ${sideBlock('dom', m.dom)}
+      ${sideBlock('ext', m.ext)}
+    </div>`;
+
+  renderLineupSubs('dom');
+  renderLineupSubs('ext');
+  refreshLineupDatalist();
+}
+
+function renderLineupSubs(side){
+  const md = getMatchData(currentMatchId);
+  const lu = getLineup(md);
+  const el = document.getElementById('lineup-subs-'+side);
+  if(!el) return;
+  let h = '';
+  lu[side].subs.forEach((p, i) => {
+    h += `<div class="row" style="gap:6px;margin-bottom:3px;align-items:center">
+      <input type="text" list="lineup-players-datalist" value="${(p.name||'').replace(/"/g,'&quot;')}" placeholder="Nom du joueur" style="flex:1" oninput="setLineupSubName('${side}',${i},this.value)">
+      <input type="number" min="1" max="130" value="${p.inMin==null?'':p.inMin}" placeholder="entré min" title="Minute d'entrée" style="width:78px" oninput="setLineupSubIn('${side}',${i},this.value)">
+      <input type="number" min="1" max="130" value="${p.outMin==null?'':p.outMin}" placeholder="sorti min" title="Minute de sortie (vide = resté jusqu'à la fin)" style="width:78px" oninput="setLineupSubOut('${side}',${i},this.value)">
+      <button type="button" class="btn" style="font-size:.75em;padding:2px 6px" onclick="removeLineupSub('${side}',${i})" title="Retirer">✕</button>
+    </div>`;
+  });
+  el.innerHTML = h;
+}
+
+function addLineupSub(side){
+  const md = getMatchData(currentMatchId);
+  getLineup(md)[side].subs.push({name:'', inMin:null, outMin:null});
+  saveData();
+  renderLineupSubs(side);
+  refreshLineupDatalist();
+}
+function removeLineupSub(side, i){
+  const md = getMatchData(currentMatchId);
+  getLineup(md)[side].subs.splice(i,1);
+  saveData();
+  renderLineupSubs(side);
+}
+function setLineupStarterName(side, i, val){
+  const md = getMatchData(currentMatchId);
+  getLineup(md)[side].starters[i].name = val;
+  saveData();
+}
+function setLineupStarterOut(side, i, val){
+  const md = getMatchData(currentMatchId);
+  const n = val==='' ? null : (parseInt(val,10)||null);
+  getLineup(md)[side].starters[i].outMin = n;
+  saveData();
+}
+function setLineupSubName(side, i, val){
+  const md = getMatchData(currentMatchId);
+  getLineup(md)[side].subs[i].name = val;
+  saveData();
+}
+function setLineupSubIn(side, i, val){
+  const md = getMatchData(currentMatchId);
+  const n = val==='' ? null : (parseInt(val,10)||null);
+  getLineup(md)[side].subs[i].inMin = n;
+  saveData();
+}
+function setLineupSubOut(side, i, val){
+  const md = getMatchData(currentMatchId);
+  const n = val==='' ? null : (parseInt(val,10)||null);
+  getLineup(md)[side].subs[i].outMin = n;
+  saveData();
+}
+
+
 
 function toast(msg){
   const t = document.getElementById('toast');
@@ -2382,6 +2502,7 @@ function openMatch(id){
       <b>${m.dom}</b> vs <b>${m.ext}</b> &nbsp; <span style="color:var(--muted);font-size:.85em">(${m.phase})</span>
     </div>
   `;
+  renderLineupSection();
   if(md.score === null){
     document.getElementById('encode-score').classList.remove('hidden');
     document.getElementById('encode-score').dataset.mode = 'new';

@@ -656,6 +656,8 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <h3 id="sb-h-overview">🏠 Vue d'ensemble</h3>
 <a href="#" onclick="showView('home')" id="nav-home" data-i18n="nav-home">Tableau de bord</a>
 <a href="#" onclick="showView('results')" id="nav-results" data-i18n="nav-results">📅 Résultats</a>
+<a href="#" onclick="showView('classement')" id="nav-classement" data-i18n="nav-classement">🏆 Classement</a>
+<a href="#" onclick="showView('tempsdejeu')" id="nav-tempsdejeu" data-i18n="nav-tempsdejeu">⏱️ Temps de jeu</a>
 <a href="#" onclick="showView('evolution')" id="nav-evolution" data-i18n="nav-evolution">📈 Évolution</a>
 
 
@@ -740,6 +742,8 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <div id="view-topbuts" style="display:none"></div>
 <div id="view-ficheMatch" style="display:none"></div>
 <div id="view-results" style="display:none"></div>
+<div id="view-classement" style="display:none"></div>
+<div id="view-tempsdejeu" style="display:none"></div>
 <div id="view-penalties" style="display:none"></div>
 <div id="view-setpieces" style="display:none"></div>
 <div id="view-adn" style="display:none"></div>
@@ -3064,7 +3068,211 @@ function renderResults(){
   el.innerHTML = html;
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🏆 CLASSEMENT — Tableau de points (général / domicile / extérieur)
+// ═══════════════════════════════════════════════════════════════════
+let _classVenue = 'all'; // 'all' | 'home' | 'away'
+function setClassVenue(v){ _classVenue = v; renderClassement(); }
 
+function _classComputeStandings(){
+  const rows = {}; // team -> {team, pj,w,d,l,gf,ga}
+  function ensure(team){
+    if(!rows[team]) rows[team] = {team, pj:0, w:0, d:0, l:0, gf:0, ga:0};
+    return rows[team];
+  }
+  MATCHES.forEach(m=>{
+    const md = data[m.id];
+    if(!md || !md.validated || !md.score) return;
+    const gd = Number(md.score.dom), ge = Number(md.score.ext);
+    if(isNaN(gd) || isNaN(ge)) return;
+
+    if(_classVenue === 'all' || _classVenue === 'home'){
+      const home = ensure(m.dom);
+      home.pj++; home.gf += gd; home.ga += ge;
+      if(gd > ge) home.w++; else if(gd < ge) home.l++; else home.d++;
+    }
+    if(_classVenue === 'all' || _classVenue === 'away'){
+      const away = ensure(m.ext);
+      away.pj++; away.gf += ge; away.ga += gd;
+      if(ge > gd) away.w++; else if(ge < gd) away.l++; else away.d++;
+    }
+  });
+  return Object.values(rows).map(r => ({
+    ...r,
+    gdiff: r.gf - r.ga,
+    pts: r.w * 3 + r.d
+  })).sort((a,b) => b.pts - a.pts || b.gdiff - a.gdiff || b.gf - a.gf || a.team.localeCompare(b.team));
+}
+
+function renderClassement(){
+  loadData();
+  const el = document.getElementById('view-classement');
+  if(!el) return;
+
+  const compLabel = (COMPETITIONS[ACTIVE_COMP] && (COMPETITIONS[ACTIVE_COMP].shortLabel || COMPETITIONS[ACTIVE_COMP].label)) || (_lang==='en'?'WC 2026':'CDM 2026');
+
+  const vLabels = {
+    all: _lang==='en' ? 'Overall' : 'Général',
+    home: _lang==='en' ? '🏠 Home' : '🏠 Domicile',
+    away: _lang==='en' ? '✈️ Away' : '✈️ Extérieur'
+  };
+  const venueBar = ['all','home','away'].map(v=>{
+    const active = _classVenue === v;
+    const bg = active ? 'var(--accent)' : '#fff';
+    const col = active ? '#fff' : 'var(--accent)';
+    const bord = active ? 'var(--accent)' : 'var(--border)';
+    return `<button onclick="setClassVenue('${v}')" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${vLabels[v]}</button>`;
+  }).join('');
+
+  const rows = _classComputeStandings();
+
+  let html = `<h1>🏆 ${_lang==='en'?'Standings':'Classement'} — ${compLabel}</h1>`;
+  html += `<div style="display:flex;gap:6px;align-items:center;margin:10px 0 14px;flex-wrap:wrap">${venueBar}</div>`;
+
+  if(rows.length === 0){
+    html += `<div class="no-data">${_lang==='en'?'No validated match yet.':'Aucun match validé pour l’instant.'}</div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  const headers = _lang==='en'
+    ? ['#','Team','P','W','D','L','GF','GA','GD','Pts']
+    : ['#','Équipe','J','G','N','P','BP','BC','Diff','Pts'];
+
+  html += '<table class="tableau" style="width:100%;max-width:760px">';
+  html += '<tr>' + headers.map((h,i)=>`<th style="${i===1?'text-align:left':'text-align:center'}">${h}</th>`).join('') + '</tr>';
+
+  rows.forEach((r, idx) => {
+    const diffStr = r.gdiff > 0 ? `+${r.gdiff}` : `${r.gdiff}`;
+    html += `<tr>
+      <td style="text-align:center;font-weight:700;color:var(--muted)">${idx+1}</td>
+      <td style="text-align:left;font-weight:600">${tf(r.team)}</td>
+      <td style="text-align:center">${r.pj}</td>
+      <td style="text-align:center">${r.w}</td>
+      <td style="text-align:center">${r.d}</td>
+      <td style="text-align:center">${r.l}</td>
+      <td style="text-align:center">${r.gf}</td>
+      <td style="text-align:center">${r.ga}</td>
+      <td style="text-align:center">${diffStr}</td>
+      <td style="text-align:center;font-weight:900;color:var(--accent)">${r.pts}</td>
+    </tr>`;
+  });
+
+  html += '</table>';
+  el.innerHTML = html;
+}
+
+
+
+// ═══════════════════════════════════════════════════════════════════
+// ⏱️ TEMPS DE JEU — Minutes, titularisations, montées au jeu par joueur
+// ═══════════════════════════════════════════════════════════════════
+let _tdjSortCol = 'minutes'; // 'minutes' | 'apps' | 'starts' | 'subs' | 'name'
+let _tdjSortDir = 'desc';
+function setTdjSort(col){
+  if(_tdjSortCol === col){ _tdjSortDir = _tdjSortDir==='desc' ? 'asc' : 'desc'; }
+  else { _tdjSortCol = col; _tdjSortDir = (col==='name') ? 'asc' : 'desc'; }
+  renderTempsDeJeu();
+}
+
+function _tdjCompute(){
+  const players = {};
+  function ensure(name){
+    if(!players[name]) players[name] = {name, team:'', starts:0, subs:0, minutes:0, apps:0};
+    return players[name];
+  }
+  let anyLineup = false;
+  MATCHES.forEach(m=>{
+    const md = data[m.id];
+    if(!md || !md.lineup) return;
+    anyLineup = true;
+    ['dom','ext'].forEach(side=>{
+      const team = side==='dom' ? m.dom : m.ext;
+      const s = md.lineup[side];
+      if(!s) return;
+      (s.starters||[]).forEach(p=>{
+        if(!p || !p.name || !p.name.trim()) return;
+        const rec = ensure(p.name.trim());
+        rec.team = team;
+        const outMin = (p.outMin==null || isNaN(p.outMin)) ? 90 : p.outMin;
+        rec.starts++;
+        rec.apps++;
+        rec.minutes += Math.max(0, outMin);
+      });
+      (s.subs||[]).forEach(p=>{
+        if(!p || !p.name || !p.name.trim()) return;
+        const rec = ensure(p.name.trim());
+        rec.team = team;
+        const inMin = (p.inMin==null || isNaN(p.inMin)) ? 0 : p.inMin;
+        const outMin = (p.outMin==null || isNaN(p.outMin)) ? 90 : p.outMin;
+        rec.subs++;
+        rec.apps++;
+        rec.minutes += Math.max(0, outMin - inMin);
+      });
+    });
+  });
+  return {rows: Object.values(players), anyLineup};
+}
+
+function renderTempsDeJeu(){
+  loadData();
+  const el = document.getElementById('view-tempsdejeu');
+  if(!el) return;
+
+  const compLabel = (COMPETITIONS[ACTIVE_COMP] && (COMPETITIONS[ACTIVE_COMP].shortLabel || COMPETITIONS[ACTIVE_COMP].label)) || (_lang==='en'?'WC 2026':'CDM 2026');
+  let html = `<h1>⏱️ ${_lang==='en'?'Playing Time':'Temps de jeu'} — ${compLabel}</h1>`;
+
+  const {rows, anyLineup} = _tdjCompute();
+
+  if(!anyLineup){
+    html += `<div class="no-data">${_lang==='en'
+      ? 'No lineup data has been entered yet. Fill in starting lineups and substitutions in Encodage (new "Compositions & temps de jeu" section on each match) to populate this page.'
+      : 'Aucune composition n’a encore été saisie. Renseigne les titulaires et remplaçants dans Encodage (nouvelle section "Compositions & temps de jeu" sur chaque match) pour alimenter cette page.'}</div>`;
+    el.innerHTML = html;
+    return;
+  }
+
+  const sorters = {
+    name: (a,b)=>a.name.localeCompare(b.name),
+    minutes: (a,b)=>a.minutes-b.minutes,
+    apps: (a,b)=>a.apps-b.apps,
+    starts: (a,b)=>a.starts-b.starts,
+    subs: (a,b)=>a.subs-b.subs,
+  };
+  let sorted = [...rows].sort(sorters[_tdjSortCol] || sorters.minutes);
+  if(_tdjSortDir === 'desc') sorted.reverse();
+
+  const cols = [
+    {key:'name', label:_lang==='en'?'Player':'Joueur', align:'left'},
+    {key:'team', label:_lang==='en'?'Team':'Équipe', align:'left', noSort:true},
+    {key:'apps', label:_lang==='en'?'Apps':'Matchs'},
+    {key:'starts', label:_lang==='en'?'Starts':'Titularisations'},
+    {key:'subs', label:_lang==='en'?'Sub apps':'Montées au jeu'},
+    {key:'minutes', label:_lang==='en'?'Minutes':'Minutes'},
+  ];
+
+  html += '<table class="tableau" style="width:100%;max-width:820px">';
+  html += '<tr>' + cols.map(c=>{
+    const arrow = (_tdjSortCol===c.key) ? (_tdjSortDir==='desc'?' ▼':' ▲') : '';
+    const cursor = c.noSort ? '' : 'cursor:pointer;';
+    const onclick = c.noSort ? '' : ` onclick="setTdjSort('${c.key}')"`;
+    return `<th style="text-align:${c.align||'center'};${cursor}"${onclick}>${c.label}${arrow}</th>`;
+  }).join('') + '</tr>';
+
+  sorted.forEach(r=>{
+    html += `<tr>
+      <td style="text-align:left;font-weight:600">${r.name}</td>
+      <td style="text-align:left">${tf(r.team)}</td>
+      <td style="text-align:center">${r.apps}</td>
+      <td style="text-align:center">${r.starts}</td>
+      <td style="text-align:center">${r.subs}</td>
+      <td style="text-align:center;font-weight:700">${r.minutes}'</td>
+    </tr>`;
+  });
+
+  html += '</table>';
+  el.innerHTML = html;
+}
 
 // ──────────────────────────────────────────────────────────────
 // 🗺 SCHÉMAS PHASES ARRÊTÉES
@@ -4135,6 +4343,8 @@ function showView(name){
   else if(name==='evolutionphase') _safeRender(renderEvolutionPhase);
   else if(name==='rapport') _safeRender(renderRapport);
   else if(name==='results') _safeRender(renderResults);
+  else if(name==='classement') _safeRender(renderClassement);
+  else if(name==='tempsdejeu') _safeRender(renderTempsDeJeu);
   else if(name==='penalties') _safeRender(renderPenalties);
   else if(name==='setpieces') _safeRender(renderSetpieces);
   else if(name==='papoints') _safeRender(renderPaPoints);
@@ -12732,6 +12942,8 @@ const _SIDEBAR_EN = {
   "sb-btn-unlink":"Unlink",
   "nav-home":"Dashboard",
   "nav-results":"📅 Results",
+  "nav-classement":"🏆 Standings",
+  "nav-tempsdejeu":"⏱️ Playing Time",
   "nav-evolution":"📈 Evolution",
 
   "nav-style":"Playing Style",
@@ -12786,6 +12998,8 @@ const _SIDEBAR_FR = {
   "sb-btn-unlink":"Délier",
   "nav-home":"Tableau de bord",
   "nav-results":"📅 Résultats",
+  "nav-classement":"🏆 Classement",
+  "nav-tempsdejeu":"⏱️ Temps de jeu",
   "nav-evolution":"📈 Évolution",
 
   "nav-style":"Style de jeu",
