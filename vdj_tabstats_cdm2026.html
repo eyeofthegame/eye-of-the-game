@@ -2609,6 +2609,8 @@ function loadData(){
 let _curAKey = null, _curAOpts = {};
 let _sortCol = null, _sortDir = null;
 let _venueFilter = 'all'; // 'all' | 'home' | 'away' // null | 'desc' | 'asc'
+let _analysisLastN = null; // null = toutes les journées ; sinon 5/10/15/20/25 (ligues uniquement)
+function setAnalysisLastN(n){ _analysisLastN = n; renderAnalysis(_curAKey, _curAOpts); }
 
 function analysisSortBy(col){
   col = isNaN(col) ? col : +col; // numeric keys stay numeric
@@ -4980,7 +4982,17 @@ function renderAdnJeu(){
 function renderAnalysis(key, opts={}){
   _curAKey = key; _curAOpts = opts;
   loadData();
-  const ct = buildCrossTab(key, {...opts, venueFilter: _venueFilter});
+  const _isJourneeAnalysis = jrUsesJournees();
+  let _lastNGoalFilter = null;
+  if(_isJourneeAnalysis && _analysisLastN){
+    const _playedJournees = [...new Set(getAllGoals().map(g=>jrGetKey(g.match)).filter(k=>k!=null))].sort((a,b)=>a-b);
+    const _keepJournees = new Set(_playedJournees.slice(-_analysisLastN));
+    _lastNGoalFilter = function(g){ return _keepJournees.has(jrGetKey(g.match)); };
+  }
+  const _combinedGoalFilter = (opts.goalFilter && _lastNGoalFilter)
+    ? function(g){ return opts.goalFilter(g) && _lastNGoalFilter(g); }
+    : (_lastNGoalFilter || opts.goalFilter);
+  const ct = buildCrossTab(key, {...opts, goalFilter: _combinedGoalFilter, venueFilter: _venueFilter});
   const table = ct.table;
   const label = opts.filter==='pa' ? 'Phases arrêtées — Origines' : (VDJ_LABELS[key]||key);
 
@@ -4997,11 +5009,21 @@ function renderAnalysis(key, opts={}){
     return `<button onclick="setVenueFilter('${v}')" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${vfLabels[v]}</button>`;
   }).join('');
 
+  const _lastNOptions = [5,10,15,20,25];
+  const lastNBar = _isJourneeAnalysis ? (['all',..._lastNOptions].map(v => {
+    const active = v==='all' ? !_analysisLastN : _analysisLastN===v;
+    const lbl = v==='all' ? (_lang==='en'?'All matchdays':'Toutes les journées') : (_lang==='en'?`Last ${v}`:`${v} dernières`);
+    const bg = active ? '#2d5a8a' : '#fff';
+    const col = active ? '#fff' : '#2d5a8a';
+    const bord = active ? '#2d5a8a' : 'var(--border)';
+    return `<button onclick="setAnalysisLastN(${v==='all'?'null':v})" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
+  }).join('')) : '';
+
   let html = `<h1>${label}</h1>
 ${resetBtn}
-  <div style="display:flex;gap:6px;align-items:center;margin:10px 0 4px">${venueBar}</div>`;
+  <div style="display:flex;gap:6px;align-items:center;margin:10px 0 4px;flex-wrap:wrap">${venueBar}${lastNBar}</div>`;
 
-  if(ct.teams.length===0){
+if(ct.teams.length===0){
     html += `<div class="no-data">${_lang==='en'?'No data available. Encode matches first.':'Aucune donnée disponible. Encodez des matchs d\'abord.'}</div>`;
     document.getElementById('view-analysis').innerHTML = html;
     return;
@@ -12429,7 +12451,7 @@ function openVideoModal(rawUrl){
     modal.id = 'vdj-video-modal';
     modal.style.cssText = [
       'position:fixed','z-index:99999','top:60px','right:20px',
-      'width:480px','background:#111','border-radius:10px',
+      'width:640px','background:#111','border-radius:10px',
       'box-shadow:0 8px 32px rgba(0,0,0,.7)','overflow:hidden',
       'display:none','flex-direction:column',
       'border:2px solid #cc0000','user-select:none'
