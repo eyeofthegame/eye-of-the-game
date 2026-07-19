@@ -2674,7 +2674,7 @@ function createEmptyGoal(team, opponent, num){
   return {
     team, opponent, num,
     minute:'', buteur:'', assist:'', noAssist:false, csc:false, intention:false,
-    tactique1:'', actions:'', tactique2:1, tactique2b:1, tactique3:0,
+    tactique1:'', actions:'', tactique2:1, tactique2b:1, tactique3:1, // 19 juillet 2026 — Christian : la plupart des buts sont intentionnels, le défaut évite un clic quasi systématique ; à corriger manuellement pour les CSC/erreurs/décisions arbitrales
     origine1:'', origine2:1, origine3:1,
     lieu:'', finitions:1, valeur:3,
     lien:'', rubriquetv:'', pitchX:null, pitchY:null, assistX:null, assistY:null, pressX:null, pressY:null, triggerX:null, triggerY:null,
@@ -6929,7 +6929,14 @@ function buildSuggestionPanel(goalIdx, team){
 // quelle rubrique (ex: "Droitier à droite" n'est qu'un point de départ,
 // à corriger si le tireur réel est gaucher).
 function applyVDJCascade(g, field, val){
-  if(field === 'tactique1' && val == 6){
+  if(field === 'tactique1' && val == 1){
+    // 19 juillet 2026 — Christian : cascade demandée pour Jeu Dominant
+    // placé (cas le plus fréquent : ballon centré puis frappé
+    // précisément) — à corriger manuellement si ce but précis n'est pas
+    // un centre/tir au cordeau.
+    g.origine1 = 2; // Origine du but : Centre
+    g.actions  = 3; // Action : Au cordeau
+  } else if(field === 'tactique1' && val == 6){
     // Tactique = PEN (Penalty)
     g.origine3  = 2;  // Déclenchement : 16
     g.origine2  = 3;  // Intention : A
