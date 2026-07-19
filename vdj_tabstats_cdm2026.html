@@ -2613,6 +2613,33 @@ function loadData(){
     }
   } catch(e) { data = useSeed ? seed : {}; }
   try { _migrateAssistNames(key); } catch(e){}
+  // 19 juillet 2026 — Christian a signalé ne pas voir un nouveau lot de
+  // matchs PL 2025-26 ajouté au seed. Cause : une fois localStorage déjà
+  // rempli pour une compétition (dès qu'on l'a ouverte une fois), le bloc
+  // ci-dessus ignore complètement le seed embarqué au prochain chargement
+  // — il relit uniquement localStorage. Toute mise à jour ultérieure du
+  // seed (nouveaux matchs recherchés) devenait donc invisible. Fix :
+  // fusion non destructive — n'ajoute QUE les matchs totalement absents de
+  // data (jamais touchés), ne modifie jamais un match déjà présent (même
+  // partiellement encodé par Christian).
+  try { _mergeNewSeedMatches(); } catch(e){}
+}
+
+function _mergeNewSeedMatches(){
+  if(!COMPETITIONS[ACTIVE_COMP] || !COMPETITIONS[ACTIVE_COMP].hasSeed) return;
+  const seed = SEED_BY_COMP[ACTIVE_COMP];
+  if(!seed) return;
+  let added = 0;
+  Object.keys(seed).forEach(matchId=>{
+    if(!data[matchId]){
+      data[matchId] = seed[matchId];
+      added++;
+    }
+  });
+  if(added > 0){
+    localStorage.setItem(activeDataKey(), JSON.stringify(data));
+    console.log('[VDJ] '+added+' nouveau(x) match(s) du seed ajoutés à '+ACTIVE_COMP);
+  }
 }
 
 // ── Sort state for analysis tables ──────────────────────────────────────────
