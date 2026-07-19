@@ -2619,6 +2619,12 @@ let _sortCol = null, _sortDir = null;
 let _venueFilter = 'all'; // 'all' | 'home' | 'away' // null | 'desc' | 'asc'
 let _analysisLastN = null; // null = toutes les journées ; sinon 5/10/15/20/25 (ligues uniquement)
 function setAnalysisLastN(n){ _analysisLastN = n; renderAnalysis(_curAKey, _curAOpts); }
+// 19 juillet 2026 — Christian : sur GPN il aime pouvoir basculer
+// Marqués/Encaissés sans avoir à scroller pour comparer les deux
+// tableaux empilés. Même pilule ajoutée ici, sur toutes les pages
+// Répartition (Tactique, Nature, Origine, Action, Lieu, Minutes...).
+let _analysisSide = 'scored'; // 'scored' | 'conceded'
+function setAnalysisSide(v){ _analysisSide = v; renderAnalysis(_curAKey, _curAOpts); }
 
 function analysisSortBy(col){
   col = isNaN(col) ? col : +col; // numeric keys stay numeric
@@ -2757,6 +2763,17 @@ function calcMin10(m, aet){
   if(i<=44){const v=Math.ceil(i/10);return v<1?1:v>5?5:v;}  // 1-44
   const v=Math.ceil((i-45)/10)+5;return v>10?10:v;           // 46-89
 }
+// 19 juillet 2026 — promus en globaux (avant : redéclarés localement dans
+// buildTable) pour être réutilisés aussi par le tableau détail de GPN,
+// sans dupliquer/faire diverger la logique.
+const HEADER_LABEL_OVERRIDES = { tactique1: { 3: 'REC. Rapide' }, tactique3: { 2: 'CIRC. Favorable' } };
+function _renomFavorableConcede(nom, isScoredView){
+  if(isScoredView) return nom;
+  if(nom === 'Circonstance Favorable') return 'Circonstance Défavorable';
+  if(nom === 'CIRC. Favorable') return 'CIRC. Défavorable';
+  return nom;
+}
+
 function buildCrossTab(key, opts={}){
   const goals = getAllGoals();
   const teams = getTeams();
@@ -3286,6 +3303,7 @@ function renderTempsDeJeu(){
 // ═══════════════════════════════════════════════════════════════════
 var _paPointsFilter = 'pa';   // 'pa' | 'pen' | 'all'
 var _paPointsPhases = [];      // [] = toutes ; sinon liste des phases sélectionnées
+var _paPointsJournees = [];    // 19 juillet 2026 — équivalent pour les compétitions à journées (ligues)
 var _paSortCol = null, _paSortDir = null;   // tri colonnes tableau Valeur PA en points
 function paSortBy(col){
   if(_paSortCol === col){
@@ -3342,7 +3360,7 @@ function renderPaPoints() {
   MATCHES.forEach(function(m) {
     var md = data[m.id];
     if(!md || !md.validated) return;
-    if(_paPointsPhases.length > 0 && !_paPointsPhases.includes(m.phase)) return;
+    if(jrUsesJournees() ? (_paPointsJournees.length > 0 && !_paPointsJournees.includes(jrGetKey(m))) : (_paPointsPhases.length > 0 && !_paPointsPhases.includes(m.phase))) return;
 
     var matchGoals = _paPointsGetGoals(m.id, md, m);
     var domAll  = matchGoals.filter(function(g){return g.team===m.dom;}).length;
@@ -3481,7 +3499,7 @@ function renderPaPoints() {
 
     // Filtres
     +'<div style="display:flex;flex-wrap:wrap;gap:8px;align-items:center;margin-bottom:10px">'+filterBtns+'</div>'
-    +'<div style="margin-bottom:16px">'+_phaseChips(_paPointsPhases,'_togglePaPhase')+'</div>'
+    +'<div style="margin-bottom:16px">'+(jrUsesJournees() ? _journeeChips(_paPointsJournees,'_togglePaJournee') : _phaseChips(_paPointsPhases,'_togglePaPhase'))+'</div>'
 
     // KPIs
     +'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:20px">'
@@ -4787,6 +4805,7 @@ function _jpSortIco(col){
 }
 function _jpTh(col){ return 'cursor:pointer;'+(_jpSortCol===col?'outline:2px solid rgba(0,0,0,.12);outline-offset:-2px;':''); }
 var _jpPhases  = [];  // [] = toutes ; sinon liste des phases sélectionnées
+var _jpJournees = []; // 19 juillet 2026 — équivalent pour les compétitions à journées (ligues)
 
 // ── helper partagé : chips de phase multi-sélection
 var _ALL_PHASES_LIST = ['Phase de groupes','16e de finale','8e de finale','Quart de finale','Demi-finale','Match 3e place','Finale'];
@@ -4817,6 +4836,40 @@ function _togglePaPhase(p) {
 function _toggleJpPhase(p) {
   if(p==='__all__'){ _jpPhases=[]; }
   else { var i=_jpPhases.indexOf(p); if(i>=0)_jpPhases.splice(i,1); else _jpPhases.push(p); }
+  renderJeuPoints();
+}
+
+// 19 juillet 2026 — Christian : ces deux pages simulaient une compétition
+// à élimination directe (pilules Groupes/16e/8e/QF/SF/3e pl./Finale)
+// même pour une ligue jouée par journées, où m.phase vaut "Journée N" et
+// ne correspond donc à AUCUNE de ces pilules — le filtre était
+// silencieusement inopérant pour pl2526 (Christian avait déjà repéré et
+// fait corriger ce même problème pour "Vue d'ensemble" et "Répartition").
+// Même correctif ici : pilules de journées (via jrUsesJournees/jrKeyList),
+// le filtre par phase reste inchangé pour la Coupe du Monde.
+function _journeeChips(selectedArr, toggleFnName) {
+  var journeeKeys = jrKeyList();
+  var isAll = selectedArr.length === 0;
+  var chipStyle = function(active) {
+    return 'padding:5px 12px;border-radius:16px;border:1.5px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'var(--accent)':'transparent')+';color:'+(active?'#fff':'var(--text)')+';font-size:.8em;font-weight:'+(active?'800':'600')+';cursor:pointer;white-space:nowrap';
+  };
+  var h = '<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">';
+  h += '<button onclick="'+toggleFnName+'(\'__all__\')" style="'+chipStyle(isAll)+'">'+(_lang==='en'?'All matchdays':'Toutes les journées')+'</button>';
+  journeeKeys.forEach(function(k){
+    var active = selectedArr.includes(k);
+    h += '<button onclick="'+toggleFnName+'('+k+')" style="'+chipStyle(active)+'">'+k+'</button>';
+  });
+  h += '</div>';
+  return h;
+}
+function _togglePaJournee(k) {
+  if(k==='__all__'){ _paPointsJournees=[]; }
+  else { var i=_paPointsJournees.indexOf(k); if(i>=0)_paPointsJournees.splice(i,1); else _paPointsJournees.push(k); }
+  renderPaPoints();
+}
+function _toggleJpJournee(k) {
+  if(k==='__all__'){ _jpJournees=[]; }
+  else { var i=_jpJournees.indexOf(k); if(i>=0)_jpJournees.splice(i,1); else _jpJournees.push(k); }
   renderJeuPoints();
 }
 
@@ -4859,7 +4912,7 @@ function renderJeuPoints(){
   MATCHES.forEach(function(m){
     var md=data[m.id];
     if(!md||!md.validated) return;
-    if(_jpPhases.length>0&&!_jpPhases.includes(m.phase)) return;
+    if(jrUsesJournees() ? (_jpJournees.length>0&&!_jpJournees.includes(jrGetKey(m))) : (_jpPhases.length>0&&!_jpPhases.includes(m.phase))) return;
     var matchGoals=[];
     (md.goals||[]).forEach(function(g){
       if(!g||!g.team) return;
@@ -4952,7 +5005,7 @@ function renderJeuPoints(){
     +'<p style="font-size:.84em;color:var(--muted);margin:0 0 16px;line-height:1.5">'+(_lang==='en'?'Simulation: if these goals had not been scored (or conceded), what would the result have been? Impact measured in standings points.':'Simulation : si ces buts n\'avaient pas été marqués (ou encaissés), quel aurait été le résultat ? Impact mesuré en points de classement.')+'</p>'
 
     +'<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">'+btns+'</div>'
-    +'<div style="margin-bottom:16px">'+_phaseChips(_jpPhases,'_toggleJpPhase')+'</div>'
+    +'<div style="margin-bottom:16px">'+(jrUsesJournees() ? _journeeChips(_jpJournees,'_toggleJpJournee') : _phaseChips(_jpPhases,'_toggleJpPhase'))+'</div>'
 
     +'<div style="display:flex;flex-wrap:wrap;gap:12px;margin-bottom:18px">'
     +'<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 20px;text-align:center"><div style="font-size:1.5em;font-weight:900;color:#2255ff">'+totalGoals+'</div><div style="font-size:.72em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">'+(_lang==='en'?'Goals':'Buts')+' '+currentLabel+'</div></div>'
@@ -5233,9 +5286,19 @@ function renderAnalysis(key, opts={}){
     return `<button onclick="setAnalysisLastN(${v==='all'?'null':v})" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
   }).join('')) : '';
 
+  const sideLabels = { scored: (_lang==='en'?'⚽ Goals Scored':'⚽ Buts marqués'), conceded: (_lang==='en'?'🥅 Goals Conceded':'🥅 Buts encaissés') };
+  const sideBar = ['scored','conceded'].map(v => {
+    const active = _analysisSide===v;
+    const bg = active ? 'var(--accent)' : '#fff';
+    const col = active ? '#fff' : 'var(--accent)';
+    const bord = active ? 'var(--accent)' : 'var(--border)';
+    return `<button onclick="setAnalysisSide('${v}')" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${sideLabels[v]}</button>`;
+  }).join('');
+
   let html = `<h1>${label}</h1>
 ${resetBtn}
-  <div style="display:flex;gap:6px;align-items:center;margin:10px 0 4px;flex-wrap:wrap">${venueBar}${lastNBar}</div>`;
+  <div style="display:flex;gap:6px;align-items:center;margin:10px 0 4px;flex-wrap:wrap">${venueBar}${lastNBar}</div>
+  <div style="display:flex;gap:6px;align-items:center;margin:0 0 12px;flex-wrap:wrap">${sideBar}</div>`;
 
 if(ct.teams.length===0){
     html += `<div class="no-data">${_lang==='en'?'No data available. Encode matches first.':'Aucune donnée disponible. Encodez des matchs d\'abord.'}</div>`;
@@ -5257,7 +5320,7 @@ if(ct.teams.length===0){
     let maxInTable = 1;
     sortedKeys.forEach(k=>{ ct.teams.forEach(t=>{ const v2=(catData[k]&&catData[k][t])||0; if(v2>maxInTable) maxInTable=v2; }); });
     const heatFn = isSc ? (v=>heatColorScored(v,maxInTable)) : (v=>heatColorConceded(v,maxInTable));
-    const _renomConc = (nom) => !isSc && nom==='Circonstance Favorable' ? 'Circonstance Défavorable' : (!isSc && nom==='CIRC. Favorable' ? 'CIRC. Défavorable' : nom);
+    const _renomConc = (nom) => _renomFavorableConcede(nom, isSc);
     let h = `<div class="section-title">${isSc?(_lang==='en'?'Goals Scored':'Buts marqués'):(_lang==='en'?'Goals Conceded':'Buts encaissés')}</div>`;
     h += '<table class="tableau">';
 
@@ -5305,7 +5368,6 @@ if(ct.teams.length===0){
       // proprement entre les mots. Raccourci en "REC." pour cet en-tête
       // uniquement (le libellé complet VDJ.tactique1[4].nom, utilisé
       // ailleurs — légendes, export, infobulles — n'est pas touché).
-      const HEADER_LABEL_OVERRIDES = { tactique1: { 3: 'REC. Rapide' }, tactique3: { 2: 'CIRC. Favorable' } };
       const headerNom = (HEADER_LABEL_OVERRIDES[key] && HEADER_LABEL_OVERRIDES[key][k]) ? HEADER_LABEL_OVERRIDES[key][k] : table[k].nom;
       if(isAction){
         // Separator on last key of each group
@@ -5405,7 +5467,7 @@ if(ct.teams.length===0){
     const tbl2 = getTable(key);
     const allTeams2 = activeSubs.length ? activeSubs[0].ct2.teams : [];
 
-    ['scored','conceded'].forEach(side => {
+    [_analysisSide].forEach(side => {
       const isSc = side === 'scored';
       const dk = (k) => (!isSc && key==='origine2') ? (MIRROR_O2[k]||k) : k;
       const detailFn = isSc ? 'showGoalDetail' : 'showGoalDetailConc';
@@ -5489,8 +5551,7 @@ if(ct.teams.length===0){
       html += h;
     });
   } else {
-    html += buildTable('scored');
-    html += buildTable('conceded');
+    html += _analysisSide==='scored' ? buildTable('scored') : buildTable('conceded');
   }
 
   // ── Radar chart ────────────────────────────────────────────────────────
@@ -6508,10 +6569,17 @@ function renderGPN(){
     ct.catKeys.forEach(k=>{
       const o = ct.table[k];
       if(!o) return;
+      // 19 juillet 2026 — Christian : mêmes raccourcis d'en-tête que les
+      // pages Répartition (REC. Rapide / CIRC. Favorable), + même bascule
+      // Favorable/Défavorable côté Encaissés (le repère existant pour
+      // Répartition s'applique tout autant ici : "Circonstance Favorable"
+      // décrit le point de vue du buteur, pas de l'équipe qui encaisse).
+      const headerNom = (HEADER_LABEL_OVERRIDES[_gpnCategory] && HEADER_LABEL_OVERRIDES[_gpnCategory][k]) ? HEADER_LABEL_OVERRIDES[_gpnCategory][k] : o.nom;
+      const displayNom = _renomFavorableConcede(headerNom, isScored);
       if(isWide){
-        html += `<th class="th45" style="background:#${o.c1};color:#${o.c2}" title="${o.nom}">${o.nom}</th>`;
+        html += `<th class="th45" style="background:#${o.c1};color:#${o.c2}" title="${displayNom}">${displayNom}</th>`;
       } else {
-        html += `<th style="background:#${o.c1};color:#${o.c2};font-size:.73em;padding:2px 4px;white-space:normal;max-width:65px;text-align:center;vertical-align:bottom;line-height:1.2">${o.nom}</th>`;
+        html += `<th style="background:#${o.c1};color:#${o.c2};font-size:.73em;padding:2px 4px;white-space:normal;max-width:65px;text-align:center;vertical-align:bottom;line-height:1.2">${displayNom}</th>`;
       }
     });
     html += `<th class="total-v">${_lang==='en'?'TOT':'TOT'}</th></tr>`;
