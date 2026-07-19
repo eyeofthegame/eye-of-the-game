@@ -3547,6 +3547,7 @@ function renderGoalForms(scrollToIdx){
         <span style="display:flex;align-items:center;gap:8px">
           <span style="font-weight:bold;font-size:1.05em">But ${i+1} — <button onclick="toggleGoalTeam(${i})" class="team-badge" style="background:#${getTeamColor(g.team)};color:${getContrastColor(getTeamColor(g.team))};border:1px solid rgba(0,0,0,.2);cursor:pointer;border-radius:3px" title="Cliquer pour changer d'équipe">⇄ ${g.team}</button></span>
           <button onclick="deleteGoal(${i})" style="font-size:.72em;padding:2px 8px;border:1px solid #c00;background:#fff0f0;color:#c00;border-radius:4px;cursor:pointer" title="Supprimer ce but">🗑 Suppr.</button>
+          ${i>0 ? `<button onclick="duplicatePreviousGoal(${i})" style="font-size:.72em;padding:2px 8px;border:1px solid var(--accent);background:#eef5ff;color:var(--accent);border-radius:4px;cursor:pointer" title="Copier toutes les rubriques (Tactique, Origine, Action, Lieu, Descriptif, Nature, Finition, Valeur) du but précédent">📋 Copier but précédent</button>` : ''}
         </span>
         <label style="font-size:.85em;display:flex;align-items:center;gap:6px">
           <span style="font-weight:bold;color:var(--accent)">Finition :</span>
@@ -3643,7 +3644,7 @@ function renderGoalForms(scrollToIdx){
         {id:'tir',  label:'Tir',     color:'#cc4400'},
         {id:'but',  label:'⚽ But',  color:'#cc0000'},
         {id:'rep',  label:'Reprise',  color:'#005588'},
-        {id:'arret',label:'🧤 Arrêt gard.', color:'#b71c1c'},
+        {id:'arret',label:'🧤 Arrêt défensif', color:'#b71c1c'},
       ];
       // Build pitch SVG with clickable zones
       // Half-pitch attacking view: goal at bottom, corners at top
@@ -6681,6 +6682,92 @@ function vdjSelectHtml(idx, field, curVal, tableKey, orderedKeys){
   return `<div style="display:flex;align-items:center;gap:4px;width:100%"><select class="vdj-step-select" onchange="updateGoalPill(${idx},'${field}',parseInt(this.value))" onkeyup="vdjKeyUp(event,this,${idx},'${field}')">${opts}</select><button type="button" onclick="vdjCycleNext(this)" title="Option suivante (même lettre)" style="flex-shrink:0;padding:3px 8px;font-size:.75em;cursor:pointer;border-radius:4px;border:1px solid #bbb;background:#f0f0f0;color:#333;line-height:1;white-space:nowrap">⟳</button></div>`;
 }
 
+// 19 juillet 2026 — recherche-texte pour Descriptif 1/2 (tactique2/tactique2b)
+// demandée par Christian pour accélérer l'encodage : ces deux rubriques
+// ont 51 options chacune dans le menu déroulant d'origine (vdjSelectHtml),
+// obligeant à faire défiler une longue liste. Remplacé par un champ où
+// on tape 2-3 lettres pour filtrer, exactement comme le champ buteur
+// (acInput/acSelect) — mêmes classes CSS (.ac-dropdown/.ac-item), même
+// esprit de navigation clavier (flèches + Entrée + Échap).
+function vdjComboOptions(tableKey){
+  const tbl = tableKey==='tactique2b' ? VDJ.tactique2 : VDJ[tableKey];
+  const keys = ORDER[tableKey] || Object.keys(tbl).map(Number);
+  return keys.filter(k=>tbl[k]).map(k=>({id:k, nom:tbl[k].nom, c1:tbl[k].c1, c2:tbl[k].c2}));
+}
+
+function vdjComboHtml(idx, field, curVal, tableKey){
+  const tbl = tableKey==='tactique2b' ? VDJ.tactique2 : VDJ[tableKey];
+  const curLabel = (curVal && tbl[curVal]) ? tbl[curVal].nom : '';
+  return `<div class="ac-wrap" id="vdjc-${idx}-${field}-wrap" style="width:100%">
+    <input type="text" class="vdj-step-select" id="vdjc-${idx}-${field}" value="${curLabel.replace(/"/g,'&quot;')}"
+      placeholder="Tapez pour filtrer (ex: pied, tête, corner…)" autocomplete="off"
+      oninput="vdjComboInput(this,${idx},'${field}','${tableKey}')"
+      onfocus="vdjComboInput(this,${idx},'${field}','${tableKey}')"
+      onkeydown="vdjComboKeydown(event,${idx},'${field}')"
+      onblur="vdjComboBlur(${idx},'${field}')">
+    <div class="ac-dropdown" id="vdjc-${idx}-${field}-dd"></div>
+  </div>`;
+}
+
+function vdjComboInput(input, idx, field, tableKey){
+  const dd = document.getElementById(`vdjc-${idx}-${field}-dd`);
+  if(!dd) return;
+  const q = acNormalize(input.value.trim());
+  const all = vdjComboOptions(tableKey);
+  const results = q.length===0 ? all : all.filter(o=>acNormalize(o.nom).includes(q));
+  if(results.length===0){
+    dd.innerHTML = '<div class="ac-hint">Aucun résultat</div>';
+    dd.classList.add('open');
+    return;
+  }
+  dd.innerHTML = results.slice(0,40).map(o=>
+    `<div class="ac-item" data-id="${o.id}" style="background:#${o.c1};color:#${o.c2}"
+       onmousedown="vdjComboSelect(event,${idx},'${field}',${o.id})">${o.nom}</div>`
+  ).join('');
+  dd.classList.add('open');
+}
+
+function vdjComboSelect(event, idx, field, val){
+  event.preventDefault();
+  const dd = document.getElementById(`vdjc-${idx}-${field}-dd`);
+  if(dd){ dd.innerHTML=''; dd.classList.remove('open'); }
+  updateGoalPill(idx, field, parseInt(val));
+}
+
+function vdjComboBlur(idx, field){
+  setTimeout(()=>{
+    const dd = document.getElementById(`vdjc-${idx}-${field}-dd`);
+    if(dd){ dd.innerHTML=''; dd.classList.remove('open'); }
+  }, 200);
+}
+
+function vdjComboKeydown(event, idx, field){
+  const dd = document.getElementById(`vdjc-${idx}-${field}-dd`);
+  if(!dd || !dd.classList.contains('open')) return;
+  const items = dd.querySelectorAll('.ac-item');
+  let sel = dd.querySelector('.ac-item.selected');
+  if(event.key === 'ArrowDown'){
+    event.preventDefault();
+    if(!sel) items[0] && items[0].classList.add('selected');
+    else { sel.classList.remove('selected'); const nx=sel.nextElementSibling; (nx&&nx.classList.contains('ac-item')?nx:items[0])?.classList.add('selected'); }
+  } else if(event.key === 'ArrowUp'){
+    event.preventDefault();
+    if(!sel) items[items.length-1] && items[items.length-1].classList.add('selected');
+    else { sel.classList.remove('selected'); const pv=sel.previousElementSibling; (pv&&pv.classList.contains('ac-item')?pv:items[items.length-1])?.classList.add('selected'); }
+  } else if(event.key === 'Enter'){
+    event.preventDefault();
+    sel = dd.querySelector('.ac-item.selected') || items[0];
+    if(sel){
+      const id = sel.dataset.id;
+      dd.innerHTML=''; dd.classList.remove('open');
+      updateGoalPill(idx, field, parseInt(id));
+    }
+  } else if(event.key === 'Escape'){
+    dd.innerHTML=''; dd.classList.remove('open');
+  }
+}
+
+
 function buildVDJSumBar(idx, g){
   const t1 = g.tactique1;
   function chipOf(pills, val){ return pills ? pills.find(x=>x.val==val) : null; }
@@ -6963,6 +7050,26 @@ function buildDirectVDJPillsSection(idx, g){
   +'</div>';
 }
 
+// 19 juillet 2026 — accès direct "Tête" demandé par Christian : les 3
+// variantes de tête (ids 21/22/23) sont enfouies presque en bas des 26
+// options du menu déroulant Action. Ajout de 3 pastilles à un clic
+// juste au-dessus du menu (qui reste disponible pour les 23 autres
+// actions) — mêmes couleurs que VDJ.actions, même mécanisme
+// (updateGoalPill) que les autres pastilles.
+const VDJ_ACTIONS_QUICK = [21, 22, 23];
+function vdjActionsQuickHtml(idx, curVal){
+  return VDJ_ACTIONS_QUICK.map(id=>{
+    const a = VDJ.actions[id];
+    if(!a) return '';
+    const active = curVal == id;
+    const bg = active ? '#'+a.c1 : '#fff';
+    const col = active ? '#'+a.c2 : '#555';
+    const bc = active ? '#'+a.c1 : '#ccc';
+    return `<span class="vdj-pill" style="background:${bg};color:${col};border-color:${bc}"
+      onclick="updateGoalPill(${idx},'actions',${id})">🥅 ${a.nom}</span>`;
+  }).join('');
+}
+
 function buildVDJPillsSection(idx, g){
   const t1 = g.tactique1;
   const isPA = t1==5, isPEN = t1==6;
@@ -7032,6 +7139,7 @@ function buildVDJPillsSection(idx, g){
     <div class="vdj-step-num">5</div>
     <div style="flex:1">
       <div class="vdj-step-label">Action</div>
+      <div class="vdj-pills" style="margin-bottom:5px">${vdjActionsQuickHtml(idx,g.actions)}</div>
       ${vdjSelectHtml(idx,'actions',g.actions,'actions',ORDER.actions)}
     </div>
   </div>
@@ -7046,14 +7154,14 @@ function buildVDJPillsSection(idx, g){
     <div class="vdj-step-num">7</div>
     <div style="flex:1">
       <div class="vdj-step-label">Descriptif principal</div>
-      ${vdjSelectHtml(idx,'tactique2',g.tactique2,'tactique2',ORDER.tactique2)}
+      ${vdjComboHtml(idx,'tactique2',g.tactique2,'tactique2')}
     </div>
   </div>
   <div class="${rowCls(g.tactique2b!=1?g.tactique2b:'')}" id="vdj-row-${idx}-d2">
     <div class="vdj-step-num">8</div>
     <div style="flex:1">
       <div class="vdj-step-label">Descriptif secondaire</div>
-      ${vdjSelectHtml(idx,'tactique2b',g.tactique2b,'tactique2b',ORDER.tactique2b)}
+      ${vdjComboHtml(idx,'tactique2b',g.tactique2b,'tactique2b')}
     </div>
   </div>
   <div class="${rowCls(g.tactique3!=0?g.tactique3:'')}" id="vdj-row-${idx}-nat">
@@ -7075,6 +7183,24 @@ function updateGoalPill(idx, field, val){
   if(container) container.innerHTML = buildVDJPillsSection(idx, md.goals[idx]);
   const sumContainer = document.getElementById(`vdj-sum-${idx}`);
   if(sumContainer) sumContainer.innerHTML = buildVDJSumBar(idx, md.goals[idx]);
+}
+
+// 19 juillet 2026 — "Copier but précédent" demandé par Christian pour
+// accélérer l'encodage quand deux buts se ressemblent dans le même
+// match. Copie toutes les rubriques de classification VDJ du but N-1
+// vers le but N — jamais les champs propres à CE but précis (minute,
+// buteur, assist, lien vidéo, positions cliquées sur le terrain,
+// séquence de phase arrêtée…), qui restent à saisir/vérifier.
+const _VDJ_COPY_FIELDS = ['tactique1','actions','tactique2','tactique2b','tactique3','origine1','origine2','origine3','lieu','finitions','valeur'];
+function duplicatePreviousGoal(idx){
+  const md = getMatchData(currentMatchId);
+  if(idx <= 0 || !md.goals[idx-1] || !md.goals[idx]) return;
+  const prev = md.goals[idx-1];
+  const cur = md.goals[idx];
+  _VDJ_COPY_FIELDS.forEach(f => { cur[f] = prev[f]; });
+  saveData();
+  renderGoalForms();
+  toast('Rubriques du but '+idx+' copiées sur le but '+(idx+1)+' — vérifie/adapte si besoin.');
 }
 
 // ==========================================
