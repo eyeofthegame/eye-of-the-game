@@ -6742,25 +6742,33 @@ function vdjComboBlur(idx, field){
   }, 200);
 }
 
+// 19 juillet 2026 — Christian : passer d'un champ combo au suivant via Tab
+// remontait en haut de page avant de redescendre (ou sautait un champ sans
+// input, comme "Lieu" pile 6 qui n'est fait que de pastilles) — trop lent.
+// Chaîne de saut direct au focus, dans l'ordre où Christian remplit
+// réellement la grille : Action (pile 5) -> Descriptif principal (pile 7,
+// "Lieu" pile 6 n'a pas de champ texte donc on le saute) -> Descriptif
+// secondaire (pile 8). Shift+Tab fait le trajet inverse.
+const _VDJ_TAB_CHAIN_NEXT = { actions: 'tactique2', tactique2: 'tactique2b' };
+const _VDJ_TAB_CHAIN_PREV = { tactique2b: 'tactique2', tactique2: 'actions' };
+
 function vdjComboKeydown(event, idx, field){
-  // 19 juillet 2026 — Christian : passer de "Descriptif principal" (pile 7)
-  // à "Descriptif secondaire" (pile 8) via Tab remontait en haut de page
-  // avant de redescendre — trop lent. Focus direct sur le champ suivant,
-  // qu'importe l'état du menu de suggestions (ouvert ou pas).
-  if(event.key === 'Tab' && field === 'tactique2' && !event.shiftKey){
-    const next = document.getElementById(`vdjc-${idx}-tactique2b`);
+  if(event.key === 'Tab' && !event.shiftKey && _VDJ_TAB_CHAIN_NEXT[field]){
+    const nextField = _VDJ_TAB_CHAIN_NEXT[field];
+    const next = document.getElementById(`vdjc-${idx}-${nextField}`);
     if(next){
       event.preventDefault();
-      const ddCur = document.getElementById(`vdjc-${idx}-tactique2-dd`);
+      const ddCur = document.getElementById(`vdjc-${idx}-${field}-dd`);
       if(ddCur){ ddCur.innerHTML=''; ddCur.classList.remove('open'); }
       next.focus();
       return;
     }
-  } else if(event.key === 'Tab' && field === 'tactique2b' && event.shiftKey){
-    const prev = document.getElementById(`vdjc-${idx}-tactique2`);
+  } else if(event.key === 'Tab' && event.shiftKey && _VDJ_TAB_CHAIN_PREV[field]){
+    const prevField = _VDJ_TAB_CHAIN_PREV[field];
+    const prev = document.getElementById(`vdjc-${idx}-${prevField}`);
     if(prev){
       event.preventDefault();
-      const ddCur = document.getElementById(`vdjc-${idx}-tactique2b-dd`);
+      const ddCur = document.getElementById(`vdjc-${idx}-${field}-dd`);
       if(ddCur){ ddCur.innerHTML=''; ddCur.classList.remove('open'); }
       prev.focus();
       return;
