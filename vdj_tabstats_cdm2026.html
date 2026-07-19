@@ -3558,6 +3558,41 @@ function renderModeleAdversaire(){
       <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Avg. goals/match':'Buts/match (moy.)'}</div><div style="font-size:1.4em;font-weight:800">${avg}</div></div>
     </div>`;
 
+    // 19 juillet 2026 — Christian a repéré que les combos symétriques
+    // (Top↔Top, Bottom↔Bottom) n'affichaient pas les blocs "Modèle
+    // offensif/défensif" présents sur les 3 autres combos. Ici les deux
+    // équipes appartiennent au même groupe, donc "offensif" et "défensif"
+    // ne peuvent pas se distinguer par équipe (un but marqué par une
+    // équipe du groupe est aussi un but encaissé par une autre équipe du
+    // même groupe) — on distingue donc par lieu du match : domicile =
+    // offensif, extérieur = défensif, comme pour les autres combos où le
+    // lieu du match reste la variable pertinente.
+    const matchDomMap = {};
+    list.forEach(e=>{ matchDomMap[e.match.id]=e.match.dom; });
+    const allGoalsSym = getAllGoals();
+    const offGoalsSym=[], defGoalsSym=[];
+    allGoalsSym.forEach(g=>{
+      const domTeam = matchDomMap[g.matchId];
+      if(!domTeam) return;
+      if(g.team===domTeam) offGoalsSym.push(g); else defGoalsSym.push(g);
+    });
+
+    const dimOptsSym = [['tactique1',_lang==='en'?'Tactic':'Tactique'],['actions',_lang==='en'?'Action':'Action'],['origine1',_lang==='en'?'Origin':'Origine']];
+    html += '<div style="display:flex;gap:6px;margin-bottom:8px">' + dimOptsSym.map(function(pair){
+      const k = pair[0], lbl = pair[1];
+      const active = _maDim===k;
+      return `<button onclick="setMaDim('${k}')" style="padding:4px 12px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:14px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.76em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
+    }).join('') + '</div>';
+
+    html += `<div style="font-size:.75em;color:var(--muted);margin-bottom:10px;max-width:640px">${_lang==='en'
+      ? 'Both teams belong to the same group here, so "offensive"/"defensive" is split by venue: home = offensive, away = defensive.'
+      : 'Les deux équipes appartiennent au même groupe ici, donc "offensif"/"défensif" est distingué par lieu du match : domicile = offensif, extérieur = défensif.'}</div>`;
+
+    html += `<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px">
+      <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">⚽ ${_lang==='en'?'Offensive model (home)':'Modèle offensif (domicile)'}</h3>${_maBarsHtml(offGoalsSym, _maDim)}</div>
+      <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">🛡 ${_lang==='en'?'Defensive model (away)':'Modèle défensif (extérieur)'}</h3>${_maBarsHtml(defGoalsSym, _maDim)}</div>
+    </div>`;
+
     html += '<table class="tableau" style="width:100%;max-width:640px">';
     html += `<tr><th>${_lang==='en'?'Match':'Match'}</th><th style="text-align:center">${_lang==='en'?'Score':'Score'}</th></tr>`;
     list.sort((a,b)=>a.match.id-b.match.id).forEach(e=>{
