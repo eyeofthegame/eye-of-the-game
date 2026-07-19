@@ -6742,6 +6742,30 @@ function vdjComboBlur(idx, field){
 }
 
 function vdjComboKeydown(event, idx, field){
+  // 19 juillet 2026 — Christian : passer de "Descriptif principal" (pile 7)
+  // à "Descriptif secondaire" (pile 8) via Tab remontait en haut de page
+  // avant de redescendre — trop lent. Focus direct sur le champ suivant,
+  // qu'importe l'état du menu de suggestions (ouvert ou pas).
+  if(event.key === 'Tab' && field === 'tactique2' && !event.shiftKey){
+    const next = document.getElementById(`vdjc-${idx}-tactique2b`);
+    if(next){
+      event.preventDefault();
+      const ddCur = document.getElementById(`vdjc-${idx}-tactique2-dd`);
+      if(ddCur){ ddCur.innerHTML=''; ddCur.classList.remove('open'); }
+      next.focus();
+      return;
+    }
+  } else if(event.key === 'Tab' && field === 'tactique2b' && event.shiftKey){
+    const prev = document.getElementById(`vdjc-${idx}-tactique2`);
+    if(prev){
+      event.preventDefault();
+      const ddCur = document.getElementById(`vdjc-${idx}-tactique2b-dd`);
+      if(ddCur){ ddCur.innerHTML=''; ddCur.classList.remove('open'); }
+      prev.focus();
+      return;
+    }
+  }
+
   const dd = document.getElementById(`vdjc-${idx}-${field}-dd`);
   if(!dd || !dd.classList.contains('open')) return;
   const items = dd.querySelectorAll('.ac-item');
@@ -7147,7 +7171,7 @@ function buildVDJPillsSection(idx, g){
     <div style="flex:1">
       <div class="vdj-step-label">Action</div>
       <div class="vdj-pills" style="margin-bottom:5px">${vdjActionsQuickHtml(idx,g.actions)}</div>
-      ${vdjSelectHtml(idx,'actions',g.actions,'actions',ORDER.actions)}
+      ${vdjComboHtml(idx,'actions',g.actions,'actions')}
     </div>
   </div>
   <div class="${rowCls(g.lieu)}" id="vdj-row-${idx}-lieu">
