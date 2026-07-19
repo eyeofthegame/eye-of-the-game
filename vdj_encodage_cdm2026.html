@@ -3564,6 +3564,7 @@ function renderGoalForms(scrollToIdx){
       </div>
       <div class="row">
         <label>Assist : ${buildAcInput(i,'assist',g.assist,false)}</label>
+        <label><input type="checkbox" ${g.csc===true?'checked':''} onchange="updateGoal(${i},'csc',this.checked||undefined)"> CSC</label>
         <label><input type="checkbox" ${g.intention?'checked':''} onchange="updateGoal(${i},'intention',this.checked)"> ≠ intention</label>
       </div>
       <div class="row" style="margin-top:4px;margin-bottom:6px">
