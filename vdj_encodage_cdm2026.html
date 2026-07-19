@@ -291,7 +291,7 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 <main>
 <!-- PAGE: MATCHES LIST -->
 <div id="page-matches">
-<h1>Coupe du Monde 2026 — Matchs</h1>
+<h1 id="matches-title">Coupe du Monde 2026 — Matchs</h1>
 <div class="tab-bar" id="phase-tabs"></div>
 <div id="matches-list"></div>
 </div>
@@ -2167,6 +2167,12 @@ function updateCompUI(){
   const sel = document.getElementById('comp-select');
   if(sel) sel.value = ACTIVE_COMP;
   document.title = 'VDJ — Gestion BDD — ' + c.label;
+  // 19 juillet 2026 — Christian a repéré que le titre "Coupe du Monde
+  // 2026 — Matchs" en haut de la liste des matchs restait figé sur la
+  // CDM même en Premier League : c'était un <h1> statique dans le HTML,
+  // jamais mis à jour par le JS lors d'un changement de compétition.
+  const title = document.getElementById('matches-title');
+  if(title) title.textContent = c.label + ' — Matchs';
 }
 
 
@@ -2221,13 +2227,28 @@ function loadData(){
   try { _mergeNewSeedMatches(); } catch(e){}
 }
 
+// 19 juillet 2026 (suite) — Christian a signalé des matchs toujours
+// "À encoder" (tiret, pas de score) après le fix précédent, alors qu'ils
+// étaient bien dans le nouveau lot de résultats recherchés. Cause : ces
+// matchs avaient déjà un "stub" vide dans data (créé par un clic
+// précédent sur le match, via getMatchData() qui initialise
+// {score:null, goals:[], validated:false} dès qu'on ouvre une fiche même
+// sans rien saisir) — donc `!data[matchId]` était faux, et l'ancien fix
+// les considérait à tort comme "déjà des données à protéger".
+function _isEmptySeedStub(md){
+  if(!md) return true;
+  const noScore = md.score === null || md.score === undefined;
+  const noGoals = !md.goals || md.goals.length === 0;
+  return noScore && noGoals && !md.validated;
+}
+
 function _mergeNewSeedMatches(){
   if(!COMPETITIONS[ACTIVE_COMP] || !COMPETITIONS[ACTIVE_COMP].hasSeed) return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
   if(!seed) return;
   let added = 0;
   Object.keys(seed).forEach(matchId=>{
-    if(!data[matchId]){
+    if(_isEmptySeedStub(data[matchId])){
       data[matchId] = seed[matchId];
       added++;
     }

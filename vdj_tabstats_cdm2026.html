@@ -2625,13 +2625,28 @@ function loadData(){
   try { _mergeNewSeedMatches(); } catch(e){}
 }
 
+// 19 juillet 2026 (suite) — Christian a signalé des matchs toujours
+// "À encoder" (tiret, pas de score) après le fix précédent, alors qu'ils
+// étaient bien dans le nouveau lot de résultats recherchés. Cause : ces
+// matchs avaient déjà un "stub" vide dans data (créé par un clic
+// précédent sur le match, via getMatchData() qui initialise
+// {score:null, goals:[], validated:false} dès qu'on ouvre une fiche même
+// sans rien saisir) — donc `!data[matchId]` était faux, et l'ancien fix
+// les considérait à tort comme "déjà des données à protéger".
+function _isEmptySeedStub(md){
+  if(!md) return true;
+  const noScore = md.score === null || md.score === undefined;
+  const noGoals = !md.goals || md.goals.length === 0;
+  return noScore && noGoals && !md.validated;
+}
+
 function _mergeNewSeedMatches(){
   if(!COMPETITIONS[ACTIVE_COMP] || !COMPETITIONS[ACTIVE_COMP].hasSeed) return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
   if(!seed) return;
   let added = 0;
   Object.keys(seed).forEach(matchId=>{
-    if(!data[matchId]){
+    if(_isEmptySeedStub(data[matchId])){
       data[matchId] = seed[matchId];
       added++;
     }
