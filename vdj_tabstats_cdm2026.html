@@ -6283,6 +6283,17 @@ function openTopButGoal(catId, idx){
 // ==============================================
 // GPN: RÉCAPITULATIF SELON QUI MÈNE
 // ==============================================
+// 19 juillet 2026 — refonte complète demandée par Christian ("très moche,
+// difficile d'utilisation, ressemble à l'ancienne version d'il y a 15
+// ans"). Avant : 6 tableaux géants empilés (3 états × marqués/encaissés),
+// chacun mélangeant 5 taxonomies différentes (tactique1 + origine1/2/3 +
+// actions + tactique3 + minutes) dans un même tableau de ~26 colonnes,
+// recalculées en boucle O(états × catégories × cellules) à chaque rendu.
+//
+// Après : un seul tableau visible à la fois (choisi via pilules
+// État/Catégorie/Marqués-Encaissés — même langage visuel que Classement/
+// Temps de jeu), plus deux graphiques de compréhension immédiate :
+// une barre empilée globale, et une barre empilée par équipe.
 function getGameState(goal, allGoalsInMatch){
   // Sort goals in this match by minute, then by the order they appear
   const matchGoals = allGoalsInMatch.filter(g=>g.matchId===goal.matchId);
@@ -6351,181 +6362,180 @@ function buildGPNCrossTab(goals, teams, key){
   return {catKeys, table, scored, conceded, teamSc, teamCo};
 }
 
-function renderGPNMiniRow(teams, ct, key, abbrevs){
-  // Compact row for the super-table: one column per abbreviated category
-  const table = ct.table;
-  let html = '';
-  ct.catKeys.forEach(k=>{
-    if(!abbrevs || abbrevs[k]){
-      // Use abbreviated header if provided
-    }
+const GPN_CATEGORIES = [
+  {key:'tactique1', label:'Tactique'},
+  {key:'origine1',  label:'Origine'},
+  {key:'origine2',  label:'Direction'},
+  {key:'origine3',  label:'Zone'},
+  {key:'actions',   label:'Action'},
+  {key:'tactique3', label:'Nature'},
+  {key:'minutes',   label:'Minutes'},
+];
+const GPN_STATE_LABELS = {
+  equal:    { fr:'Égalité',      en:'Level',    icon:'⚖️' },
+  leading:  { fr:'En menant',    en:'Leading',  icon:'📈' },
+  trailing: { fr:'En étant mené',en:'Trailing', icon:'📉' },
+};
+const GPN_STATE_COLORS = { equal:'#6b7fb0', leading:'#5e9e6e', trailing:'#c96a5a' };
+
+let _gpnType     = 'scored';    // 'scored' | 'conceded' — pilote la barre par équipe ET le tableau détail
+let _gpnState    = 'equal';     // 'equal' | 'leading' | 'trailing' — pilote le tableau détail
+let _gpnCategory = 'tactique1'; // pilote le tableau détail
+function setGpnType(v){ _gpnType=v; renderGPN(); }
+function setGpnState(v){ _gpnState=v; renderGPN(); }
+function setGpnCategory(v){ _gpnCategory=v; renderGPN(); }
+
+function _gpnPill(label, active, onclick){
+  const bg = active ? 'var(--accent)' : '#fff';
+  const col = active ? '#fff' : 'var(--accent)';
+  const bord = active ? 'var(--accent)' : 'var(--border)';
+  return `<button onclick="${onclick}" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${label}</button>`;
+}
+
+// Barre empilée horizontale : segments proportionnels à des compteurs {equal,leading,trailing}
+function gpnStackedBarHtml(counts, height){
+  const total = counts.equal + counts.leading + counts.trailing;
+  if(!total) return `<div style="height:${height}px;border-radius:6px;background:#f0f0f0"></div>`;
+  const segs = ['equal','leading','trailing'].map(st=>{
+    const v = counts[st];
+    if(!v) return '';
+    const pct = Math.round(v/total*100);
+    const showLabel = pct >= 10;
+    return `<div style="flex:${v} 0 0;background:${GPN_STATE_COLORS[st]};display:flex;align-items:center;justify-content:center;overflow:hidden" title="${GPN_STATE_LABELS[st].fr}: ${v} (${pct}%)">${showLabel?`<span style="color:#fff;font-size:.72em;font-weight:700">${pct}%</span>`:''}</div>`;
+  }).join('');
+  return `<div style="display:flex;height:${height}px;border-radius:6px;overflow:hidden;width:100%">${segs}</div>`;
+}
+
+function gpnLegendHtml(){
+  return ['equal','leading','trailing'].map(st=>
+    `<span style="display:inline-flex;align-items:center;gap:5px;font-size:.8em">
+      <span style="width:11px;height:11px;border-radius:3px;background:${GPN_STATE_COLORS[st]};display:inline-block"></span>
+      ${GPN_STATE_LABELS[st].icon} ${_lang==='en'?GPN_STATE_LABELS[st].en:GPN_STATE_LABELS[st].fr}
+    </span>`
+  ).join('');
+}
+
+function gpnTeamStateCounts(goalsByState, team, type){
+  const res = {};
+  ['equal','leading','trailing'].forEach(st=>{
+    res[st] = goalsByState[st].filter(g => type==='scored' ? g.team===team : g.opponent===team).length;
   });
-  return html;
+  return res;
 }
 
 function renderGPN(){
   try {
   loadData();
-  const categoryGroups = [
-    {label:'Tactique', keys:['tactique1']},
-    {label:'Origine', keys:['origine1','origine2','origine3']},
-    {label:'Action', keys:['actions']},
-    {label:'Nature', keys:['tactique3']},
-    {label:'Minutes', keys:['minutes']},
-  ];
-  const categories = categoryGroups.flatMap(g=>g.keys.map(k=>({key:k, group:g.label})));
   const gpnData = buildGPNData();
   if(!gpnData || gpnData.teams.length===0){
     document.getElementById('view-gpn').innerHTML = (_lang==='en'?'<h1>GPN Summary</h1><div class="no-data">No data encoded</div>':'<h1>Récapitulatif GPN</h1><div class="no-data">Pas de données encodées</div>');
     return;
   }
-
   const {teams, goalsByState} = gpnData;
-  const states = [
-    {key:'equal', labelScored:_lang==='en'?'Goals scored when level =':'Buts marqués quand à égalité =', labelConc:_lang==='en'?'Goals conceded when level =':'Buts encaissés quand à égalité =', colorSc:'#0000ff', colorCo:'#0000ff'},
-    {key:'leading', labelScored:_lang==='en'?'Goals scored when leading +':'Buts marqués quand l\'équipe mène +', labelConc:_lang==='en'?'Goals conceded when trailing -':'Buts encaissés quand l\'équipe est menée -', colorSc:'#00cc00', colorCo:'#ff0000'},
-    {key:'trailing', labelScored:_lang==='en'?'Goals scored when trailing -':'Buts marqués quand l\'équipe est menée -', labelConc:_lang==='en'?'Goals conceded when leading +':'Buts encaissés quand l\'équipe mène +', colorSc:'#ff0000', colorCo:'#00cc00'}
-  ];
+  const nEq = goalsByState.equal.length, nLead = goalsByState.leading.length, nTrail = goalsByState.trailing.length;
+  const nTotal = nEq + nLead + nTrail;
 
-  // Categories to show in the super-table
-
-
-  let html = (_lang==='en'?'<h1>GPN Summary — by game state</h1>':'<h1>Tableau récapitulatif GPN — selon qui mène</h1>');
+  let html = (_lang==='en'?'<h1>🎯 GPN Summary — by game state</h1>':'<h1>🎯 Récapitulatif GPN — selon qui mène</h1>');
   html += `<p style="font-size:.85em;color:var(--muted);margin-bottom:1em">${_lang==='en'?'GPN = Win / Lose / Neutral — goal analysis based on score at time of goal':'GPN = Gagner / Perdre / Neutre — analyse des buts selon l\'état du score au moment où ils sont marqués'}</p>`;
 
-  // Summary counts
-  const nEq = goalsByState.equal.length;
-  const nLead = goalsByState.leading.length;
-  const nTrail = goalsByState.trailing.length;
+  // ── 4 cartes résumé ──
   html += `<div class="stats-summary">
     <div class="stat-card"><div class="num">${nEq}</div><div class="lbl">${_lang==='en'?'Goals when level (=)':"Buts à égalité (=)"}</div></div>
     <div class="stat-card"><div class="num">${nLead}</div><div class="lbl">${_lang==='en'?'Goals when leading (+)':'Buts en menant (+)'}</div></div>
     <div class="stat-card"><div class="num">${nTrail}</div><div class="lbl">${_lang==='en'?'Goals when trailing (-)':'Buts en étant mené (-)'}</div></div>
-    <div class="stat-card"><div class="num">${nEq+nLead+nTrail}</div><div class="lbl">${_lang==='en'?'Total Goals':'Total buts'}</div></div>
+    <div class="stat-card"><div class="num">${nTotal}</div><div class="lbl">${_lang==='en'?'Total Goals':'Total buts'}</div></div>
   </div>`;
 
-  // For each state, build the big super-table
-  states.forEach(st=>{
-    const goals = goalsByState[st.key];
-    if(goals.length===0) return;
+  // ── Répartition globale (barre empilée) ──
+  html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin:16px 0">
+    <div style="font-weight:700;margin-bottom:10px">${_lang==='en'?'Overall breakdown':'Répartition globale'}</div>
+    ${gpnStackedBarHtml({equal:nEq,leading:nLead,trailing:nTrail}, 30)}
+    <div style="display:flex;gap:16px;margin-top:10px;flex-wrap:wrap">${gpnLegendHtml()}</div>
+  </div>`;
 
-    // BUTS MARQUÉS
-    html += `<div class="section-title" style="color:${st.colorSc}">⚽ ${st.labelScored} (${goals.length} ${_lang==='en'?'goals':'buts'})</div>`;
+  // ── Par équipe (barre empilée, triée par total décroissant) ──
+  const typeBar = ['scored','conceded'].map(v=>
+    _gpnPill(v==='scored'?(_lang==='en'?'⚽ Scored':'⚽ Marqués'):(_lang==='en'?'🥅 Conceded':'🥅 Encaissés'), _gpnType===v, `setGpnType('${v}')`)
+  ).join('');
+  const teamRows = teams.map(t=>({team:t, counts:gpnTeamStateCounts(goalsByState, t, _gpnType)}))
+    .map(r=>({...r, total:r.counts.equal+r.counts.leading+r.counts.trailing}))
+    .sort((a,b)=>b.total-a.total);
+
+  html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin:16px 0">
+    <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
+      <div style="font-weight:700">${_gpnType==='scored'?(_lang==='en'?'How each team scores, by game state':'Comment chaque équipe marque, selon l\'état du score'):(_lang==='en'?'How each team concedes, by game state':'Comment chaque équipe encaisse, selon l\'état du score')}</div>
+      <div style="display:flex;gap:6px">${typeBar}</div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:6px">
+      ${teamRows.map(r=>`
+        <div style="display:flex;align-items:center;gap:10px">
+          <div style="width:170px;flex-shrink:0;font-size:.82em;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">${tf(r.team)}</div>
+          <div style="flex:1">${gpnStackedBarHtml(r.counts, 20)}</div>
+          <div style="width:28px;flex-shrink:0;text-align:right;font-size:.78em;color:var(--muted);font-weight:700">${r.total}</div>
+        </div>
+      `).join('')}
+    </div>
+  </div>`;
+
+  // ── Détail par catégorie : 3 rangées de pilules + 1 tableau ──
+  const stateBar = ['equal','leading','trailing'].map(st=>
+    _gpnPill(`${GPN_STATE_LABELS[st].icon} ${_lang==='en'?GPN_STATE_LABELS[st].en:GPN_STATE_LABELS[st].fr}`, _gpnState===st, `setGpnState('${st}')`)
+  ).join('');
+  const catBar = GPN_CATEGORIES.map(c=>
+    _gpnPill(c.label, _gpnCategory===c.key, `setGpnCategory('${c.key}')`)
+  ).join('');
+
+  html += `<div style="margin:24px 0 10px;font-weight:700;font-size:1.05em">${_lang==='en'?'Detail by category':'Détail par catégorie'}</div>`;
+  html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${stateBar}</div>`;
+  html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:6px">${catBar}</div>`;
+  html += `<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">${typeBar}</div>`;
+
+  const goals = goalsByState[_gpnState];
+  const isScored = _gpnType === 'scored';
+  const ct = buildGPNCrossTab(goals, teams, _gpnCategory);
+  const isWide = _gpnCategory === 'actions' || _gpnCategory === 'tactique2' || _gpnCategory === 'tactique2b';
+  const catData = isScored ? ct.scored : ct.conceded;
+  const teamTot = isScored ? ct.teamSc : ct.teamCo;
+  let maxInTable = 1;
+  ct.catKeys.forEach(k=>teams.forEach(t=>{ const v=(catData[k]&&catData[k][t])||0; if(v>maxInTable) maxInTable=v; }));
+  const heatFn = isScored ? (v=>heatColorScored(v,maxInTable)) : (v=>heatColorConceded(v,maxInTable));
+  const grandTotal = goals.length;
+
+  if(grandTotal === 0){
+    html += `<div class="no-data">${_lang==='en'?'No goals for this game state.':'Aucun but pour cet état de score.'}</div>`;
+  } else {
     html += '<div style="overflow-x:auto"><table class="tableau"><tr><td></td>';
-
-    // Build all category headers with group separators
-    let lastGroup = null;
-    categories.forEach(cat=>{
-      const ct = buildGPNCrossTab(goals, teams, cat.key);
-      const table = ct.table;
-      ct.catKeys.forEach((k,ki)=>{
-        const total = Object.values(ct.scored[k]).reduce((a,b)=>a+b,0);
-        if(total>0){
-          const isGroupStart = cat.group !== lastGroup;
-          if(isGroupStart) lastGroup = cat.group;
-          const borderL = isGroupStart && ki===0 ? 'border-left:3px solid #333;' : '';
-          html += `<th style="background:#${table[k].c1};color:#${table[k].c2};font-size:.65em;writing-mode:vertical-lr;text-orientation:mixed;height:80px;max-width:20px;${borderL}" title="${cat.group} — ${table[k].nom}">${table[k].nom.substring(0,8)}</th>`;
-        }
-      });
+    ct.catKeys.forEach(k=>{
+      const o = ct.table[k];
+      if(!o) return;
+      if(isWide){
+        html += `<th class="th45" style="background:#${o.c1};color:#${o.c2}" title="${o.nom}">${o.nom}</th>`;
+      } else {
+        html += `<th style="background:#${o.c1};color:#${o.c2};font-size:.73em;padding:2px 4px;white-space:normal;max-width:65px;text-align:center;vertical-align:bottom;line-height:1.2">${o.nom}</th>`;
+      }
     });
-    html += '<td class="total">TOT</td></tr>';
-
-    // Rows
-    teams.forEach(t=>{
-      html += `<tr><td class="team" style="font-size:.75em">${tf(t)}</td>`;
-      const trueTotal = goals.filter(g=>g.team===t).length;
-      let lastGroupRow = null;
-      categories.forEach(cat=>{
-        const ct = buildGPNCrossTab(goals, teams, cat.key);
-        ct.catKeys.forEach((k,ki)=>{
-          const totalCol = Object.values(ct.scored[k]).reduce((a,b)=>a+b,0);
-          if(totalCol>0){
-            const v = ct.scored[k][t]||0;
-            const vals = teams.map(tt=>ct.scored[k][tt]||0);
-            const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
-            const mx = Math.max(...vals); const mn = Math.min(...vals);
-            const isGroupStart = cat.group !== lastGroupRow;
-            if(isGroupStart && ki===0) lastGroupRow = cat.group;
-            const borderL = isGroupStart && ki===0 ? 'border-left:3px solid #333;' : '';
-            html += `<td class="cellule" style="background:${heatColor(v,avg,mx,mn)};font-size:.75em;${borderL}" onclick="showGoalDetailGPN('${cat.key}',${k},'${t.replace(/'/g,"\\'")}','${st.key}','scored')">${v||''}</td>`;
-          }
-        });
-      });
-      html += `<td class="total">${trueTotal||''}</td></tr>`;
-    });
-    // Ligne totale GPN marqués
-    const gpnGrandTotalSc = goals.length;
-    html += '<tr><td class="total" style="font-size:.75em">Total</td>';
-    categories.forEach(cat=>{
-      const ct2=buildGPNCrossTab(goals,teams,cat.key);
-      ct2.catKeys.forEach(k=>{
-        const colTot=Object.values(ct2.scored[k]).reduce((a,b)=>a+b,0);
-        if(colTot>0){
-          const pctG=gpnGrandTotalSc>0?Math.round(colTot/gpnGrandTotalSc*100):0;
-          html+=`<td class="total" style="font-size:.72em">${colTot}<br><span style="font-weight:bold;color:var(--accent)">${pctG?pctG+'%':''}</span></td>`;
-        }
-      });
-    });
-    html += `<td class="total">${gpnGrandTotalSc}</td></tr>`;
-    html += '</table></div>';
-
-    // BUTS ENCAISSÉS
-    html += `<div class="section-title" style="color:${st.colorCo}">⚽ ${st.labelConc}</div>`;
-    html += '<div style="overflow-x:auto"><table class="tableau"><tr><td></td>';
-    let lastGroupC = null;
-    categories.forEach(cat=>{
-      const ct = buildGPNCrossTab(goals, teams, cat.key);
-      const table = ct.table;
-      ct.catKeys.forEach((k,ki)=>{
-        const total = Object.values(ct.conceded[k]).reduce((a,b)=>a+b,0);
-        if(total>0){
-          const isGroupStart = cat.group !== lastGroupC;
-          if(isGroupStart) lastGroupC = cat.group;
-          const borderL = isGroupStart && ki===0 ? 'border-left:3px solid #333;' : '';
-          html += `<th style="background:#${table[k].c1};color:#${table[k].c2};font-size:.65em;writing-mode:vertical-lr;text-orientation:mixed;height:80px;max-width:20px;${borderL}" title="${cat.group} — ${table[k].nom}">${table[k].nom.substring(0,8)}</th>`;
-        }
-      });
-    });
-    html += '<td class="total">TOT</td></tr>';
+    html += `<th class="total-v">${_lang==='en'?'TOT':'TOT'}</th></tr>`;
 
     teams.forEach(t=>{
-      html += `<tr><td class="team" style="font-size:.75em">${tf(t)}</td>`;
-      const trueTotalC = goals.filter(g=>g.opponent===t).length;
-      let lastGroupRowC = null;
-      categories.forEach(cat=>{
-        const ct = buildGPNCrossTab(goals, teams, cat.key);
-        ct.catKeys.forEach((k,ki)=>{
-          const totalCol = Object.values(ct.conceded[k]).reduce((a,b)=>a+b,0);
-          if(totalCol>0){
-            const v = ct.conceded[k][t]||0;
-            const vals = teams.map(tt=>ct.conceded[k][tt]||0);
-            const avg = vals.reduce((a,b)=>a+b,0)/vals.length;
-            const mx = Math.max(...vals); const mn = Math.min(...vals);
-            const isGroupStart = cat.group !== lastGroupRowC;
-            if(isGroupStart && ki===0) lastGroupRowC = cat.group;
-            const borderL = isGroupStart && ki===0 ? 'border-left:3px solid #333;' : '';
-            html += `<td class="cellule" style="background:${heatColor(v,avg,mx,mn)};font-size:.75em;${borderL}" onclick="showGoalDetailGPN('${cat.key}',${k},'${t.replace(/'/g,"\\'")}','${st.key}','conceded')">${v||''}</td>`;
-          }
-        });
+      html += `<tr><td class="team" style="font-size:.8em">${tf(t)}</td>`;
+      ct.catKeys.forEach(k=>{
+        if(!ct.table[k]) return;
+        const v = (catData[k] && catData[k][t]) || 0;
+        html += `<td class="cellule" style="background:${heatFn(v)}" onclick="showGoalDetailGPN('${_gpnCategory}',${k},'${t.replace(/'/g,"\\'")}','${_gpnState}','${_gpnType}')">${v||''}</td>`;
       });
-      html += `<td class="total">${trueTotalC||''}</td></tr>`;
+      html += `<td class="total">${teamTot[t]||''}</td></tr>`;
     });
-    // Ligne totale GPN encaissés
-    const gpnGrandTotalCo = goals.length;
-    html += '<tr><td class="total" style="font-size:.75em">Total</td>';
-    categories.forEach(cat=>{
-      const ct3=buildGPNCrossTab(goals,teams,cat.key);
-      ct3.catKeys.forEach(k=>{
-        const colTot=Object.values(ct3.conceded[k]).reduce((a,b)=>a+b,0);
-        if(colTot>0){
-          const pctG=gpnGrandTotalCo>0?Math.round(colTot/gpnGrandTotalCo*100):0;
-          html+=`<td class="total" style="font-size:.72em">${colTot}<br><span style="font-weight:bold;color:var(--accent)">${pctG?pctG+'%':''}</span></td>`;
-        }
-      });
+
+    html += '<tr><td class="total">Total</td>';
+    ct.catKeys.forEach(k=>{
+      if(!ct.table[k]) return;
+      const colTot = Object.values(catData[k]).reduce((a,b)=>a+b,0);
+      const pct = grandTotal>0 ? Math.round(colTot/grandTotal*100) : 0;
+      html += `<td class="total" style="font-size:.72em">${colTot||''}${colTot?`<br><span style="font-weight:bold;color:var(--accent)">${pct}%</span>`:''}</td>`;
     });
-    html += `<td class="total">${gpnGrandTotalCo}</td></tr>`;
+    html += `<td class="total">${grandTotal}</td></tr>`;
     html += '</table></div>';
-  });
+  }
 
   document.getElementById('view-gpn').innerHTML = html;
   } catch(e) {
