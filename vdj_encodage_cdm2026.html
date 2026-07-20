@@ -2202,6 +2202,37 @@ function _migrateAssistNames(storageKey){
   if(changed){ try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch(e){} }
 }
 
+// 20/07/2026 — Christian a republié le site mais n'a pas vu "Gabriel" fusionné
+// avec "Gabriel Magalhães" dans les buteurs. Cause : la correction du 20/07
+// n'avait modifié que le SEED embarqué dans le HTML (utilisé seulement si le
+// localStorage du navigateur est vide) — pas les données déjà présentes dans
+// son localStorage (remplies dès la première ouverture de la compétition).
+// _migrateAssistNames ci-dessus ne corrige que g.assist, jamais g.buteur.
+// Cette fonction corrige les deux champs, pour les doublons de noms PL 2025-26
+// déjà identifiés (Gabriel/Gabriel Magalhães, Thiago/Igor Thiago, Pape Sarr/
+// Pape Matar Sarr, accent manquant sur David Møller Wolfe) — s'applique
+// uniquement à la compétition pl2526 pour éviter tout faux positif ailleurs
+// (ex: un "Gabriel" différent dans une autre compétition).
+const PLAYER_NAME_FIX_PL2526 = {
+  "Gabriel": "Gabriel Magalhães",
+  "Thiago": "Igor Thiago",
+  "Pape Sarr": "Pape Matar Sarr",
+  "David Moller Wolfe": "David Møller Wolfe"
+};
+function _migratePlayerNameDuplicatesPL2526(storageKey){
+  if(ACTIVE_COMP !== 'pl2526') return;
+  let changed = false;
+  Object.keys(data || {}).forEach(function(mid){
+    const md = data[mid];
+    ((md && md.goals) || []).forEach(function(g){
+      if(!g) return;
+      if(g.buteur && PLAYER_NAME_FIX_PL2526[g.buteur]){ g.buteur = PLAYER_NAME_FIX_PL2526[g.buteur]; changed = true; }
+      if(g.assist && PLAYER_NAME_FIX_PL2526[g.assist]){ g.assist = PLAYER_NAME_FIX_PL2526[g.assist]; changed = true; }
+    });
+  });
+  if(changed){ try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch(e){} }
+}
+
 function loadData(){
   try {
     const key = activeDataKey();
@@ -2215,6 +2246,7 @@ function loadData(){
     }
   } catch(e) { data = {}; }
   try { _migrateAssistNames(activeDataKey()); } catch(e){}
+  try { _migratePlayerNameDuplicatesPL2526(activeDataKey()); } catch(e){}
   // 19 juillet 2026 — Christian a signalé ne pas voir un nouveau lot de
   // matchs PL 2025-26 ajouté au seed. Cause : une fois localStorage déjà
   // rempli pour une compétition (dès qu'on l'a ouverte une fois), le bloc
