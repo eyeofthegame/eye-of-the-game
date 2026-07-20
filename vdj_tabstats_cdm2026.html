@@ -3758,9 +3758,13 @@ function renderModeleAdversaire(){
   // ── Presets (les 4 cas décrits par Christian + le symétrique bottom) ──
   const presets = [
     ['milieu','top', (_lang==='en'?'Mid → Top':'Milieu → Top')],
+    ['top','milieu', (_lang==='en'?'Top → Mid':'Top → Milieu')],
     ['milieu','bottom', (_lang==='en'?'Mid → Bottom':'Milieu → Bottom')],
+    ['bottom','milieu', (_lang==='en'?'Bottom → Mid':'Bottom → Milieu')],
     ['bottom','top', (_lang==='en'?'Bottom → Top':'Bottom → Top')],
+    ['top','bottom', (_lang==='en'?'Top → Bottom':'Top → Bottom')],
     ['top','top', (_lang==='en'?'Top ↔ Top':'Top ↔ Top')],
+    ['milieu','milieu', (_lang==='en'?'Mid ↔ Mid':'Milieu ↔ Milieu')],
     ['bottom','bottom', (_lang==='en'?'Bottom ↔ Bottom':'Bottom ↔ Bottom')],
   ];
   html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' + presets.map(p=>{
@@ -3816,17 +3820,41 @@ function renderModeleAdversaire(){
   if(symmetric){
     // Mode "résultats bruts entre pairs" (ex: Top 6 vs Top 6)
     let hw=0, dr=0, aw=0, totalGoals=0;
+    let teamW=0, teamD=0, teamL=0, teamGf=0, teamGa=0;
     list.forEach(e=>{
       const gd=Number(e.md.score.dom), ge=Number(e.md.score.ext);
       totalGoals += gd+ge;
       if(gd>ge) hw++; else if(gd<ge) aw++; else dr++;
+      if(_maTeam){
+        const isHome = e.match.dom===_maTeam;
+        const gfor = isHome?gd:ge, gag = isHome?ge:gd;
+        teamGf+=gfor; teamGa+=gag;
+        if(gfor>gag) teamW++; else if(gfor<gag) teamL++; else teamD++;
+      }
     });
     const avg = (totalGoals/list.length).toFixed(2);
-    html += `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px">
-      <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Matches':'Matchs'}</div><div style="font-size:1.4em;font-weight:800">${list.length}</div></div>
-      <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Home wins / Draws / Away wins':'Victoires dom. / Nuls / Victoires ext.'}</div><div style="font-size:1.4em;font-weight:800">${hw} / ${dr} / ${aw}</div></div>
-      <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Avg. goals/match':'Buts/match (moy.)'}</div><div style="font-size:1.4em;font-weight:800">${avg}</div></div>
-    </div>`;
+    // 20 juillet 2026 (correctif) — Christian a repéré qu'en sélectionnant
+    // une équipe précise (ex: Arsenal) dans une paire symétrique (Top ↔
+    // Top), le résumé affichait les victoires domicile/extérieur
+    // génériques du groupe entier, sans rapport avec le bilan réel de
+    // l'équipe choisie (qui peut très bien avoir perdu des matchs
+    // comptés comme "victoire domicile" pour l'adversaire). Dès qu'une
+    // équipe est sélectionnée, on bascule sur son propre V/N/D + buts
+    // pour/contre, comme dans le mode directionnel.
+    if(_maTeam){
+      html += `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px">
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Matches':'Matchs'}</div><div style="font-size:1.4em;font-weight:800">${list.length}</div></div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'W / D / L':'V / N / D'}</div><div style="font-size:1.4em;font-weight:800">${teamW} / ${teamD} / ${teamL}</div></div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Goals for (avg.)':'Buts pour (moy.)'}</div><div style="font-size:1.4em;font-weight:800">${teamGf} <span style="font-size:.6em;color:var(--muted)">(${(teamGf/list.length).toFixed(2)})</span></div></div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Goals against (avg.)':'Buts contre (moy.)'}</div><div style="font-size:1.4em;font-weight:800">${teamGa} <span style="font-size:.6em;color:var(--muted)">(${(teamGa/list.length).toFixed(2)})</span></div></div>
+      </div>`;
+    } else {
+      html += `<div style="display:flex;gap:18px;flex-wrap:wrap;margin-bottom:16px">
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Matches':'Matchs'}</div><div style="font-size:1.4em;font-weight:800">${list.length}</div></div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Home wins / Draws / Away wins':'Victoires dom. / Nuls / Victoires ext.'}</div><div style="font-size:1.4em;font-weight:800">${hw} / ${dr} / ${aw}</div></div>
+        <div style="background:#fff;border:1px solid var(--border);border-radius:8px;padding:12px 18px"><div style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Avg. goals/match':'Buts/match (moy.)'}</div><div style="font-size:1.4em;font-weight:800">${avg}</div></div>
+      </div>`;
+    }
 
     // 19 juillet 2026 — Christian a repéré que les combos symétriques
     // (Top↔Top, Bottom↔Bottom) n'affichaient pas les blocs "Modèle
@@ -3866,7 +3894,17 @@ function renderModeleAdversaire(){
     html += '<table class="tableau" style="width:100%;max-width:640px">';
     html += `<tr><th>${_lang==='en'?'Match':'Match'}</th><th style="text-align:center">${_lang==='en'?'Score':'Score'}</th></tr>`;
     list.sort((a,b)=>a.match.id-b.match.id).forEach(e=>{
-      html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center;font-weight:700">${e.md.score.dom}-${e.md.score.ext}</td></tr>`;
+      // 20 juillet 2026 — vert/bleu/rouge selon le résultat de l'équipe
+      // choisie (_maTeam) ; sans équipe choisie, pas de camp de référence
+      // (les deux équipes appartiennent au même groupe), donc pas de couleur.
+      let scoreColor = 'var(--text)';
+      if(_maTeam){
+        const isHome = e.match.dom===_maTeam;
+        const gfor = isHome?Number(e.md.score.dom):Number(e.md.score.ext);
+        const gag = isHome?Number(e.md.score.ext):Number(e.md.score.dom);
+        scoreColor = gfor>gag ? '#1a7a1a' : (gfor<gag ? '#cc2222' : '#2255ff');
+      }
+      html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center;font-weight:700;color:${scoreColor}">${e.md.score.dom}-${e.md.score.ext}</td></tr>`;
     });
     html += '</table>';
     el.innerHTML = html;
@@ -3916,7 +3954,13 @@ function renderModeleAdversaire(){
   html += `<tr><th>${_lang==='en'?'Match':'Match'}</th><th style="text-align:center">${_lang==='en'?'Venue':'Lieu'}</th><th style="text-align:center">${_lang==='en'?'Score':'Score'}</th></tr>`;
   list.sort((a,b)=>a.match.id-b.match.id).forEach(e=>{
     const venueLbl = e.isHome ? (_lang==='en'?'🏠 Home':'🏠 Dom.') : (_lang==='en'?'✈️ Away':'✈️ Ext.');
-    html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center">${venueLbl}</td><td style="text-align:center;font-weight:700">${e.md.score.dom}-${e.md.score.ext}</td></tr>`;
+    // 20 juillet 2026 — vert/bleu/rouge selon le résultat de l'équipe
+    // analysée sur cette ligne (e.focusTeam), qu'une équipe précise soit
+    // sélectionnée ou "toutes les équipes du groupe".
+    const gd=Number(e.md.score.dom), ge=Number(e.md.score.ext);
+    const gfor = e.isHome?gd:ge, gag = e.isHome?ge:gd;
+    const scoreColor = gfor>gag ? '#1a7a1a' : (gfor<gag ? '#cc2222' : '#2255ff');
+    html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center">${venueLbl}</td><td style="text-align:center;font-weight:700;color:${scoreColor}">${e.md.score.dom}-${e.md.score.ext}</td></tr>`;
   });
   html += '</table>';
 
