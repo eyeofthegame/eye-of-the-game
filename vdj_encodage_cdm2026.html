@@ -2258,6 +2258,7 @@ function loadData(){
   // partiellement encodé par Christian).
   try { _mergeNewSeedMatches(); } catch(e){}
   try { _fixResearchBatchJ3138Validated(); } catch(e){}
+  try { _fixResearchBatchJ3138Goals(); } catch(e){}
 }
 
 // 19 juillet 2026 (suite) — Christian a signalé des matchs toujours
@@ -2303,6 +2304,43 @@ function _fixResearchBatchJ3138Validated(){
   if(fixed > 0){
     localStorage.setItem(activeDataKey(), JSON.stringify(data));
     console.log('[VDJ] '+fixed+' match(s) J31-38 recorrigés (validated remis à false, analyse tactique absente)');
+  }
+}
+
+// 21 juillet 2026 — Christian a signalé qu'il manquait encore "plein
+// d'assists" un peu partout sur J31-38, pas seulement sur la dernière
+// journée, MALGRE la correction du seed (107 assists + le match 6346)
+// faite le jour même. Cause : exactement le même bug de classe que pour
+// `validated` (voir _fixResearchBatchJ3138Validated ci-dessus) —
+// _mergeNewSeedMatches() ne réimporte JAMAIS un match déjà présent en
+// localStorage (_isEmptySeedStub renvoie false dès qu'il y a un score),
+// donc corriger le seed sur disque n'a aucun effet sur les buts déjà
+// fusionnés dans le navigateur de Christian. Ici on resynchronise
+// rétroactivement score+goals depuis le seed pour tout match 6301-6380
+// où Christian n'a encore commencé AUCUNE analyse tactique réelle
+// (aucun but avec tactique1 rempli) — dès qu'un seul but a un tactique1
+// renseigné, le match n'est plus touché (son travail est respecté).
+function _fixResearchBatchJ3138Goals(){
+  if(ACTIVE_COMP !== 'pl2526') return;
+  const seed = SEED_BY_COMP[ACTIVE_COMP];
+  if(!seed) return;
+  let fixed = 0;
+  for(let id=6301; id<=6380; id++){
+    const key = String(id);
+    const md = data[key];
+    const seedMd = seed[key];
+    if(!md || !seedMd) continue;
+    const goals = md.goals || [];
+    const hasRealAnalysis = goals.some(function(g){ return !!g.tactique1; });
+    if(!hasRealAnalysis){
+      md.score = seedMd.score;
+      md.goals = JSON.parse(JSON.stringify(seedMd.goals));
+      fixed++;
+    }
+  }
+  if(fixed > 0){
+    localStorage.setItem(activeDataKey(), JSON.stringify(data));
+    console.log('[VDJ] '+fixed+' match(s) J31-38 resynchronises depuis le seed (buts/assists/score, analyse tactique absente)');
   }
 }
 
