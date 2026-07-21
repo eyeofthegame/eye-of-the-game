@@ -2257,6 +2257,7 @@ function loadData(){
   // data (jamais touchés), ne modifie jamais un match déjà présent (même
   // partiellement encodé par Christian).
   try { _mergeNewSeedMatches(); } catch(e){}
+  try { _fixResearchBatchJ3138Validated(); } catch(e){}
 }
 
 // 19 juillet 2026 (suite) — Christian a signalé des matchs toujours
@@ -2272,6 +2273,37 @@ function _isEmptySeedStub(md){
   const noScore = md.score === null || md.score === undefined;
   const noGoals = !md.goals || md.goals.length === 0;
   return noScore && noGoals && !md.validated;
+}
+
+// 20 juillet 2026 — Christian a signalé que des matchs de J31-38 restaient
+// affichés en vert ("VDJ ✓") même après le correctif du seed (validated
+// remis à false pour ce lot), parce que son navigateur avait déjà fusionné
+// l'ancien seed erroné (validated:true) AVANT ce correctif. Or
+// _mergeNewSeedMatches() n'écrase jamais un match déjà présent en local
+// (comportement voulu, pour ne jamais effacer un encodage de Christian) —
+// donc corriger uniquement le seed ne suffisait pas à corriger ce qui
+// était déjà en localStorage. Ici on corrige rétroactivement : si un
+// match de la recherche J31-38 n'a AUCUNE analyse tactique réelle (tous
+// les buts ont tactique1 vide), on force validated=false. Dès qu'au moins
+// un but a un tactique1 renseigné par Christian lui-même, on ne touche à
+// rien (son travail est respecté).
+function _fixResearchBatchJ3138Validated(){
+  let fixed = 0;
+  for(let id=6301; id<=6380; id++){
+    const md = data[String(id)];
+    if(!md || !md.validated || !md.score) continue;
+    const goals = md.goals || [];
+    if(goals.length === 0) continue; // 0-0 : validé automatiquement par design, on n'y touche pas
+    const hasRealAnalysis = goals.some(function(g){ return !!g.tactique1; });
+    if(!hasRealAnalysis){
+      md.validated = false;
+      fixed++;
+    }
+  }
+  if(fixed > 0){
+    localStorage.setItem(activeDataKey(), JSON.stringify(data));
+    console.log('[VDJ] '+fixed+' match(s) J31-38 recorrigés (validated remis à false, analyse tactique absente)');
+  }
 }
 
 function _mergeNewSeedMatches(){
