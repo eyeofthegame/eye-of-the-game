@@ -8691,7 +8691,7 @@ function _triggerPointsOf(g){
     : (g.triggerX != null && g.triggerY != null ? [{x:g.triggerX, y:g.triggerY}] : []);
   return pts.filter(p=>p.x != null && p.y != null);
 }
-function _hasTrigger(g){ return _triggerPointsOf(g).length > 0; }
+function _hasTrigger(g){ return _triggerPointsOf(g).length > 0 && g.tactique1!==5 && g.tactique1!==6; }
 
 function showGoalDetailTrigger(team, dir){
   const goals = getAllGoals().filter(g=>
@@ -8729,7 +8729,8 @@ function renderTriggerZones(){
   if(tzTac1) goals = goals.filter(g => String(g.tactique1) === String(tzTac1));
 
   // SVG pitch — paysage horizontal, proportions 105:68 (même géométrie que Zones de récupération)
-  const TW=660, TH=430, M=22;
+  // 21/07/2026 : agrandi (660x430 -> 800x520) a la demande de Christian pour une meilleure lisibilite
+  const TW=800, TH=520, M=26;
   const PW=TW-M*2, PH=TH-M*2;
   const sx=PW/105, sy=PH/68;
 
@@ -8899,13 +8900,13 @@ function renderTriggerZones(){
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded trigger':'but'+(goals.length>1?'s':'')+' avec déclenchement encodé'}</span>
   </div>
   ${dirNote}
-  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
-    <div style="flex:1;min-width:0">
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:0 0 auto;min-width:0">
       ${noData}
       ${goals.length > 0 ? pitchSvg : ''}
       <div style="margin-top:10px">${legendItems}</div>
     </div>
-    <div style="min-width:180px;max-width:230px">
+    <div style="flex:0 0 auto;min-width:180px;max-width:230px">
       <div style="font-size:.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">${_lang==='en'?'Ranking':'Classement'}</div>
       ${rankHtml}
     </div>
