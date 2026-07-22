@@ -8823,8 +8823,12 @@ function renderTriggerZones(){
   // Pill "Mauvaise Sortie de Balle" (Descriptif principal/secondaire = 48) —
   // filtre independant (ET) qui s'ajoute aux tactiques, pas une 5e tactique.
   const msbDef = VDJ.tactique2[48];
-  const msbCol = '#' + msbDef.c1;
-  const msbPillHtml = `<button onclick="toggleTzMsb()" style="padding:4px 12px;border-radius:16px;border:1.5px solid ${msbCol};background:${tzMsbFilter?msbCol:'transparent'};color:${tzMsbFilter?'#'+msbDef.c2:msbCol};font-size:.78em;font-weight:${tzMsbFilter?800:600};cursor:pointer;white-space:nowrap">⚠️ ${msbDef.nom}</button>`;
+  // 21/07/2026 : la couleur d'origine (VDJ.tactique2[48].c1 = #ffcc44, jaune
+  // pale) etait illisible en texte/bordure sur le fond clair de l'appli —
+  // Christian a signale le manque de contraste. Utilise un ambre plus fonce
+  // pour le texte/bordure au repos, fond plein + texte blanc quand actif.
+  const msbCol = '#b45f06';
+  const msbPillHtml = `<button onclick="toggleTzMsb()" style="padding:4px 12px;border-radius:16px;border:1.5px solid ${msbCol};background:${tzMsbFilter?msbCol:'transparent'};color:${tzMsbFilter?'#fff':msbCol};font-size:.78em;font-weight:${tzMsbFilter?800:600};cursor:pointer;white-space:nowrap">⚠️ ${msbDef.nom}</button>`;
 
   // Direction pills (only meaningful when a team is selected)
   const dirPills = tzTeam ? `
