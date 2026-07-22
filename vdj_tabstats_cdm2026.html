@@ -8420,8 +8420,39 @@ function renderTete(){
 
 // ZONES DE RÉCUPÉRATION
 // ==============================================
-let pzTeam = '', pzTacFilter = new Set();
+let pzTeam = '', pzTacFilter = new Set(), pzCoachPeriod = null;
 let _pzCellsCache = [];
+// 21/07/2026 : Christian veut voir le club (logo+nom) et l'entraîneur en
+// poste sous le terrain, avec la possibilité de filtrer par période quand
+// un club a changé d'entraîneur en cours de saison (jusqu'à 4 fois pour
+// Nottingham Forest cette saison) — reprend le registre déjà utilisé par
+// la page Entraîneurs / le comparateur ADN (_entraineursByClubPL2526,
+// _coachRecordPL2526, _dateKeyPL2526, _goalDatePL2526).
+function setPzCoachPeriod(i){ pzCoachPeriod = (pzCoachPeriod===i ? null : i); renderPressZones(); }
+function _teamCoachBlockHtml(team, period, setPeriodFn){
+  if(ACTIVE_COMP !== 'pl2526' || !team) return '';
+  const periods = _entraineursByClubPL2526[team] || [];
+  if(!periods.length) return '';
+  const current = periods[periods.length-1].entraineur;
+  const activeEntry = period!=null ? periods[period] : null;
+  const coachLine = activeEntry
+    ? `${activeEntry.entraineur} <span style="color:var(--muted);font-weight:400">(${activeEntry.dateDebut||(_lang==='en'?'start of season':'début de saison')} → ${activeEntry.dateFin||(_lang==='en'?'today':'aujourd\'hui')})</span>`
+    : (periods.length>1
+        ? `${current} <span style="color:var(--muted);font-weight:400">${_lang==='en'?'(current — click a period below to compare)':'(actuel — cliquez une période ci-dessous pour comparer)'}</span>`
+        : current);
+  const periodPills = periods.length>1 ? periods.map((entry,pi)=>{
+    const active = period===pi;
+    const rec = _coachRecordPL2526(team, entry);
+    const lbl = entry.entraineur+' ('+(entry.dateDebut||(_lang==='en'?'start':'début'))+'–'+(entry.dateFin||(_lang==='en'?'now':'auj.'))+')';
+    return `<button onclick="${setPeriodFn}(${pi})" title="${rec.matches} ${_lang==='en'?'matches':'matchs'} — ${rec.w}-${rec.d}-${rec.l}" style="padding:3px 10px;border-radius:14px;border:1.5px solid var(--accent);background:${active?'var(--accent)':'transparent'};color:${active?'#fff':'var(--accent)'};font-size:.74em;font-weight:${active?800:600};cursor:pointer;white-space:nowrap">${lbl}</button>`;
+  }).join('') : '';
+  return `<div style="display:flex;flex-wrap:wrap;align-items:center;gap:8px;margin:4px 0 12px;padding:9px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px">
+    <span style="font-size:1.02em;font-weight:800">${tf(team)}</span>
+    <span style="color:var(--border)">|</span>
+    <span style="font-size:.86em">👔 ${coachLine}</span>
+    ${periodPills ? `<div style="width:100%;display:flex;gap:6px;flex-wrap:wrap;margin-top:4px">${periodPills}</div>` : ''}
+  </div>`;
+}
 // 21/07/2026 : Christian veut pouvoir cliquer sur une bulle du terrain pour
 // voir le detail des buts de cette zone precise (et la video via le bouton
 // ▶ deja present dans renderDetailGoals) — pas seulement le detail par
@@ -8513,6 +8544,20 @@ function renderPressZones(){
   let goals = allGoals.filter(_hasRecup);
   if(pzTeam) goals = goals.filter(g => g.team === pzTeam);
   if(pzTacFilter.size>0) goals = goals.filter(g => pzTacFilter.has(g.tactique1));
+  if(ACTIVE_COMP==='pl2526' && pzTeam && pzCoachPeriod!=null){
+    const _periods = _entraineursByClubPL2526[pzTeam] || [];
+    const _entry = _periods[pzCoachPeriod];
+    if(_entry){
+      const _dStart = _entry.dateDebut ? _dateKeyPL2526(_entry.dateDebut) : -Infinity;
+      const _dEnd = _entry.dateFin ? _dateKeyPL2526(_entry.dateFin) : Infinity;
+      goals = goals.filter(g=>{
+        const gd = g.match && g.match.date;
+        if(!gd) return false;
+        const dk = _dateKeyPL2526(gd);
+        return dk>=_dStart && dk<=_dEnd;
+      });
+    }
+  }
 
   // SVG pitch — paysage horizontal, proportions 105:68, lignes SVG nettes
   // axe horizontal = longueur 105m, axe vertical = largeur 68m
@@ -8688,10 +8733,11 @@ function renderPressZones(){
 
   const html = `<h1>🟠 Zones de récupération</h1>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
-    <select onchange="pzTeam=this.value;renderPressZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
+    <select onchange="pzTeam=this.value;pzCoachPeriod=null;renderPressZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
     <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}</span>
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded zone':'but'+(goals.length>1?'s':'')+' avec zone encodée'}</span>
   </div>
+  ${_teamCoachBlockHtml(pzTeam, pzCoachPeriod, 'setPzCoachPeriod')}
   <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
     <div style="flex:0 0 auto;min-width:0">
       ${noData}
@@ -8710,13 +8756,14 @@ function renderPressZones(){
 // ==============================================
 // ZONES DE DÉCLENCHEMENT
 // ==============================================
-let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored', tzMsbFilter = false;
+let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored', tzMsbFilter = false, tzCoachPeriod = null;
 // 21/07/2026 : Christian veut isoler les buts dont le declenchement vient
 // d'une "Mauvaise Sortie de Balle" (tactique2/tactique2b === 48, une des
 // valeurs du Descriptif principal/secondaire) — dimension differente de
 // tactique1, donc pill independante (case a cocher), qui s'ajoute en ET
 // au filtre tactique1 deja en place (pas un 5e choix dans le meme Set).
 function toggleTzMsb(){ tzMsbFilter = !tzMsbFilter; renderTriggerZones(); }
+function setTzCoachPeriod(i){ tzCoachPeriod = (tzCoachPeriod===i ? null : i); renderTriggerZones(); }
 let _tzCellsCache = [];
 function showTriggerCellDetail(ci){
   const cell = _tzCellsCache[ci];
@@ -8791,6 +8838,20 @@ function renderTriggerZones(){
   if(tzTeam) goals = goals.filter(g => tzDir==='conceded' ? g.opponent===tzTeam : g.team===tzTeam);
   if(tzTacFilter.size>0) goals = goals.filter(g => tzTacFilter.has(g.tactique1));
   if(tzMsbFilter) goals = goals.filter(g => g.tactique2===48 || g.tactique2b===48);
+  if(ACTIVE_COMP==='pl2526' && tzTeam && tzCoachPeriod!=null){
+    const _periods = _entraineursByClubPL2526[tzTeam] || [];
+    const _entry = _periods[tzCoachPeriod];
+    if(_entry){
+      const _dStart = _entry.dateDebut ? _dateKeyPL2526(_entry.dateDebut) : -Infinity;
+      const _dEnd = _entry.dateFin ? _dateKeyPL2526(_entry.dateFin) : Infinity;
+      goals = goals.filter(g=>{
+        const gd = g.match && g.match.date;
+        if(!gd) return false;
+        const dk = _dateKeyPL2526(gd);
+        return dk>=_dStart && dk<=_dEnd;
+      });
+    }
+  }
 
   // SVG pitch — paysage horizontal, proportions 105:68 (même géométrie que Zones de récupération)
   // 21/07/2026 : agrandi (660x430 -> 800x520) a la demande de Christian pour une meilleure lisibilite
@@ -8958,11 +9019,12 @@ function renderTriggerZones(){
 
   const html = `<h1>🟣 Zones de déclenchement</h1>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
-    <select onchange="tzTeam=this.value;renderTriggerZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
+    <select onchange="tzTeam=this.value;tzCoachPeriod=null;renderTriggerZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
     <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}${msbPillHtml}</span>
     ${dirPills}
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded trigger':'but'+(goals.length>1?'s':'')+' avec déclenchement encodé'}</span>
   </div>
+  ${_teamCoachBlockHtml(tzTeam, tzCoachPeriod, 'setTzCoachPeriod')}
   ${dirNote}
   <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
     <div style="flex:0 0 auto;min-width:0">
