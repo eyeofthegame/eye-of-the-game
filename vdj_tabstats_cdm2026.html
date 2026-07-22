@@ -8710,7 +8710,13 @@ function renderPressZones(){
 // ==============================================
 // ZONES DE DÉCLENCHEMENT
 // ==============================================
-let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored';
+let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored', tzMsbFilter = false;
+// 21/07/2026 : Christian veut isoler les buts dont le declenchement vient
+// d'une "Mauvaise Sortie de Balle" (tactique2/tactique2b === 48, une des
+// valeurs du Descriptif principal/secondaire) — dimension differente de
+// tactique1, donc pill independante (case a cocher), qui s'ajoute en ET
+// au filtre tactique1 deja en place (pas un 5e choix dans le meme Set).
+function toggleTzMsb(){ tzMsbFilter = !tzMsbFilter; renderTriggerZones(); }
 let _tzCellsCache = [];
 function showTriggerCellDetail(ci){
   const cell = _tzCellsCache[ci];
@@ -8767,6 +8773,12 @@ function renderTriggerZones(){
     return `<button onclick="toggleTzTac(${k})" style="padding:4px 12px;border-radius:16px;border:1.5px solid ${col};background:${active?col:'transparent'};color:${active?'#fff':col};font-size:.78em;font-weight:${active?800:600};cursor:pointer;white-space:nowrap">${VDJ.tactique1[k].nom}</button>`;
   }).join('');
 
+  // Pill "Mauvaise Sortie de Balle" (Descriptif principal/secondaire = 48) —
+  // filtre independant (ET) qui s'ajoute aux tactiques, pas une 5e tactique.
+  const msbDef = VDJ.tactique2[48];
+  const msbCol = '#' + msbDef.c1;
+  const msbPillHtml = `<button onclick="toggleTzMsb()" style="padding:4px 12px;border-radius:16px;border:1.5px solid ${msbCol};background:${tzMsbFilter?msbCol:'transparent'};color:${tzMsbFilter?'#'+msbDef.c2:msbCol};font-size:.78em;font-weight:${tzMsbFilter?800:600};cursor:pointer;white-space:nowrap">⚠️ ${msbDef.nom}</button>`;
+
   // Direction pills (only meaningful when a team is selected)
   const dirPills = tzTeam ? `
     <span style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.82em">
@@ -8778,6 +8790,7 @@ function renderTriggerZones(){
   let goals = allGoals.filter(_hasTrigger);
   if(tzTeam) goals = goals.filter(g => tzDir==='conceded' ? g.opponent===tzTeam : g.team===tzTeam);
   if(tzTacFilter.size>0) goals = goals.filter(g => tzTacFilter.has(g.tactique1));
+  if(tzMsbFilter) goals = goals.filter(g => g.tactique2===48 || g.tactique2b===48);
 
   // SVG pitch — paysage horizontal, proportions 105:68 (même géométrie que Zones de récupération)
   // 21/07/2026 : agrandi (660x430 -> 800x520) a la demande de Christian pour une meilleure lisibilite
@@ -8946,7 +8959,7 @@ function renderTriggerZones(){
   const html = `<h1>🟣 Zones de déclenchement</h1>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
     <select onchange="tzTeam=this.value;renderTriggerZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
-    <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}</span>
+    <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}${msbPillHtml}</span>
     ${dirPills}
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded trigger':'but'+(goals.length>1?'s':'')+' avec déclenchement encodé'}</span>
   </div>
