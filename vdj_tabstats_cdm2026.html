@@ -8421,6 +8421,20 @@ function renderTete(){
 // ZONES DE RÉCUPÉRATION
 // ==============================================
 let pzTeam = '', pzTacFilter = new Set();
+let _pzCellsCache = [];
+// 21/07/2026 : Christian veut pouvoir cliquer sur une bulle du terrain pour
+// voir le detail des buts de cette zone precise (et la video via le bouton
+// ▶ deja present dans renderDetailGoals) — pas seulement le detail par
+// equipe depuis le classement (showGoalDetailRecup, inchangee).
+function showRecupCellDetail(ci){
+  const cell = _pzCellsCache[ci];
+  if(!cell) return;
+  document.getElementById('detail-title').innerHTML =
+    (_lang==='en'?'Recovery zone':'Zone de récupération') + ' — ' + cell.goals.length + ' ' +
+    (_lang==='en'?(cell.goals.length>1?'goals':'goal'):(cell.goals.length>1?'buts':'but'));
+  renderDetailGoals(cell.goals);
+  document.getElementById('detail-panel').classList.add('open');
+}
 function togglePzTac(k){
   if(pzTacFilter.has(k)) pzTacFilter.delete(k);
   else pzTacFilter.add(k);
@@ -8593,6 +8607,7 @@ function renderPressZones(){
   // Bubbles — avec dégradé sphère + ombre portée
   let gradDefs = '<defs><filter id="bShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.35)"/></filter>';
   const cellArr = Object.values(cells).sort((a,b)=>b.goals.length-a.goals.length);
+  _pzCellsCache = cellArr;
   const gradIds = [];
   cellArr.forEach((cell,ci)=>{
     const tacs = [...new Set(cell.goals.map(g=>g.tactique1))];
@@ -8602,7 +8617,7 @@ function renderPressZones(){
     const light=`rgb(${Math.min(255,r2+80)},${Math.min(255,g2+80)},${Math.min(255,b2+80)})`;
     const dark=`rgb(${Math.max(0,r2-30)},${Math.max(0,g2-30)},${Math.max(0,b2-30)})`;
     const gid=`bg${ci}`;
-    gradIds.push({cell, col, gid, dark, light});
+    gradIds.push({cell, col, gid, dark, light, ci});
     gradDefs += `<radialGradient id="${gid}" cx="35%" cy="30%" r="65%">
       <stop offset="0%" stop-color="${light}" stop-opacity="0.95"/>
       <stop offset="55%" stop-color="${col}" stop-opacity="1"/>
@@ -8614,7 +8629,7 @@ function renderPressZones(){
   // Insert defs right after opening <svg> tag
   pitchSvg += gradDefs;
 
-  gradIds.forEach(({cell, col, gid, light})=>{
+  gradIds.forEach(({cell, col, gid, light, ci})=>{
     const n = cell.goals.length;
     const r = Math.max(14, 12 + n * 7);
     const bx = M + (1 - cell.cy) * PW;
@@ -8627,7 +8642,7 @@ function renderPressZones(){
       const t1 = VDJ.tactique1[g.tactique1]?.nom || '';
       return `${g.match?.dom||'?'}–${g.match?.ext||'?'} ${g.minute||'?'}' ${g.buteur||'?'} [${t1}]`;
     }).join('&#10;');
-    pitchSvg += `<g filter="url(#bShadow)" style="cursor:pointer">
+    pitchSvg += `<g filter="url(#bShadow)" style="cursor:pointer" onclick="showRecupCellDetail(${ci})">
       <circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="url(#${gid})" stroke="rgba(255,255,255,0.6)" stroke-width="1.5">
         <title>${tip.replace(/&#10;/g,'\n')}</title>
       </circle>
@@ -8696,6 +8711,16 @@ function renderPressZones(){
 // ZONES DE DÉCLENCHEMENT
 // ==============================================
 let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored';
+let _tzCellsCache = [];
+function showTriggerCellDetail(ci){
+  const cell = _tzCellsCache[ci];
+  if(!cell) return;
+  document.getElementById('detail-title').innerHTML =
+    (_lang==='en'?'Trigger zone':'Zone de déclenchement') + ' — ' + cell.goals.length + ' ' +
+    (_lang==='en'?(cell.goals.length>1?'goals':'goal'):(cell.goals.length>1?'buts':'but'));
+  renderDetailGoals(cell.goals);
+  document.getElementById('detail-panel').classList.add('open');
+}
 function toggleTzTac(k){
   if(tzTacFilter.has(k)) tzTacFilter.delete(k);
   else tzTacFilter.add(k);
@@ -8830,6 +8855,7 @@ function renderTriggerZones(){
 
   let gradDefs = '<defs><filter id="tzShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.35)"/></filter>';
   const cellArr = Object.values(cells).sort((a,b)=>b.goals.length-a.goals.length);
+  _tzCellsCache = cellArr;
   const gradIds = [];
   cellArr.forEach((cell,ci)=>{
     const tacs = [...new Set(cell.goals.map(g=>g.tactique1))];
@@ -8838,7 +8864,7 @@ function renderTriggerZones(){
     const light=`rgb(${Math.min(255,r2+80)},${Math.min(255,g2+80)},${Math.min(255,b2+80)})`;
     const dark=`rgb(${Math.max(0,r2-30)},${Math.max(0,g2-30)},${Math.max(0,b2-30)})`;
     const gid=`tzg${ci}`;
-    gradIds.push({cell, col, gid, dark, light});
+    gradIds.push({cell, col, gid, dark, light, ci});
     gradDefs += `<radialGradient id="${gid}" cx="35%" cy="30%" r="65%">
       <stop offset="0%" stop-color="${light}" stop-opacity="0.95"/>
       <stop offset="55%" stop-color="${col}" stop-opacity="1"/>
@@ -8848,7 +8874,7 @@ function renderTriggerZones(){
   gradDefs += '</defs>';
   pitchSvg += gradDefs;
 
-  gradIds.forEach(({cell, gid})=>{
+  gradIds.forEach(({cell, gid, ci})=>{
     const n = cell.goals.length;
     const r = Math.max(14, 12 + n * 7);
     const bx = M + (1 - cell.cy) * PW;
@@ -8860,7 +8886,7 @@ function renderTriggerZones(){
       const t1 = VDJ.tactique1[g.tactique1]?.nom || '';
       return `${g.match?.dom||'?'}–${g.match?.ext||'?'} ${g.minute||'?'}' ${g.buteur||'?'} [${t1}]`;
     }).join('&#10;');
-    pitchSvg += `<g filter="url(#tzShadow)" style="cursor:pointer">
+    pitchSvg += `<g filter="url(#tzShadow)" style="cursor:pointer" onclick="showTriggerCellDetail(${ci})">
       <circle cx="${bx.toFixed(1)}" cy="${by.toFixed(1)}" r="${r}" fill="url(#${gid})" stroke="rgba(255,255,255,0.6)" stroke-width="1.5">
         <title>${tip.replace(/&#10;/g,'\n')}</title>
       </circle>
