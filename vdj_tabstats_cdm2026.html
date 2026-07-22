@@ -8420,7 +8420,13 @@ function renderTete(){
 
 // ZONES DE RÉCUPÉRATION
 // ==============================================
-let pzTeam = '', pzTac1 = '';
+let pzTeam = '', pzTacFilter = new Set();
+function togglePzTac(k){
+  if(pzTacFilter.has(k)) pzTacFilter.delete(k);
+  else pzTacFilter.add(k);
+  if(pzTacFilter.size===4) pzTacFilter=new Set();
+  renderPressZones();
+}
 let teteTeam = '';
 let _teteSortCol = null, _teteSortDir = null;
 let _lieuSortDir = null;
@@ -8460,9 +8466,12 @@ function hideTeteTip(){
 
 
 
+function _hasRecup(g){
+  return (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1))) && g.tactique1!==5 && g.tactique1!==6;
+}
 function showGoalDetailRecup(team){
   const goals = getAllGoals().filter(g=>
-    g.team===team && (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1)))
+    g.team===team && _hasRecup(g)
   );
   document.getElementById('detail-title').innerHTML =
     tf(team) + ' — ' + (_lang==='en'?'Goals with recovery zone':'Buts avec zone de récup.') + ' (' + goals.length + ')';
@@ -8476,20 +8485,28 @@ function renderPressZones(){
 
   // Filters UI
   const teamOpts = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>` + teams.map(t=>`<option value="${t}"${pzTeam===t?' selected':''}>${tf(t)}</option>`).join('');
-  const tac1Opts = (_lang==='en'?'<option value="">All tactics</option>':'<option value="">Toutes les tactiques</option>') +
-    [1,2,3,4,5,6].filter(k=>VDJ.tactique1[k]).map(k=>`<option value="${k}"${pzTac1==k?' selected':''}>${VDJ.tactique1[k].nom}</option>`).join('');
+  // 21/07/2026 : filtre tactique en pills clicables cumulables (Christian),
+  // à la place d'un <select> à choix unique. Limité aux 4 tactiques "plein
+  // jeu" (1-4) : phase arrêtée/penalty sont de toute façon exclues (_hasRecup).
+  const tac1Colors = {1:'#4b607f',2:'#7a9ab5',3:'#f3701e',4:'#c45a10'};
+  const tacPillsHtml = [1,2,3,4].filter(k=>VDJ.tactique1[k]).map(k=>{
+    const active = pzTacFilter.size===0 || pzTacFilter.has(k);
+    const col = tac1Colors[k];
+    return `<button onclick="togglePzTac(${k})" style="padding:4px 12px;border-radius:16px;border:1.5px solid ${col};background:${active?col:'transparent'};color:${active?'#fff':col};font-size:.78em;font-weight:${active?800:600};cursor:pointer;white-space:nowrap">${VDJ.tactique1[k].nom}</button>`;
+  }).join('');
 
   // Filter goals that have pressX/pressY
-  let goals = allGoals.filter(g => (g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1))));
+  let goals = allGoals.filter(_hasRecup);
   if(pzTeam) goals = goals.filter(g => g.team === pzTeam);
-  if(pzTac1) goals = goals.filter(g => String(g.tactique1) === String(pzTac1));
+  if(pzTacFilter.size>0) goals = goals.filter(g => pzTacFilter.has(g.tactique1));
 
   // SVG pitch — paysage horizontal, proportions 105:68, lignes SVG nettes
   // axe horizontal = longueur 105m, axe vertical = largeur 68m
   // pressY (0=attaque) → bx horizontal (attaque à gauche)
   // pressX (0=gauche) → by vertical
-  const TW=660, TH=430, M=22;
-  const PW=TW-M*2, PH=TH-M*2; // 616 × 386
+  // 21/07/2026 : agrandi (660x430 -> 800x520) a la demande de Christian, meme format que Zones de declenchement
+  const TW=800, TH=520, M=26;
+  const PW=TW-M*2, PH=TH-M*2;
   const sx=PW/105, sy=PH/68; // pixels per metre
 
   // Pitch elements (horizontal: goal left & right)
@@ -8572,8 +8589,6 @@ function renderPressZones(){
   let pitchSvg = arrowAbove + `<svg viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="max-width:100%;display:block;border-radius:8px">
     ${pitchLines}`;
 
-  // Tac1 color map
-  const tac1Colors = {1:'#4b607f',2:'#7a9ab5',3:'#f3701e',4:'#c45a10',5:'#9e8a74',6:'#2d3f52'};
 
   // Bubbles — avec dégradé sphère + ombre portée
   let gradDefs = '<defs><filter id="bShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.35)"/></filter>';
@@ -8624,7 +8639,7 @@ function renderPressZones(){
   pitchSvg += '</svg>';
 
   // Legend
-  const legendItems = [1,2,3,4,5,6].filter(k=>VDJ.tactique1[k]).map(k=>`
+  const legendItems = [1,2,3,4].filter(k=>VDJ.tactique1[k]).map(k=>`
     <span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:.8em">
       <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="${tac1Colors[k]||'#888'}" stroke="#4b607f" stroke-width="1.5"/></svg>
       ${VDJ.tactique1[k].nom}
@@ -8634,9 +8649,7 @@ function renderPressZones(){
     `<div class="no-data" style="margin:20px 0">${_lang==='en'?'No goals with recovery zone encoded for this selection.<br><small>Encode zones in the encoding page via the orange pitch 🟠':'Aucun but avec zone de récupération encodée pour cette sélection.<br><small>Encode les zones dans la page d\'encodage via le terrain orange 🟠'}</div>` : '';
 
   // Ranking table (all recovery goals, unfiltered by pzTeam/pzTac1)
-  const allRecupGoals = allGoals.filter(g =>
-    g.pressX != null || (g.goalSteps && g.goalSteps.some(s=>s.type===1))
-  );
+  const allRecupGoals = allGoals.filter(_hasRecup);
   const byTeam = {};
   allRecupGoals.forEach(g=>{ if(!byTeam[g.team]) byTeam[g.team]=[]; byTeam[g.team].push(g); });
   const teamRanking = Object.entries(byTeam).sort((a,b)=>b[1].length-a[1].length);
@@ -8661,16 +8674,16 @@ function renderPressZones(){
   const html = `<h1>🟠 Zones de récupération</h1>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
     <select onchange="pzTeam=this.value;renderPressZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
-    <select onchange="pzTac1=this.value;renderPressZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${tac1Opts}</select>
+    <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}</span>
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded zone':'but'+(goals.length>1?'s':'')+' avec zone encodée'}</span>
   </div>
-  <div style="display:flex;gap:20px;align-items:flex-start;flex-wrap:wrap">
-    <div style="flex:1;min-width:0">
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:0 0 auto;min-width:0">
       ${noData}
       ${goals.length > 0 ? pitchSvg : ''}
 
     </div>
-    <div style="min-width:180px;max-width:220px">
+    <div style="flex:0 0 auto;min-width:180px;max-width:220px">
       <div style="font-size:.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">Classement</div>
       ${rankHtml}
     </div>
@@ -8682,7 +8695,13 @@ function renderPressZones(){
 // ==============================================
 // ZONES DE DÉCLENCHEMENT
 // ==============================================
-let tzTeam = '', tzTac1 = '', tzDir = 'scored';
+let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored';
+function toggleTzTac(k){
+  if(tzTacFilter.has(k)) tzTacFilter.delete(k);
+  else tzTacFilter.add(k);
+  if(tzTacFilter.size===4) tzTacFilter=new Set();
+  renderTriggerZones();
+}
 
 function _triggerPointsOf(g){
   const steps = g.goalSteps ? g.goalSteps.filter(s=>s.type===2) : [];
@@ -8713,8 +8732,15 @@ function renderTriggerZones(){
 
   // Filters UI
   const teamOpts = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>` + teams.map(t=>`<option value="${t}"${tzTeam===t?' selected':''}>${tf(t)}</option>`).join('');
-  const tac1Opts = (_lang==='en'?'<option value="">All tactics</option>':'<option value="">Toutes les tactiques</option>') +
-    [1,2,3,4,5,6].filter(k=>VDJ.tactique1[k]).map(k=>`<option value="${k}"${tzTac1==k?' selected':''}>${VDJ.tactique1[k].nom}</option>`).join('');
+  // 21/07/2026 : filtre tactique en pills clicables cumulables (Christian),
+  // à la place d'un <select> à choix unique. Limité aux 4 tactiques "plein
+  // jeu" (1-4) : phase arrêtée/penalty sont de toute façon exclues (_hasTrigger).
+  const tac1Colors = {1:'#4b607f',2:'#7a9ab5',3:'#f3701e',4:'#c45a10'};
+  const tacPillsHtml = [1,2,3,4].filter(k=>VDJ.tactique1[k]).map(k=>{
+    const active = tzTacFilter.size===0 || tzTacFilter.has(k);
+    const col = tac1Colors[k];
+    return `<button onclick="toggleTzTac(${k})" style="padding:4px 12px;border-radius:16px;border:1.5px solid ${col};background:${active?col:'transparent'};color:${active?'#fff':col};font-size:.78em;font-weight:${active?800:600};cursor:pointer;white-space:nowrap">${VDJ.tactique1[k].nom}</button>`;
+  }).join('');
 
   // Direction pills (only meaningful when a team is selected)
   const dirPills = tzTeam ? `
@@ -8726,7 +8752,7 @@ function renderTriggerZones(){
   // Filter goals with trigger point
   let goals = allGoals.filter(_hasTrigger);
   if(tzTeam) goals = goals.filter(g => tzDir==='conceded' ? g.opponent===tzTeam : g.team===tzTeam);
-  if(tzTac1) goals = goals.filter(g => String(g.tactique1) === String(tzTac1));
+  if(tzTacFilter.size>0) goals = goals.filter(g => tzTacFilter.has(g.tactique1));
 
   // SVG pitch — paysage horizontal, proportions 105:68 (même géométrie que Zones de récupération)
   // 21/07/2026 : agrandi (660x430 -> 800x520) a la demande de Christian pour une meilleure lisibilite
@@ -8801,7 +8827,6 @@ function renderTriggerZones(){
   let pitchSvg = arrowAbove + `<svg viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="max-width:100%;display:block;border-radius:8px">
     ${pitchLines}`;
 
-  const tac1Colors = {1:'#4b607f',2:'#7a9ab5',3:'#f3701e',4:'#c45a10',5:'#9e8a74',6:'#2d3f52'};
 
   let gradDefs = '<defs><filter id="tzShadow" x="-30%" y="-30%" width="160%" height="160%"><feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="rgba(0,0,0,0.35)"/></filter>';
   const cellArr = Object.values(cells).sort((a,b)=>b.goals.length-a.goals.length);
@@ -8846,7 +8871,7 @@ function renderTriggerZones(){
 
   pitchSvg += '</svg>';
 
-  const legendItems = [1,2,3,4,5,6].filter(k=>VDJ.tactique1[k]).map(k=>`
+  const legendItems = [1,2,3,4].filter(k=>VDJ.tactique1[k]).map(k=>`
     <span style="display:inline-flex;align-items:center;gap:4px;margin-right:12px;font-size:.8em">
       <svg width="14" height="14"><circle cx="7" cy="7" r="6" fill="${tac1Colors[k]||'#888'}" stroke="#4b607f" stroke-width="1.5"/></svg>
       ${VDJ.tactique1[k].nom}
@@ -8895,7 +8920,7 @@ function renderTriggerZones(){
   const html = `<h1>🟣 Zones de déclenchement</h1>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
     <select onchange="tzTeam=this.value;renderTriggerZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
-    <select onchange="tzTac1=this.value;renderTriggerZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${tac1Opts}</select>
+    <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}</span>
     ${dirPills}
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded trigger':'but'+(goals.length>1?'s':'')+' avec déclenchement encodé'}</span>
   </div>
