@@ -3288,6 +3288,7 @@ const PL_CLUB_IDS = {
 const PL_INJURIES_URL = 'https://www.premierinjuries.com/injury-table.php';
 
 const OFFICIAL_SITES = {
+  pl2526: { label:'Premier League', matchesUrl:'https://www.premierleague.com/en/matches', injuriesUrl: PL_INJURIES_URL },
   pl2627: { label:'Premier League', matchesUrl:'https://www.premierleague.com/en/matches', injuriesUrl: PL_INJURIES_URL },
   bl2627: { label:'Bundesliga',     matchesUrl:'https://www.bundesliga.com/en/bundesliga/matchday' },
 };
@@ -3300,6 +3301,7 @@ const OFFICIAL_SITES = {
 // prudence que pour le site officiel : pas d'ID de match à deviner).
 const FBREF_URLS = {
   cdm:     'https://fbref.com/en/comps/1/2026/2026-World-Cup-Stats',
+  pl2526:  'https://fbref.com/en/comps/9/Premier-League-Stats',
   pl2627:  'https://fbref.com/en/comps/9/Premier-League-Stats',
   jl2026:  'https://fbref.com/en/comps/25/J1-League-Stats',
   jpl2627: 'https://fbref.com/en/comps/37/Belgian-Pro-League-Stats',
@@ -3316,7 +3318,7 @@ function officialSiteLink(m){
     const slug = BL_CLUB_SLUGS[m.dom];
     return slug ? `https://www.bundesliga.com/en/bundesliga/clubs/${slug}` : cfg.matchesUrl;
   }
-  if(ACTIVE_COMP === 'pl2627'){
+  if(ACTIVE_COMP === 'pl2627' || ACTIVE_COMP === 'pl2526'){
     const c = PL_CLUB_IDS[m.dom];
     return c ? `https://www.premierleague.com/en/clubs/${c.id}/${c.slug}/squad` : cfg.matchesUrl;
   }
