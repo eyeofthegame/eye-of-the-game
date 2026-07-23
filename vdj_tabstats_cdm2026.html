@@ -7157,6 +7157,55 @@ function buildMiniPitchWithArrow(assistX, assistY, pitchX, pitchY, label, trigge
   </div>`;
 }
 
+// 22/07/2026 — Christian a demandé que le "Schéma du but" d'un penalty
+// affiche le même graphique que la "Carte des penalties" (vue de face,
+// zone 3x2, position du ballon), uniquement pour les buts sur penalty.
+// Version "mini" (une seule action) inspirée de renderPenalties() —
+// sans le gardien en filigrane (image trop lourde à dupliquer ici).
+function buildPenaltyMiniSchema(g, label){
+  const W=600, H=200;
+  const zoneW=W/3, zoneH=H/2;
+  const zonePos = {HG:{col:0,row:0},HC:{col:1,row:0},HD:{col:2,row:0},BG:{col:0,row:1},BC:{col:1,row:1},BD:{col:2,row:1}};
+  function _cornerXY(corner){
+    const pos = zonePos[corner];
+    if(!pos) return null;
+    return { x: pos.col*zoneW + zoneW/2, y: pos.row*zoneH + zoneH/2 };
+  }
+  let cx=null, cy=null;
+  if(g.penX!=null && g.penY!=null){ cx=g.penX*W; cy=g.penY*H; }
+  else if(g.penaltyCorner){ const xy=_cornerXY(g.penaltyCorner); if(xy){ cx=xy.x; cy=xy.y; } }
+
+  const feetNames = _lang==='en'?{D:'Right foot',G:'Left foot',P:'Panenka'}:{D:'Pied droit',G:'Pied gauche',P:'Panenka'};
+  const footTxt = g.penaltyFoot ? (feetNames[g.penaltyFoot]||'') : '';
+
+  if(cx==null){
+    return `<div style="text-align:center">
+      <div style="font-size:.68em;color:var(--muted);margin-bottom:2px">${label}</div>
+      <div style="width:100%;height:85px;border:2px solid #4a9944;border-radius:4px;background:#2d5a2d;display:flex;align-items:center;justify-content:center;color:rgba(255,255,255,.4);font-size:.7em">${_lang==='en'?'zone not encoded':'zone non encodée'}</div>
+    </div>`;
+  }
+
+  const br=14;
+  const ballPts=(n,ocx,ocy,or_,start=0)=>Array.from({length:n},(_,i)=>{const a=start+i*2*Math.PI/n;return[(ocx+or_*Math.cos(a)).toFixed(1),(ocy+or_*Math.sin(a)).toFixed(1)].join(',')}).join(' ');
+  const cPts=ballPts(5,cx,cy,br*0.44,-Math.PI/2);
+  const outerP=Array.from({length:5},(_,i)=>{const a=-Math.PI/2+i*2*Math.PI/5,mx=cx+br*0.75*Math.cos(a),my=cy+br*0.75*Math.sin(a);return`<polygon points="${ballPts(3,mx,my,br*0.32,a-Math.PI/6)}" fill="#222"/>`}).join('');
+  const ballSvg = `<circle cx="${cx.toFixed(1)}" cy="${cy.toFixed(1)}" r="${br}" fill="white" stroke="#555" stroke-width="1.5"/><polygon points="${cPts}" fill="#222"/>${outerP}`;
+
+  return `<div style="text-align:center">
+    <div style="font-size:.68em;color:var(--muted);margin-bottom:2px">${label}</div>
+    <div style="background:#1a3a1a;border-radius:6px;padding:8px">
+      <svg viewBox="0 0 ${W} ${H}" width="100%" style="background:#2d5a2d;border-radius:4px;display:block">
+        <line x1="200" y1="0" x2="200" y2="200" stroke="rgba(74,96,127,.30)" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="400" y1="0" x2="400" y2="200" stroke="rgba(74,96,127,.30)" stroke-width="1" stroke-dasharray="4,4"/>
+        <line x1="0" y1="100" x2="600" y2="100" stroke="rgba(74,96,127,.30)" stroke-width="1" stroke-dasharray="4,4"/>
+        ${ballSvg}
+        <path d="M0,200 L0,0 L600,0 L600,200" fill="none" stroke="#fff" stroke-width="3"/>
+      </svg>
+      ${footTxt ? `<div style="font-size:.72em;color:#8fb88f;margin-top:4px">⚽ ${footTxt}</div>` : ''}
+    </div>
+  </div>`;
+}
+
 function renderDetailGoals(goals, isAssist){
   // Christian (12/07) : ouvert depuis "Passes décisives", le détail doit
   // mettre en avant le passeur (pas le buteur) — voir _detailIsAssist,
@@ -7265,7 +7314,7 @@ function renderSingleGoal(idx){
     <div class="gd-header">${tf(g.match.dom)} — ${tf(g.match.ext)} ${g.match.id?'(M'+g.match.id+')':''} — ${g.match.date} &nbsp;<span style="font-weight:normal;font-size:.85em;color:#555">(${_lang==='en'?'final score: ':'score final : '}${fs})</span></div>
     <div style="margin-bottom:6px">${g.minute||'?'}' <b>${mainNameHtml}</b>${subNameHtml} &nbsp;<span style="background:#003399;color:#fff;padding:2px 8px;border-radius:4px;font-weight:bold;font-size:.95em">${sc.after}</span> ${xgBadge(g,'.8em')}</div>
     <div style="margin-bottom:8px">
-      ${(g.goalSteps&&g.goalSteps.length>0) ? buildGoalStepsSchema(g.goalSteps, _lang==='en'?'🗺 Goal Diagram':'🗺 Schéma du but') : buildMiniPitchWithArrow(g.assistX, g.assistY, g.pitchX, g.pitchY, (_lang==='en'?'🎯 Goal Diagram':'🎯 Schéma du but'), g.triggerX, g.triggerY, g.pressX, g.pressY, g.curve1||0, g.curve2||0)}
+      ${(g.tactique1===6 || g.origine1===7 || g.actions===7) ? buildPenaltyMiniSchema(g, _lang==='en'?'🎯 Penalty Diagram':'🎯 Schéma du penalty') : (g.goalSteps&&g.goalSteps.length>0) ? buildGoalStepsSchema(g.goalSteps, _lang==='en'?'🗺 Goal Diagram':'🗺 Schéma du but') : buildMiniPitchWithArrow(g.assistX, g.assistY, g.pitchX, g.pitchY, (_lang==='en'?'🎯 Goal Diagram':'🎯 Schéma du but'), g.triggerX, g.triggerY, g.pressX, g.pressY, g.curve1||0, g.curve2||0)}
     </div>
     ${g.lien ? `<div style="margin-bottom:8px"><button onclick="openVideoModal('${g.lien}')" style="display:inline-block;padding:6px 14px;background:#cc0000;color:white;border-radius:6px;border:none;cursor:pointer;font-weight:bold;font-size:.85em">${_lang==='en'?'▶ Watch Video':'▶ Voir la vidéo'}</button></div>` : ''}
     <div class="gd-vdj">`;
