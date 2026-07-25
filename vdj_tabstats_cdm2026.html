@@ -9434,7 +9434,8 @@ function renderEvolution(){
         separatorsG1 += `<line x1="${sx}" y1="0" x2="${sx}" y2="${G1H-18}" stroke="#888" stroke-width="1.5"/>`;
         separatorsG2 += `<line x1="${sx}" y1="0" x2="${sx}" y2="86" stroke="#888" stroke-width="1.5"/>`;
       }
-      groupLabelsG1 += `<text x="${x}" y="${G1H-4}" font-size="7.5" fill="var(--muted)" font-weight="600">${grp}</text>`;
+      const jNum = (String(grp).match(/\d+/) || [])[0] || grp;
+      groupLabelsG1 += `<text x="${x+barW/2}" y="${G1H-4}" text-anchor="middle" font-size="9" fill="var(--muted)" font-weight="600">${jNum}</text>`;
       lastGroup = grp;
     }
     barsG1 += `<rect x="${x}" y="${by}" width="${barW}" height="${bh}" fill="var(--accent)" rx="2" opacity=".85" style="cursor:pointer" onmouseenter="showEvolTip(event,'${tip.replace(/'/g,'&#39;')}' )" onmouseleave="hideEvolTip()"/>`;
@@ -9530,13 +9531,18 @@ function renderEvolution(){
 
     <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1em;margin-bottom:1em">
       <div style="font-size:.8em;font-weight:bold;color:var(--accent);margin-bottom:.5em">${_lang==='en'?'Goals per match':'Buts par match'}</div>
-      ${svg1}
+      <div style="display:flex;align-items:flex-end">
+        <div style="flex:0 0 auto;font-size:.72em;font-weight:700;color:var(--muted);padding:0 4px 4px 0">${_lang==='en'?'MD':'J'}</div>
+        <div style="flex:1;min-width:0">${svg1}</div>
+      </div>
+      <div style="font-size:.72em;color:var(--muted);margin-top:.5em">💡 ${_lang==='en'?'Hover a bar to see the opponent, date and score.':"Survolez une barre pour voir l'adversaire, la date et le score."}</div>
     </div>
 
     <div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:1em;margin-bottom:1em">
       <div style="font-size:.8em;font-weight:bold;color:var(--accent);margin-bottom:.4em">${_lang==='en'?'Tactical distribution per match':'Distribution tactique par match'}</div>
       <div style="margin-bottom:.5em">${legsG2}</div>
       ${svg2}
+      <div style="font-size:.72em;color:var(--muted);margin-top:.5em">💡 ${_lang==='en'?'Click a tactical category (e.g. Set Piece) to isolate it and see in which matches those goals were scored.':"Cliquez sur une catégorie tactique (ex. Phase arrêtée) pour l'isoler et voir à quels matchs appartiennent ces buts."}</div>
     </div>
 
   </div>`;
