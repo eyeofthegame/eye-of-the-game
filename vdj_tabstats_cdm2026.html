@@ -3565,6 +3565,57 @@ function _classComputeStandings(){
   })).sort((a,b) => b.pts - a.pts || b.gdiff - a.gdiff || b.gf - a.gf || a.team.localeCompare(b.team));
 }
 
+// 25/07/2026 — Christian a choisi cette piste parmi plusieurs proposées
+// pour rendre la page Classement "exclusive" pour un journaliste : voir
+// directement, pour les clubs ayant changé d'entraîneur, le bilan
+// (V-N-D, points, points/match) sous chacun — ex. Chelsea (Maresca →
+// McFarlane intérim → Rosenior → McFarlane intérim) ou Tottenham (Frank
+// → Tudor → De Zerbi). S'appuie sur le même registre que la page
+// Entraîneurs (_entraineursByClubPL2526), mais recalcule le bilan en NE
+// comptant QUE les matchs validés (md.validated), pour que la somme des
+// points par entraîneur corresponde exactement à la colonne "Pts" du
+// classement général (qui, lui, exclut déjà les matchs non validés) —
+// contrairement à _coachRecordPL2526() (page Entraîneurs), qui compte
+// tous les matchs avec un score, validés ou non, et donnerait donc des
+// totaux différents s'il était réutilisé tel quel ici.
+// Respecte aussi le filtre Domicile/Extérieur (_classVenue) déjà présent
+// sur la page, pour rester cohérent avec la vue affichée.
+let _classCoachExpanded = new Set();
+function toggleClassCoach(team){
+  if(_classCoachExpanded.has(team)) _classCoachExpanded.delete(team);
+  else _classCoachExpanded.add(team);
+  renderClassement();
+}
+
+function _classCoachSplit(team){
+  if(ACTIVE_COMP !== 'pl2526') return null;
+  const periods = (typeof _entraineursByClubPL2526 !== 'undefined') ? _entraineursByClubPL2526[team] : null;
+  if(!periods || periods.length < 2) return null;
+  return periods.map(entry=>{
+    const dStart = entry.dateDebut ? _dateKeyPL2526(entry.dateDebut) : -Infinity;
+    const dEnd = entry.dateFin ? _dateKeyPL2526(entry.dateFin) : Infinity;
+    let w=0, d=0, l=0, gf=0, ga=0, n=0;
+    MATCHES.forEach(m=>{
+      const isHome = m.dom === team;
+      const isAway = m.ext === team;
+      if(!isHome && !isAway) return;
+      if(_classVenue === 'home' && !isHome) return;
+      if(_classVenue === 'away' && !isAway) return;
+      const md = data[m.id];
+      if(!md || !md.validated || !md.score) return;
+      const dk = _dateKeyPL2526(m.date);
+      if(dk < dStart || dk > dEnd) return;
+      const gf_ = isHome ? Number(md.score.dom) : Number(md.score.ext);
+      const ga_ = isHome ? Number(md.score.ext) : Number(md.score.dom);
+      if(isNaN(gf_) || isNaN(ga_)) return;
+      n++; gf += gf_; ga += ga_;
+      if(gf_ > ga_) w++; else if(gf_ === ga_) d++; else l++;
+    });
+    const points = w*3 + d;
+    return {entraineur:entry.entraineur, dateDebut:entry.dateDebut, dateFin:entry.dateFin, matches:n, w, d, l, gf, ga, points, ppg: n ? +(points/n).toFixed(2) : 0};
+  });
+}
+
 function renderClassement(){
   loadData();
   const el = document.getElementById('view-classement');
@@ -3605,9 +3656,15 @@ function renderClassement(){
 
   rows.forEach((r, idx) => {
     const diffStr = r.gdiff > 0 ? `+${r.gdiff}` : `${r.gdiff}`;
+    const coachSplit = _classCoachSplit(r.team);
+    const teamKeySafe = r.team.replace(/'/g, "\\'");
+    const expanded = _classCoachExpanded.has(r.team);
+    const coachBadge = coachSplit
+      ? ` <span onclick="toggleClassCoach('${teamKeySafe}')" title="${_lang==='en'?'Coach change during the season — click for the points split':'Changement d\'entraîneur en cours de saison — cliquer pour le détail des points'}" style="cursor:pointer;font-size:.7em;background:#4b607f;color:#fff;border-radius:10px;padding:1px 7px;margin-left:6px;font-weight:700;white-space:nowrap">🔁 ${coachSplit.length} ${expanded?'▲':'▼'}</span>`
+      : '';
     html += `<tr>
       <td style="text-align:center;font-weight:700;color:var(--muted)">${idx+1}</td>
-      <td style="text-align:left;font-weight:600">${tf(r.team)}</td>
+      <td style="text-align:left;font-weight:600">${tf(r.team)}${coachBadge}</td>
       <td style="text-align:center">${r.pj}</td>
       <td style="text-align:center">${r.w}</td>
       <td style="text-align:center">${r.d}</td>
@@ -3617,6 +3674,30 @@ function renderClassement(){
       <td style="text-align:center">${diffStr}</td>
       <td style="text-align:center;font-weight:900;color:var(--accent)">${r.pts}</td>
     </tr>`;
+    if(coachSplit && expanded){
+      html += `<tr><td></td><td colspan="9" style="padding:4px 10px 12px;background:#f5f2ec">
+        <table style="width:100%;font-size:.82em;border-collapse:collapse">
+          <tr style="color:var(--muted)">
+            <th style="text-align:left;padding:2px 8px 4px">${_lang==='en'?'Coach':'Entraîneur'}</th>
+            <th style="text-align:left;padding:2px 8px 4px">${_lang==='en'?'Period':'Période'}</th>
+            <th style="padding:2px 8px 4px">MJ</th>
+            <th style="padding:2px 8px 4px">V-N-D</th>
+            <th style="padding:2px 8px 4px">BP-BC</th>
+            <th style="padding:2px 8px 4px">Pts</th>
+            <th style="padding:2px 8px 4px">Pts/M</th>
+          </tr>
+          ${coachSplit.map(c=>`<tr>
+            <td style="padding:2px 8px;font-weight:600">${c.entraineur}</td>
+            <td style="padding:2px 8px;color:var(--muted);white-space:nowrap">${c.dateDebut||(_lang==='en'?'Start of season':'Début de saison')} → ${c.dateFin||(_lang==='en'?'today':"aujourd'hui")}</td>
+            <td style="text-align:center;padding:2px 8px">${c.matches}</td>
+            <td style="text-align:center;padding:2px 8px">${c.w}-${c.d}-${c.l}</td>
+            <td style="text-align:center;padding:2px 8px">${c.gf}-${c.ga}</td>
+            <td style="text-align:center;padding:2px 8px;font-weight:700">${c.points}</td>
+            <td style="text-align:center;padding:2px 8px;font-weight:700;color:var(--accent)">${c.ppg}</td>
+          </tr>`).join('')}
+        </table>
+      </td></tr>`;
+    }
   });
 
   html += '</table>';
