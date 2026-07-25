@@ -7238,7 +7238,7 @@ function buildScorerTable(goals){
     const _piS = PLAYER_INFO[pName.toLowerCase()] || {};
     const _flagS = TEAM_FLAGS[pTeam] || '';
     const _ageS = _piS.dob ? ` <span style="color:var(--muted);font-size:.8em;font-weight:normal">${calcAge(_piS.dob)} ans</span>` : '';
-    html += `<tr><td>${i+1}</td><td class="team" style="white-space:nowrap">${_flagS} ${tmLink(pName)} <span style="color:var(--muted);font-weight:normal">(${pTeam})</span>${_ageS}</td><td class="total" style="cursor:pointer;text-decoration:underline" onclick="showGoalDetailScorer('${pName.replace(/'/g,"\\'")}','${pTeam.replace(/'/g,"\\'")}',false)">${count}</td></tr>`;
+    html += `<tr><td>${i+1}</td><td class="team" style="white-space:nowrap">${_flagS} ${tmLink(pName)} <span style="color:var(--muted);font-weight:normal">(${pTeam})</span>${_ageS}</td><td class="total" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailScorer('${pName.replace(/'/g,"\\'")}','${pTeam.replace(/'/g,"\\'")}',false)">${count}</td></tr>`;
   });
   if(sortedCsc.length>0){
     html += `<tr><td colspan="3" style="padding:6px 4px;font-size:.75em;color:var(--muted);font-style:italic">Buts contre son camp</td></tr>`;
@@ -7278,7 +7278,7 @@ function renderAssists(){
       const _piA = PLAYER_INFO[pName.toLowerCase()] || {};
     const _flagA = TEAM_FLAGS[pTeam] || '';
     const _ageA = _piA.dob ? ` <span style="color:var(--muted);font-size:.8em;font-weight:normal">${calcAge(_piA.dob)} ans</span>` : '';
-    html += `<tr><td>${i+1}</td><td class="team" style="white-space:nowrap">${_flagA} ${tmLink(pName)} <span style="color:var(--muted);font-weight:normal">(${pTeam})</span>${_ageA}</td><td class="total" style="cursor:pointer;text-decoration:underline" onclick="showGoalDetailScorer('${pName.replace(/'/g,"\\'")}','${pTeam.replace(/'/g,"\\'")}',true)">${count}</td></tr>`;
+    html += `<tr><td>${i+1}</td><td class="team" style="white-space:nowrap">${_flagA} ${tmLink(pName)} <span style="color:var(--muted);font-weight:normal">(${pTeam})</span>${_ageA}</td><td class="total" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailScorer('${pName.replace(/'/g,"\\'")}','${pTeam.replace(/'/g,"\\'")}',true)">${count}</td></tr>`;
     });
     html += '</table>';
   }
@@ -8957,15 +8957,15 @@ function renderTete(){
       ZONES.forEach(z => {
         const v = sub.byTeamZone[t]?.[z]||0;
         html += v > 0
-          ? `<td class="cellule" style="background:${heatColorScored(v,maxV)};cursor:pointer;text-decoration:underline" onclick="showGoalDetailTete('${sub.key}',${z},'${t.replace(/'/g,"\\'")}')">${v}</td>`
+          ? `<td class="cellule" style="background:${heatColorScored(v,maxV)};cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailTete('${sub.key}',${z},'${t.replace(/'/g,"\\'")}')">${v}</td>`
           : '<td></td>';
       });
       const st = sub.byTeam[t]||0;
       html += st > 0
-        ? `<td style="text-align:center;font-weight:600;font-size:.8em;${bR};cursor:pointer;text-decoration:underline" onclick="showGoalDetailTete('${sub.key}',null,'${t.replace(/'/g,"\\'")}')">${st}</td>`
+        ? `<td style="text-align:center;font-weight:600;font-size:.8em;${bR};cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailTete('${sub.key}',null,'${t.replace(/'/g,"\\'")}')">${st}</td>`
         : `<td style="text-align:center;font-weight:600;font-size:.8em;${bR}"></td>`;
     });
-    html += `<td class="total" style="cursor:pointer;text-decoration:underline" onclick="showGoalDetailTete(null,null,'${t.replace(/'/g,"\\'")}')">${teamTotal[t]}</td></tr>`;
+    html += `<td class="total" style="cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailTete(null,null,'${t.replace(/'/g,"\\'")}')">${teamTotal[t]}</td></tr>`;
   });
 
   // Total row
@@ -9377,7 +9377,7 @@ function renderPressZones(){
     rankHtml += `<tr style="${rowStyle}cursor:pointer" onclick="pzTeam=(pzTeam==='${safeT}'?'':('${safeT}'));renderPressZones()">
       <td>${i+1}</td>
       <td style="white-space:nowrap">${tf(team)}</td>
-      <td style="font-weight:700;text-align:center;color:${active?'#fff':'var(--accent)'};cursor:pointer;text-decoration:underline"
+      <td style="font-weight:700;text-align:center;color:${active?'#fff':'var(--accent)'};cursor:pointer;text-decoration:underline;text-decoration-color:currentColor;text-decoration-thickness:2px;text-underline-offset:4px"
           onclick="event.stopPropagation();pzTeam='${safeT}';renderPressZones();showGoalDetailRecup('${safeT}')">${tgoals.length}</td>
     </tr>`;
   });
@@ -9659,9 +9659,9 @@ function renderTriggerZones(){
     rankHtml += `<tr style="${rowStyle}cursor:pointer" onclick="tzTeam=(tzTeam==='${safeT}'?'':('${safeT}'));renderTriggerZones()">
       <td>${i+1}</td>
       <td style="white-space:nowrap">${tf(team)}</td>
-      <td style="font-weight:700;text-align:center;color:${actS?'#fff':'#9933cc'};cursor:pointer;text-decoration:underline"
+      <td style="font-weight:700;text-align:center;color:${actS?'#fff':'#9933cc'};cursor:pointer;text-decoration:underline;text-decoration-color:currentColor;text-decoration-thickness:2px;text-underline-offset:4px"
           onclick="event.stopPropagation();tzTeam='${safeT}';tzDir='scored';renderTriggerZones();showGoalDetailTrigger('${safeT}','scored')">${v.s}</td>
-      <td style="font-weight:700;text-align:center;color:${actC?'#fff':'#c62828'};cursor:pointer;text-decoration:underline"
+      <td style="font-weight:700;text-align:center;color:${actC?'#fff':'#c62828'};cursor:pointer;text-decoration:underline;text-decoration-color:currentColor;text-decoration-thickness:2px;text-underline-offset:4px"
           onclick="event.stopPropagation();tzTeam='${safeT}';tzDir='conceded';renderTriggerZones();showGoalDetailTrigger('${safeT}','conceded')">${v.c}</td>
     </tr>`;
   });
