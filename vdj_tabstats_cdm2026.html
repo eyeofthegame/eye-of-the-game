@@ -4039,19 +4039,29 @@ function _maMatches(tierMap, focusTier, oppTier, team, venue){
 // Barres de répartition (même construction que topPatterns() de Preview
 // Adversaire — flex:1 imbriqué pour un vrai rendu proportionnel, cf.
 // correctif du 5 juillet 2026 sur ce même piège CSS).
-function _maBarsHtml(goals, dim){
+// 25/07/2026 — cache des buts par catégorie, rempli à chaque appel de
+// _maBarsHtml(..., side) : permet à showMaBarDetail() de retrouver la
+// liste exacte de buts derrière la barre cliquée, sans recalcul.
+var _maBarsCache = { off:{}, def:{} };
+
+function _maBarsHtml(goals, dim, side){
   const tbl = getTable(dim);
+  if(side) _maBarsCache[side] = {};
   if(!goals.length) return `<em style="color:var(--muted);font-size:.85em">${_lang==='en'?'No goals in this selection.':'Aucun but dans cette sélection.'}</em>`;
   const counts = {};
-  goals.forEach(g=>{ const k=g[dim]; if(k) counts[k]=(counts[k]||0)+1; });
+  const bySide = {};
+  goals.forEach(g=>{ const k=g[dim]; if(k){ counts[k]=(counts[k]||0)+1; (bySide[k]=bySide[k]||[]).push(g); } });
+  if(side) _maBarsCache[side] = bySide;
   const keys = getKeys(dim).filter(k=>counts[k]);
-  const ordered = keys.length ? keys : Object.keys(counts).map(Number);
+  const ordered = (keys.length ? keys : Object.keys(counts).map(Number))
+    .slice().sort((a,b)=>(counts[b]||0)-(counts[a]||0));
   return ordered.map(k=>{
     const info = tbl[k]; if(!info) return '';
     const cnt = counts[k]||0;
     const bg = '#'+(info.c1||'888'), col='#'+(info.c2||'fff');
     const pct = Math.round(cnt/goals.length*100);
-    return `<div style="display:flex;align-items:center;gap:8px;margin-bottom:5px">
+    const clickable = side ? ` onclick="showMaBarDetail('${side}','${k}')" title="${_lang==='en'?'See goal details':'Voir le détail des buts'}"` : '';
+    return `<div${clickable} style="display:flex;align-items:center;gap:8px;margin-bottom:5px${side?';cursor:pointer':''}">
       <span style="display:inline-block;width:9px;height:9px;border-radius:2px;background:${bg};flex:0 0 9px"></span>
       <span style="flex:0 0 140px;font-size:.75em;font-weight:700;color:var(--text);overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${info.nom}</span>
       <div style="flex:1;height:6px;border-radius:3px;background:#e8eaf0;overflow:hidden;min-width:40px">
@@ -4060,6 +4070,20 @@ function _maBarsHtml(goals, dim){
       <span style="font-size:.75em;font-weight:700;color:var(--muted);white-space:nowrap">${cnt} (${pct}%)</span>
     </div>`;
   }).join('');
+}
+
+// Ouvre le détail des buts (avec bouton ▶ vidéo) derrière une barre
+// "Modèle offensif"/"Modèle défensif" cliquée. side='off'|'def', k=valeur
+// de la catégorie (tactique1/actions/origine1 selon _maDim en cours).
+function showMaBarDetail(side, k){
+  const list = (_maBarsCache[side] && _maBarsCache[side][k]) || [];
+  if(!list.length) return;
+  const tbl = getTable(_maDim);
+  const catName = tbl[k] ? tbl[k].nom : k;
+  const sideLabel = side==='off' ? (_lang==='en'?'Offensive model':'Modèle offensif') : (_lang==='en'?'Defensive model':'Modèle défensif');
+  document.getElementById('detail-title').textContent = `${sideLabel} — ${catName} (${list.length})`;
+  renderDetailGoals(list);
+  document.getElementById('detail-panel').classList.add('open');
 }
 
 function renderModeleAdversaire(){
@@ -4239,8 +4263,8 @@ function renderModeleAdversaire(){
       : 'Les deux équipes appartiennent au même groupe ici, donc "offensif"/"défensif" est distingué par lieu du match : domicile = offensif, extérieur = défensif.'}</div>`;
 
     html += `<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px">
-      <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">⚽ ${_lang==='en'?'Offensive model (home)':'Modèle offensif (domicile)'}</h3>${_maBarsHtml(offGoalsSym, _maDim)}</div>
-      <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">🛡 ${_lang==='en'?'Defensive model (away)':'Modèle défensif (extérieur)'}</h3>${_maBarsHtml(defGoalsSym, _maDim)}</div>
+      <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">⚽ ${_lang==='en'?'Offensive model (home)':'Modèle offensif (domicile)'}</h3>${_maBarsHtml(offGoalsSym, _maDim, 'off')}</div>
+      <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">🛡 ${_lang==='en'?'Defensive model (away)':'Modèle défensif (extérieur)'}</h3>${_maBarsHtml(defGoalsSym, _maDim, 'def')}</div>
     </div>`;
 
     html += '<table class="tableau" style="width:100%;max-width:640px">';
@@ -4256,7 +4280,7 @@ function renderModeleAdversaire(){
         const gag = isHome?Number(e.md.score.ext):Number(e.md.score.dom);
         scoreColor = gfor>gag ? '#1a7a1a' : (gfor<gag ? '#cc2222' : '#2255ff');
       }
-      html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center;font-weight:700;color:${scoreColor}">${e.md.score.dom}-${e.md.score.ext}</td></tr>`;
+      html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center"><span onclick="showResultsGoalsDetail(${e.match.id})" style="cursor:pointer;font-weight:700;color:${scoreColor}" title="${_lang==='en'?'See goal details':'Voir le détail des buts'}">${e.md.score.dom}-${e.md.score.ext}</span></td></tr>`;
     });
     html += '</table>';
     el.innerHTML = html;
@@ -4298,8 +4322,8 @@ function renderModeleAdversaire(){
   }).join('') + '</div>';
 
   html += `<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px">
-    <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">⚽ ${_lang==='en'?'Offensive model':'Modèle offensif'}</h3>${_maBarsHtml(offGoals, _maDim)}</div>
-    <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">🛡 ${_lang==='en'?'Defensive model':'Modèle défensif'}</h3>${_maBarsHtml(defGoals, _maDim)}</div>
+    <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">⚽ ${_lang==='en'?'Offensive model':'Modèle offensif'}</h3>${_maBarsHtml(offGoals, _maDim, 'off')}</div>
+    <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">🛡 ${_lang==='en'?'Defensive model':'Modèle défensif'}</h3>${_maBarsHtml(defGoals, _maDim, 'def')}</div>
   </div>`;
 
   html += `<h3 style="margin:0 0 8px;font-size:.9em">${_lang==='en'?'Matches in this selection':'Matchs de cette sélection'}</h3>`;
@@ -4313,7 +4337,7 @@ function renderModeleAdversaire(){
     const gd=Number(e.md.score.dom), ge=Number(e.md.score.ext);
     const gfor = e.isHome?gd:ge, gag = e.isHome?ge:gd;
     const scoreColor = gfor>gag ? '#1a7a1a' : (gfor<gag ? '#cc2222' : '#2255ff');
-    html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center">${venueLbl}</td><td style="text-align:center;font-weight:700;color:${scoreColor}">${e.md.score.dom}-${e.md.score.ext}</td></tr>`;
+    html += `<tr><td>${tf(e.match.dom)} — ${tf(e.match.ext)}</td><td style="text-align:center">${venueLbl}</td><td style="text-align:center"><span onclick="showResultsGoalsDetail(${e.match.id})" style="cursor:pointer;font-weight:700;color:${scoreColor}" title="${_lang==='en'?'See goal details':'Voir le détail des buts'}">${e.md.score.dom}-${e.md.score.ext}</span></td></tr>`;
   });
   html += '</table>';
 
