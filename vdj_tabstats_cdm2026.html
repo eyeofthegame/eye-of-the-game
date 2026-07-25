@@ -658,7 +658,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <a href="#" onclick="showView('results')" id="nav-results" data-i18n="nav-results">📅 Résultats</a>
 <a href="#" onclick="showView('classement')" id="nav-classement" data-i18n="nav-classement">🏆 Classement</a>
 <a href="#" onclick="showView('tempsdejeu')" id="nav-tempsdejeu" data-i18n="nav-tempsdejeu">⏱️ Temps de jeu</a>
-<a href="#" onclick="showView('evolution')" id="nav-evolution" data-i18n="nav-evolution">📈 Évolution</a>
+<a href="#" onclick="showView('arbitres')" id="nav-arbitres" data-i18n="nav-arbitres">🟨 Arbitres</a>
 <a href="#" onclick="showView('modeleadv')" id="nav-modeleadv" data-i18n="nav-modeleadv">🆚 Modèle vs Adversaire</a>
 
 
@@ -668,6 +668,7 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <a href="#" onclick="showAnalysis('actions')" data-key="actions" data-i18n="nav-actions">Action de tir</a>
 <a href="#" onclick="showAnalysis('finitions')" data-key="finitions" data-i18n="nav-finitions" style="display:none">Finitions</a>
 <a href="#" onclick="showView('tete')" id="nav-tete" data-i18n="nav-tete">🥷 Jeu de tête</a>
+<a href="#" onclick="showView('evolution')" id="nav-evolution" data-i18n="nav-evolution">📈 Évolution</a>
 
 <h3 id="sb-h-origin">🔍 Origine du but</h3>
 <a href="#" onclick="showAnalysis('origine1')" data-key="origine1" data-i18n="nav-origine1">Générale</a>
@@ -702,7 +703,6 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 <a href="#" onclick="showView('gpn')" id="nav-gpn" data-i18n="nav-gpn">GPN — Qui mène</a>
 <a href="#" onclick="showView('overunder')" id="nav-overunder" data-i18n="nav-overunder">Over / Under</a>
 <a href="#" onclick="showView('entraineurs')" id="nav-entraineurs" data-i18n="nav-entraineurs">👔 Entraîneurs</a>
-<a href="#" onclick="showView('arbitres')" id="nav-arbitres" data-i18n="nav-arbitres">🟨 Arbitres</a>
 
 <h3 id="sb-h-compare">🆚 Comparaison</h3>
 <a href="#" onclick="showView('adn')" id="nav-adn" data-i18n="nav-adn">🧬 ADN de Jeu</a>
@@ -2768,6 +2768,7 @@ function _mergeNewSeedMatches(){
 
 // ── Sort state for analysis tables ──────────────────────────────────────────
 let _curAKey = null, _curAOpts = {};
+let _analysisGoalFilterSnapshot = null; // 25/07/2026 — cf. showGoalDetailFiltered()
 let _sortCol = null, _sortDir = null;
 let _venueFilter = 'all'; // 'all' | 'home' | 'away' // null | 'desc' | 'asc'
 let _analysisLastN = null; // null = toutes les journées ; sinon 5/10/15/20/25 (ligues uniquement)
@@ -6738,6 +6739,7 @@ function renderAnalysis(key, opts={}){
   const _combinedGoalFilter = (opts.goalFilter && _lastNGoalFilter)
     ? function(g){ return opts.goalFilter(g) && _lastNGoalFilter(g); }
     : (_lastNGoalFilter || opts.goalFilter);
+  _analysisGoalFilterSnapshot = _combinedGoalFilter || null;
   const ct = buildCrossTab(key, {...opts, goalFilter: _combinedGoalFilter, venueFilter: _venueFilter});
   const table = ct.table;
   const label = opts.filter==='pa' ? 'Phases arrêtées — Origines' : (VDJ_LABELS[key]||key);
@@ -6794,7 +6796,7 @@ if(ct.teams.length===0){
     const isSc = side==='scored';
     const teamTot = isSc ? ct.teamScored : ct.teamConceded;
     const catData = isSc ? ct.scored : ct.conceded;
-    const detailFn = isSc ? 'showGoalDetail' : 'showGoalDetailConc';
+    const detailFn = isSc ? 'showGoalDetailFiltered' : 'showGoalDetailConcFiltered';
     const isAction = key==='actions';
     let maxInTable = 1;
     sortedKeys.forEach(k=>{ ct.teams.forEach(t=>{ const v2=(catData[k]&&catData[k][t])||0; if(v2>maxInTable) maxInTable=v2; }); });
@@ -7330,6 +7332,47 @@ function showGoalDetailConc(key, catVal, team){
     if(key==='minutes'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('45+')?7:_s.includes('90+')?8:_i===45?7:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();} else if(key==='minutes10'){v=calcMin10(g.minute);} else if(key==='mitemps'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('90+')?2:_s.includes('45+')?1:_i<=45?1:2;} else if(key==='mitemps'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('90+')?2:_s.includes('45+')?1:_i<=45?1:2;}
     return v==catVal && g.opponent===team;
   });
+  const table = getTable(key);
+  const catName = table[catVal] ? table[catVal].nom : catVal;
+  document.getElementById('detail-title').innerHTML = `${tf(team)} ${_lang==='en'?'concedes':'encaisse'} — ${catName} (${goals.length})`;
+  renderDetailGoals(goals);
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+// 25/07/2026 — variantes "filtrées" utilisées par le tableau principal de
+// la page Répartition (buildTable ci-dessus) : réappliquent le filtre
+// phase-arrêtée + "N dernières journées" + Domicile/Extérieur actuellement
+// affichés, pour que le détail corresponde exactement au chiffre cliqué.
+function _classAnalysisVenueOk(g, team){
+  if(_venueFilter==='all' || !_venueFilter) return true;
+  if(_venueFilter==='home') return g.match && g.match.dom===team;
+  if(_venueFilter==='away') return g.match && g.match.ext===team;
+  return true;
+}
+function showGoalDetailFiltered(key, catVal, team){
+  let goals = getAllGoals().filter(g=>{
+    let v = g[key];
+    if(key==='minutes'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('45+')?7:_s.includes('90+')?8:_i===45?7:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();} else if(key==='minutes10'){v=calcMin10(g.minute);} else if(key==='mitemps'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('90+')?2:_s.includes('45+')?1:_i<=45?1:2;}
+    return v==catVal && g.team===team;
+  });
+  if(_curAOpts && _curAOpts.filter==='pa') goals = goals.filter(g=>g.tactique1===5||g.tactique1===6);
+  if(_analysisGoalFilterSnapshot) goals = goals.filter(_analysisGoalFilterSnapshot);
+  goals = goals.filter(g=>_classAnalysisVenueOk(g, team));
+  const table = getTable(key);
+  const catName = table[catVal] ? table[catVal].nom : catVal;
+  document.getElementById('detail-title').innerHTML = `${tf(team)} — ${catName} (${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':''):'but'+(goals.length>1?'s':'')})`;
+  renderDetailGoals(goals);
+  document.getElementById('detail-panel').classList.add('open');
+}
+function showGoalDetailConcFiltered(key, catVal, team){
+  let goals = getAllGoals().filter(g=>{
+    let v = g[key];
+    if(key==='minutes'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('45+')?7:_s.includes('90+')?8:_i===45?7:_i===90?8:(()=>{let c=Math.ceil(_i/15);return c>6?6:c<1?1:c;})();} else if(key==='minutes10'){v=calcMin10(g.minute);} else if(key==='mitemps'){const _s=String(g.minute||''),_i=parseInt(_s)||1;v=_s.includes('90+')?2:_s.includes('45+')?1:_i<=45?1:2;}
+    return v==catVal && g.opponent===team;
+  });
+  if(_curAOpts && _curAOpts.filter==='pa') goals = goals.filter(g=>g.tactique1===5||g.tactique1===6);
+  if(_analysisGoalFilterSnapshot) goals = goals.filter(_analysisGoalFilterSnapshot);
+  goals = goals.filter(g=>_classAnalysisVenueOk(g, team));
   const table = getTable(key);
   const catName = table[catVal] ? table[catVal].nom : catVal;
   document.getElementById('detail-title').innerHTML = `${tf(team)} ${_lang==='en'?'concedes':'encaisse'} — ${catName} (${goals.length})`;
