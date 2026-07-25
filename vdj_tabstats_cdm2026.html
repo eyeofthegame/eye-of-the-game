@@ -3641,6 +3641,11 @@ function renderResults(){
 // ═══════════════════════════════════════════════════════════════════
 let _classVenue = 'all'; // 'all' | 'home' | 'away'
 function setClassVenue(v){ _classVenue = v; renderClassement(); }
+// 25/07/2026 — Christian : pouvoir voir la "forme" sur les N derniers
+// matchs de chaque équipe (5/10/15/20), en plus du classement complet.
+// null = classement sur toute la saison (comportement d'origine).
+let _classFormN = null; // null | 5 | 10 | 15 | 20
+function setClassFormN(n){ _classFormN = n; renderClassement(); }
 
 function _classComputeStandings(){
   const rows = {}; // team -> {team, pj,w,d,l,gf,ga}
@@ -3648,23 +3653,57 @@ function _classComputeStandings(){
     if(!rows[team]) rows[team] = {team, pj:0, w:0, d:0, l:0, gf:0, ga:0};
     return rows[team];
   }
-  MATCHES.forEach(m=>{
-    const md = data[m.id];
-    if(!md || !md.validated || !md.score) return;
-    const gd = Number(md.score.dom), ge = Number(md.score.ext);
-    if(isNaN(gd) || isNaN(ge)) return;
 
-    if(_classVenue === 'all' || _classVenue === 'home'){
-      const home = ensure(m.dom);
-      home.pj++; home.gf += gd; home.ga += ge;
-      if(gd > ge) home.w++; else if(gd < ge) home.l++; else home.d++;
-    }
-    if(_classVenue === 'all' || _classVenue === 'away'){
-      const away = ensure(m.ext);
-      away.pj++; away.gf += ge; away.ga += gd;
-      if(ge > gd) away.w++; else if(ge < gd) away.l++; else away.d++;
-    }
-  });
+  if(!_classFormN){
+    MATCHES.forEach(m=>{
+      const md = data[m.id];
+      if(!md || !md.validated || !md.score) return;
+      const gd = Number(md.score.dom), ge = Number(md.score.ext);
+      if(isNaN(gd) || isNaN(ge)) return;
+
+      if(_classVenue === 'all' || _classVenue === 'home'){
+        const home = ensure(m.dom);
+        home.pj++; home.gf += gd; home.ga += ge;
+        if(gd > ge) home.w++; else if(gd < ge) home.l++; else home.d++;
+      }
+      if(_classVenue === 'all' || _classVenue === 'away'){
+        const away = ensure(m.ext);
+        away.pj++; away.gf += ge; away.ga += gd;
+        if(ge > gd) away.w++; else if(ge < gd) away.l++; else away.d++;
+      }
+    });
+  } else {
+    // Forme : pour CHAQUE équipe, ses N derniers matchs validés (tous
+    // lieux confondus, triés par date) — pas les N dernières journées du
+    // championnat, qui peuvent ne pas correspondre exactement aux
+    // matchs réellement joués par chaque équipe (report, calendrier
+    // décalé). Le filtre Domicile/Extérieur (_classVenue) s'applique
+    // ENSUITE, à l'intérieur de cette fenêtre des N derniers matchs —
+    // même logique que pour le classement complet.
+    const teams = getTeams();
+    teams.forEach(team=>{
+      const teamMatches = MATCHES
+        .filter(m=>m.dom===team || m.ext===team)
+        .filter(m=>{
+          const md = data[m.id];
+          return md && md.validated && md.score && !isNaN(Number(md.score.dom)) && !isNaN(Number(md.score.ext));
+        })
+        .sort((a,b)=>_dateKeyPL2526(a.date)-_dateKeyPL2526(b.date));
+      const lastN = teamMatches.slice(-_classFormN);
+      lastN.forEach(m=>{
+        const md = data[m.id];
+        const isHome = m.dom === team;
+        if(_classVenue === 'home' && !isHome) return;
+        if(_classVenue === 'away' && isHome) return;
+        const gd = Number(md.score.dom), ge = Number(md.score.ext);
+        const gf_ = isHome ? gd : ge, ga_ = isHome ? ge : gd;
+        const r = ensure(team);
+        r.pj++; r.gf += gf_; r.ga += ga_;
+        if(gf_ > ga_) r.w++; else if(gf_ < ga_) r.l++; else r.d++;
+      });
+    });
+  }
+
   return Object.values(rows).map(r => ({
     ...r,
     gdiff: r.gf - r.ga,
@@ -3744,10 +3783,26 @@ function renderClassement(){
     return `<button onclick="setClassVenue('${v}')" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${vLabels[v]}</button>`;
   }).join('');
 
+  const formOptions = [null,5,10,15,20];
+  const formBar = formOptions.map(n=>{
+    const active = _classFormN === n;
+    const lbl = n===null ? (_lang==='en'?'Full season':'Saison complète') : (_lang==='en'?`Last ${n}`:`${n} derniers`);
+    const bg = active ? '#2d5a8a' : '#fff';
+    const col = active ? '#fff' : '#2d5a8a';
+    const bord = active ? '#2d5a8a' : 'var(--border)';
+    return `<button onclick="setClassFormN(${n===null?'null':n})" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
+  }).join('');
+
   const rows = _classComputeStandings();
 
   let html = `<h1>🏆 ${_lang==='en'?'Standings':'Classement'} — ${compLabel}</h1>`;
-  html += `<div style="display:flex;gap:6px;align-items:center;margin:10px 0 14px;flex-wrap:wrap">${venueBar}</div>`;
+  html += `<div style="display:flex;gap:6px;align-items:center;margin:10px 0 8px;flex-wrap:wrap">${venueBar}</div>`;
+  html += `<div style="display:flex;gap:6px;align-items:center;margin:0 0 6px;flex-wrap:wrap">${formBar}</div>`;
+  if(_classFormN){
+    html += `<div style="font-size:.78em;color:var(--muted);margin-bottom:10px">${_lang==='en'
+      ? `Form: each team's last ${_classFormN} matches (not the last ${_classFormN} matchdays — these may differ if matches were rescheduled).`
+      : `Forme : les ${_classFormN} derniers matchs de chaque équipe (pas les ${_classFormN} dernières journées, qui peuvent différer en cas de match reporté).`}</div>`;
+  }
 
   if(rows.length === 0){
     html += `<div class="no-data">${_lang==='en'?'No validated match yet.':'Aucun match validé pour l’instant.'}</div>`;
@@ -3764,7 +3819,7 @@ function renderClassement(){
 
   rows.forEach((r, idx) => {
     const diffStr = r.gdiff > 0 ? `+${r.gdiff}` : `${r.gdiff}`;
-    const coachSplit = _classCoachSplit(r.team);
+    const coachSplit = _classFormN ? null : _classCoachSplit(r.team);
     const teamKeySafe = r.team.replace(/'/g, "\\'");
     const expanded = _classCoachExpanded.has(r.team);
     const coachBadge = coachSplit
