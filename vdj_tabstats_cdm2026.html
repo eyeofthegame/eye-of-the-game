@@ -3701,6 +3701,17 @@ function renderClassement(){
   });
 
   html += '</table>';
+
+  // 25/07/2026 — Christian : note d'aide invitant à cliquer sur le badge
+  // 🔁 pour comparer les points pris par chaque entraîneur (convention
+  // "note d'aide sous chaque tableau" appliquée ici aussi).
+  const anyCoachSplit = rows.some(r => _classCoachSplit(r.team));
+  if(anyCoachSplit){
+    html += `<div style="font-size:.72em;color:var(--muted);margin-top:.6em">💡 ${_lang==='en'
+      ? 'Click the 🔁 badge next to a club that changed coach to compare the points taken by each coach.'
+      : "Cliquez sur le badge 🔁 à côté d'un club ayant changé d'entraîneur pour comparer les points pris par chacun."}</div>`;
+  }
+
   el.innerHTML = html;
 }
 
