@@ -2979,6 +2979,99 @@ function _coachRecordPL2526(club, entry){
   return {matches:n, w, d, l, gf, ga, points, ppg: n ? +(points/n).toFixed(2) : 0};
 }
 
+// ═══════════════════════════════════════════════════════════════════
+// 🔁 ENTRAÎNEURS — Premier League 2026-27 (préparation avant coup d'envoi)
+// ═══════════════════════════════════════════════════════════════════
+// 25/07/2026 — Christian a demandé d'aller chercher les entraîneurs
+// officiels de chaque club PL 2026-27 et de préparer la structure en
+// avance (saison pas encore commencée). Même schéma que
+// _ENTRAINEURS_PL2526 : club, entraineur, dateDebut, dateFin (jj/mm/aaaa
+// ou null). dateDebut===null : en poste depuis le début de saison connu.
+// dateFin===null : toujours en poste à ce jour. Une seule période par club
+// pour l'instant — à compléter en cours de saison si changement
+// d'entraîneur (comme Chelsea/Tottenham/Man Utd en PL2526 cette saison).
+// Noms de clubs en forme longue pour matcher les clés de MATCHES_PL2627.
+const _ENTRAINEURS_PL2627 = [
+  {"club":"Arsenal","entraineur":"Mikel Arteta","dateDebut":null,"dateFin":null},
+  {"club":"Aston Villa","entraineur":"Unai Emery","dateDebut":null,"dateFin":null},
+  {"club":"Bournemouth","entraineur":"Marco Rose","dateDebut":null,"dateFin":null},
+  {"club":"Brentford","entraineur":"Keith Andrews","dateDebut":null,"dateFin":null},
+  {"club":"Brighton & Hove Albion","entraineur":"Fabian Hurzeler","dateDebut":null,"dateFin":null},
+  {"club":"Chelsea","entraineur":"Xabi Alonso","dateDebut":null,"dateFin":null},
+  {"club":"Coventry City","entraineur":"Frank Lampard","dateDebut":null,"dateFin":null},
+  {"club":"Crystal Palace","entraineur":"Pierre Sage","dateDebut":null,"dateFin":null},
+  {"club":"Everton","entraineur":"David Moyes","dateDebut":null,"dateFin":null},
+  {"club":"Fulham","entraineur":"Alvaro Arbeloa","dateDebut":null,"dateFin":null},
+  {"club":"Hull City","entraineur":"Sergej Jakirovic","dateDebut":null,"dateFin":null},
+  {"club":"Ipswich Town","entraineur":"Gary O'Neil","dateDebut":null,"dateFin":null},
+  {"club":"Leeds United","entraineur":"Daniel Farke","dateDebut":null,"dateFin":null},
+  {"club":"Liverpool","entraineur":"Andoni Iraola","dateDebut":null,"dateFin":null},
+  {"club":"Manchester City","entraineur":"Enzo Maresca","dateDebut":null,"dateFin":null},
+  {"club":"Manchester United","entraineur":"Michael Carrick","dateDebut":null,"dateFin":null},
+  {"club":"Newcastle United","entraineur":"Eddie Howe","dateDebut":null,"dateFin":null},
+  {"club":"Nottingham Forest","entraineur":"Oliver Glasner","dateDebut":null,"dateFin":null},
+  {"club":"Sunderland","entraineur":"Regis Le Bris","dateDebut":null,"dateFin":null},
+  {"club":"Tottenham Hotspur","entraineur":"Roberto De Zerbi","dateDebut":null,"dateFin":null}
+];
+const _entraineursByClubPL2627 = {};
+_ENTRAINEURS_PL2627.forEach(e=>{
+  (_entraineursByClubPL2627[e.club] = _entraineursByClubPL2627[e.club] || []).push(e);
+});
+Object.values(_entraineursByClubPL2627).forEach(list=>list.sort((a,b)=>
+  _dateKeyPL2526(a.dateDebut||'01/01/2000') - _dateKeyPL2526(b.dateDebut||'01/01/2000')
+));
+
+// Entraîneur d'un club PL2627 à une date donnée (jj/mm/aaaa).
+function _coachOfClubAtDatePL2627(club, dateStr){
+  const list = _entraineursByClubPL2627[club];
+  if(!list || !list.length) return null;
+  const d = _dateKeyPL2526(dateStr);
+  let coach = list[0].entraineur;
+  for(const e of list){
+    const debut = e.dateDebut ? _dateKeyPL2526(e.dateDebut) : -Infinity;
+    if(debut <= d) coach = e.entraineur;
+    else break;
+  }
+  return coach;
+}
+
+// Tous les matchs joués (score connu) d'un club PL 2026-27, triés par date.
+function _matchesForClubPL2627(club){
+  const comp = COMPETITIONS['pl2627'];
+  if(!comp) return [];
+  const seed = (SEED_BY_COMP && SEED_BY_COMP.pl2627) || {};
+  const src = (ACTIVE_COMP === 'pl2627') ? data : seed;
+  const out = [];
+  (comp.matches || []).forEach(f=>{
+    if(f.dom !== club && f.ext !== club) return;
+    const md = src[String(f.id)];
+    if(!md || !md.score || md.score.dom==null || md.score.ext==null) return;
+    const venue = f.dom === club ? 'dom' : 'ext';
+    const gf = venue === 'dom' ? md.score.dom : md.score.ext;
+    const ga = venue === 'dom' ? md.score.ext : md.score.dom;
+    out.push({id:f.id, date:f.date, opponent: venue==='dom'?f.ext:f.dom, venue, gf, ga});
+  });
+  out.sort((a,b)=>_dateKeyPL2526(a.date)-_dateKeyPL2526(b.date));
+  return out;
+}
+
+// Bilan (V/N/D, buts, points) d'un club PL2627 sur la période couverte par
+// une entrée de _ENTRAINEURS_PL2627 — même logique que _coachRecordPL2526.
+function _coachRecordPL2627(club, entry){
+  const matches = _matchesForClubPL2627(club);
+  const dStart = entry.dateDebut ? _dateKeyPL2526(entry.dateDebut) : -Infinity;
+  const dEnd = entry.dateFin ? _dateKeyPL2526(entry.dateFin) : Infinity;
+  let w=0, d=0, l=0, gf=0, ga=0, n=0;
+  matches.forEach(m=>{
+    const dk = _dateKeyPL2526(m.date);
+    if(dk < dStart || dk > dEnd) return;
+    n++; gf += m.gf; ga += m.ga;
+    if(m.gf > m.ga) w++; else if(m.gf === m.ga) d++; else l++;
+  });
+  const points = w*3 + d;
+  return {matches:n, w, d, l, gf, ga, points, ppg: n ? +(points/n).toFixed(2) : 0};
+}
+
 // Associe chaque but (objet goal, par référence) à la date du match auquel
 // il appartient — nécessaire pour que isCsc() puisse choisir le bon club
 // "à l'époque" via _clubOfPlayerAtDatePL2526. Recalculé à chaque loadData()
@@ -3588,8 +3681,9 @@ function toggleClassCoach(team){
 }
 
 function _classCoachSplit(team){
-  if(ACTIVE_COMP !== 'pl2526') return null;
-  const periods = (typeof _entraineursByClubPL2526 !== 'undefined') ? _entraineursByClubPL2526[team] : null;
+  if(ACTIVE_COMP !== 'pl2526' && ACTIVE_COMP !== 'pl2627') return null;
+  const _coachRegistry = ACTIVE_COMP === 'pl2627' ? _entraineursByClubPL2627 : _entraineursByClubPL2526;
+  const periods = (typeof _coachRegistry !== 'undefined') ? _coachRegistry[team] : null;
   if(!periods || periods.length < 2) return null;
   return periods.map(entry=>{
     const dStart = entry.dateDebut ? _dateKeyPL2526(entry.dateDebut) : -Infinity;
