@@ -2661,6 +2661,7 @@ function loadData(){
   // data (jamais touchés), ne modifie jamais un match déjà présent (même
   // partiellement encodé par Christian).
   try { _mergeNewSeedMatches(); } catch(e){}
+  try { _mergeSeedArbitre(); } catch(e){}
   try { _fixResearchBatchJ3138Validated(); } catch(e){}
   try { _fixResearchBatchJ3138Goals(); } catch(e){}
   try { _indexGoalDatesPL2526(); } catch(e){}
@@ -2763,6 +2764,32 @@ function _mergeNewSeedMatches(){
   if(added > 0){
     localStorage.setItem(activeDataKey(), JSON.stringify(data));
     console.log('[VDJ] '+added+' nouveau(x) match(s) du seed ajoutés à '+ACTIVE_COMP);
+  }
+}
+
+// 25/07/2026 — Complète UNIQUEMENT le champ `arbitre` d'un match déjà
+// présent en local, quand le seed en a un et que localStorage n'en a pas
+// encore (cf. commentaire ci-dessus dans loadData()). Ne touche jamais un
+// match où Christian a déjà renseigné un arbitre (même une autre
+// orthographe) — on ne fait que combler l'absence.
+function _mergeSeedArbitre(){
+  if(!COMPETITIONS[ACTIVE_COMP] || !COMPETITIONS[ACTIVE_COMP].hasSeed) return;
+  const seed = SEED_BY_COMP[ACTIVE_COMP];
+  if(!seed) return;
+  let filled = 0;
+  Object.keys(seed).forEach(function(matchId){
+    const seedMd = seed[matchId];
+    if(!seedMd || !seedMd.arbitre) return;
+    const md = data[matchId];
+    if(!md) return; // match totalement absent : géré par _mergeNewSeedMatches()
+    if(!md.arbitre){
+      md.arbitre = seedMd.arbitre;
+      filled++;
+    }
+  });
+  if(filled > 0){
+    localStorage.setItem(activeDataKey(), JSON.stringify(data));
+    console.log('[VDJ] '+filled+' arbitre(s) complété(s) depuis le seed sur '+ACTIVE_COMP);
   }
 }
 
