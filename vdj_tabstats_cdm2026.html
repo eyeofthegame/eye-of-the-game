@@ -9303,6 +9303,30 @@ function renderTriggerZones(){
 // ── ÉVOLUTION MATCH PAR MATCH ──────────────────────────────────────────
 let evolTeam = '', evolDir = 'both', evolTacFilter = new Set();
 
+// 25/07/2026 — Christian a signalé qu'un 2e clic sur une catégorie
+// tactique (pour la redéselectionner) restait bloqué. Cause : l'ancien
+// code faisait `addEventListener('click', function(e){...}, {once:true})`
+// À L'INTÉRIEUR de renderEvolution() — donc réattaché à CHAQUE rendu.
+// {once:true} ne retire l'écouteur qu'APRÈS qu'il se soit déclenché ; tant
+// qu'aucun clic n'a eu lieu, chaque nouveau rendu (changement d'équipe,
+// de filtre Marqués/Encaissés, etc.) empilait un écouteur supplémentaire
+// sur le même conteneur (jamais remplacé, seul son innerHTML change). Au
+// clic suivant, TOUS les écouteurs empilés se déclenchaient d'un coup,
+// togglant evolTacFilter un nombre de fois pair ou impair selon le nombre
+// de rendus intermédiaires — d'où l'impression que le filtre "reste
+// bloqué" un coup sur deux. Fix : une fonction nommée stable, qu'on
+// retire puis rajoute à chaque rendu (removeEventListener est un no-op
+// silencieux si l'écouteur n'existe pas) — il n'y a donc jamais plus d'un
+// seul écouteur actif à la fois, quel que soit le nombre de rendus.
+function _evolClickHandler(e){
+  const el = e.target.closest('[data-tac]');
+  if(!el) return;
+  const v = el.dataset.tac;
+  if(v==='reset'){ evolTacFilter = new Set(); }
+  else { const k = Number(v); if(evolTacFilter.has(k)) evolTacFilter.delete(k); else evolTacFilter.add(k); }
+  renderEvolution();
+}
+
 function toggleEvolTac(k){
   if(evolTacFilter.has(k)) evolTacFilter.delete(k);
   else evolTacFilter.add(k);
@@ -9547,15 +9571,10 @@ function renderEvolution(){
 
   </div>`;
 
-  document.getElementById('view-evolution').innerHTML = html;
-  document.getElementById('view-evolution').addEventListener('click', function(e){
-    const el = e.target.closest('[data-tac]');
-    if(!el) return;
-    const v = el.dataset.tac;
-    if(v==='reset'){ evolTacFilter=new Set(); }
-    else { const k=Number(v); if(evolTacFilter.has(k)) evolTacFilter.delete(k); else evolTacFilter.add(k); }
-    renderEvolution();
-  }, {once:true});
+  const evolContainer = document.getElementById('view-evolution');
+  evolContainer.innerHTML = html;
+  evolContainer.removeEventListener('click', _evolClickHandler);
+  evolContainer.addEventListener('click', _evolClickHandler);
 }
 
 // ── PROFIL BUTEUR EXPRESS ──────────────────────────────────────────────
