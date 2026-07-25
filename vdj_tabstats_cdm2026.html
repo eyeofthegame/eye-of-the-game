@@ -5792,9 +5792,20 @@ const _ACTIONS_GROUPS_FR = ['Têtes','Tirs','Déviations / CSC','Phases arrêté
 const _ACTIONS_GROUPS_EN = ['Headers','Shots','Deflections / OG','Set Pieces','Skills'];
 // ── Radar globals ──────────────────────────────────────────────────────
 let _radarCt = null, _radarKey = null;
+// 25/07/2026 — Christian : pouvoir comparer domicile/extérieur sur le
+// radar. _radarCtHome/_radarCtAway = versions du contexte filtrées par
+// lieu (indépendantes du filtre Domicile/Extérieur global de la page, qui
+// ne montre qu'une seule vue à la fois dans le tableau au-dessus).
+// _radarVenueMode : 'all' (comportement d'origine, un seul polygone) |
+// 'compare' (2 polygones superposés, domicile plein/trait continu vs
+// extérieur creux/pointillé). _radarTeam mémorise la dernière équipe
+// choisie pour que le bouton Tous/Comparer ne perde pas la sélection.
+let _radarCtHome = null, _radarCtAway = null, _radarVenueMode = 'all', _radarTeam = '';
+function setRadarVenueMode(mode){ _radarVenueMode = mode; renderRadar(_radarTeam); }
 
 function renderRadar(team){
   if(!_radarCt) return;
+  _radarTeam = team||'';
   const ct = _radarCt;
   // Pour origine2/origine3 : Axe en haut, Droite en bas-droite, Gauche en bas-gauche
   const _RADAR_ORDER_O2 = [3,2,4]; // Axe, Droite, Gauche
@@ -5803,26 +5814,83 @@ function renderRadar(team){
     : ct.catKeys;
   const MAX_PCT = 50;
 
+  // Valeur + % pour une catégorie k, un contexte ctx (ct/ctHome/ctAway) et
+  // un côté (scored/conceded) donnés — factorisé pour être réutilisé par
+  // les deux modes (single et compare).
+  function valFor(ctx, k, isScored){
+    let v = team
+      ? (isScored ? ((ctx.scored[k]&&ctx.scored[k][team])||0) : ((ctx.conceded[k]&&ctx.conceded[k][team])||0))
+      : (isScored ? (ctx.totalScored[k]||0) : (ctx.totalConceded[k]||0));
+    const total = team
+      ? (isScored ? (ctx.teamScored[team]||0) : (ctx.teamConceded[team]||0))
+      : sortedKeys.reduce((s,kk)=>(s+(isScored?(ctx.totalScored[kk]||0):(ctx.totalConceded[kk]||0))),0);
+    const pct = total>0 ? Math.round(v/total*100) : 0;
+    return {v, pct};
+  }
+  function catName(k, isScored){
+    const _rnom = ct.table[k]?ct.table[k].nom:String(k);
+    return (!isScored&&_rnom==='Circonstance Favorable')?'Circonstance Défavorable':_rnom;
+  }
+  function catColor(k){ return '#'+(ct.table[k]?ct.table[k].c1:'8896aa'); }
+
   function buildRadarSVG(side){
-    const data = [];
     const isScored = side==='scored';
+
+    if(_radarVenueMode !== 'compare'){
+      // ── Mode 'all' — comportement d'origine, inchangé ──
+      const data = [];
+      sortedKeys.forEach(k=>{
+        const {v, pct} = valFor(ct, k, isScored);
+        if(v===0) return;
+        data.push({nom:catName(k,isScored), pct, count:v, col:catColor(k)});
+      });
+      if(data.length < 1) return `<div style="color:#aab;font-size:.85em;padding:20px 0">${_lang==='en'?'No data':'Aucune donnée'}</div>`;
+      const n=data.length, cx=230, cy=175, R=115;
+      const angles=data.map((_,i)=>-Math.PI/2+(2*Math.PI*i/n));
+      let rs='';
+      [10,20,30,40,50].forEach(p=>{
+        const r=(p/MAX_PCT)*R;
+        rs+=`<circle cx="${cx}" cy="${cy}" r="${r.toFixed(1)}" fill="none" stroke="#ccd" stroke-width="1" stroke-dasharray="3,3"/>`;
+        rs+=`<text x="${cx+4}" y="${(cy-r+4).toFixed(1)}" font-size="9" fill="#aab">${p}%</text>`;
+      });
+      angles.forEach((a,i)=>{
+        const x=(cx+R*Math.cos(a)).toFixed(1),y=(cy+R*Math.sin(a)).toFixed(1);
+        rs+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#ccd" stroke-width="1"/>`;
+        const lx=cx+(R+28)*Math.cos(a),ly=cy+(R+28)*Math.sin(a);
+        const anc=Math.cos(a)>0.15?'start':Math.cos(a)<-0.15?'end':'middle';
+        const words=data[i].nom.split(' ');
+        const nw=words.length;
+        const startDy=(-((nw-1)/2*1.25)).toFixed(2)+'em';
+        let tspans=words.map((w,wi)=>`<tspan x="${lx.toFixed(1)}" dy="${wi===0?startDy:'1.25em'}">${w}</tspan>`).join('');
+        tspans+=`<tspan x="${lx.toFixed(1)}" dy="1.4em" font-size="11" font-weight="800" fill="${isScored?'#2255ff':'#d95f02'}">${data[i].pct}%  <tspan font-size="10" font-weight="500" fill="#555">⚽ ${data[i].count}</tspan></tspan>`;
+        rs+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" text-anchor="${anc}" fill="#334" dominant-baseline="middle" font-weight="600">${tspans}</text>`;
+      });
+      const pts=data.map((d,i)=>{const r=Math.min(d.pct,MAX_PCT)/MAX_PCT*R,a=angles[i];return `${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`;});
+      rs+=`<polygon points="${pts.join(' ')}" fill="${isScored?'rgba(34,85,255,0.12)':'rgba(217,95,2,0.12)'}" stroke="${isScored?'#2255ff':'#d95f02'}" stroke-width="2.5" stroke-linejoin="round"/>`;
+      data.forEach((d,i)=>{
+        const r=Math.min(d.pct,MAX_PCT)/MAX_PCT*R,a=angles[i];
+        const px=(cx+r*Math.cos(a)).toFixed(1),py=(cy+r*Math.sin(a)).toFixed(1);
+        rs+=`<circle cx="${px}" cy="${py}" r="8" fill="${d.col}" stroke="white" stroke-width="2"/>`;
+        rs+=`<text x="${px}" y="${py}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="white" font-weight="700">${d.count}</text>`;
+      });
+      return `<svg viewBox="0 0 460 360" width="460" height="360" style="display:block;overflow:hidden">${rs}</svg>`;
+    }
+
+    // ── Mode 'compare' — 25/07/2026 : 2 polygones superposés, domicile
+    // (trait plein, marqueur plein) vs extérieur (pointillé, marqueur
+    // creux) — même couleur de catégorie que d'habitude pour les deux,
+    // seul le style du trait/marqueur change (comme demandé par
+    // Christian : possibilité ET comparaison visuelle directe).
+    if(!_radarCtHome || !_radarCtAway) return `<div style="color:#aab;font-size:.85em;padding:20px 0">${_lang==='en'?'No data':'Aucune donnée'}</div>`;
+    const data = [];
     sortedKeys.forEach(k=>{
-      let v;
-      if(team){
-        v = isScored ? ((ct.scored[k]&&ct.scored[k][team])||0) : ((ct.conceded[k]&&ct.conceded[k][team])||0);
-      } else {
-        v = isScored ? (ct.totalScored[k]||0) : (ct.totalConceded[k]||0);
-      }
-      if(v===0) return;
-      const total = team
-        ? (isScored ? (ct.teamScored[team]||0) : (ct.teamConceded[team]||0))
-        : sortedKeys.reduce((s,kk)=>(s+(isScored?(ct.totalScored[kk]||0):(ct.totalConceded[kk]||0))),0);
-      const pct = total>0 ? Math.round(v/total*100) : 0;
-      const _rnom = ct.table[k]?ct.table[k].nom:String(k);
-      data.push({nom:(!isScored&&_rnom==='Circonstance Favorable')?'Circonstance Défavorable':_rnom, pct, count:v, col:'#'+(ct.table[k]?ct.table[k].c1:'8896aa')});
+      const h = valFor(_radarCtHome, k, isScored);
+      const aw = valFor(_radarCtAway, k, isScored);
+      if(h.v===0 && aw.v===0) return;
+      data.push({nom:catName(k,isScored), col:catColor(k), home:h, away:aw});
     });
     if(data.length < 1) return `<div style="color:#aab;font-size:.85em;padding:20px 0">${_lang==='en'?'No data':'Aucune donnée'}</div>`;
-    const n=data.length, cx=230, cy=175, R=115;
+    const n=data.length, cx=230, cy=185, R=105;
     const angles=data.map((_,i)=>-Math.PI/2+(2*Math.PI*i/n));
     let rs='';
     [10,20,30,40,50].forEach(p=>{
@@ -5833,24 +5901,41 @@ function renderRadar(team){
     angles.forEach((a,i)=>{
       const x=(cx+R*Math.cos(a)).toFixed(1),y=(cy+R*Math.sin(a)).toFixed(1);
       rs+=`<line x1="${cx}" y1="${cy}" x2="${x}" y2="${y}" stroke="#ccd" stroke-width="1"/>`;
-      const lx=cx+(R+28)*Math.cos(a),ly=cy+(R+28)*Math.sin(a);
+      const lx=cx+(R+30)*Math.cos(a),ly=cy+(R+30)*Math.sin(a);
       const anc=Math.cos(a)>0.15?'start':Math.cos(a)<-0.15?'end':'middle';
       const words=data[i].nom.split(' ');
       const nw=words.length;
       const startDy=(-((nw-1)/2*1.25)).toFixed(2)+'em';
       let tspans=words.map((w,wi)=>`<tspan x="${lx.toFixed(1)}" dy="${wi===0?startDy:'1.25em'}">${w}</tspan>`).join('');
-      tspans+=`<tspan x="${lx.toFixed(1)}" dy="1.4em" font-size="11" font-weight="800" fill="${isScored?'#2255ff':'#d95f02'}">${data[i].pct}%  <tspan font-size="10" font-weight="500" fill="#555">⚽ ${data[i].count}</tspan></tspan>`;
+      tspans+=`<tspan x="${lx.toFixed(1)}" dy="1.35em" font-size="10.5" font-weight="800" fill="${isScored?'#2255ff':'#d95f02'}">🏠 ${data[i].home.pct}% <tspan font-size="9.5" font-weight="500" fill="#555">⚽${data[i].home.v}</tspan></tspan>`;
+      tspans+=`<tspan x="${lx.toFixed(1)}" dy="1.25em" font-size="10.5" font-weight="800" fill="${isScored?'#2255ff':'#d95f02'}" opacity=".72">✈️ ${data[i].away.pct}% <tspan font-size="9.5" font-weight="500" fill="#555">⚽${data[i].away.v}</tspan></tspan>`;
       rs+=`<text x="${lx.toFixed(1)}" y="${ly.toFixed(1)}" font-size="11" text-anchor="${anc}" fill="#334" dominant-baseline="middle" font-weight="600">${tspans}</text>`;
     });
-    const pts=data.map((d,i)=>{const r=Math.min(d.pct,MAX_PCT)/MAX_PCT*R,a=angles[i];return `${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`;});
-    rs+=`<polygon points="${pts.join(' ')}" fill="${isScored?'rgba(34,85,255,0.12)':'rgba(217,95,2,0.12)'}" stroke="${isScored?'#2255ff':'#d95f02'}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    function ptsFor(field){
+      return data.map((d,i)=>{const r=Math.min(d[field].pct,MAX_PCT)/MAX_PCT*R,a=angles[i];return `${(cx+r*Math.cos(a)).toFixed(1)},${(cy+r*Math.sin(a)).toFixed(1)}`;});
+    }
+    const baseCol = isScored?'#2255ff':'#d95f02';
+    // Domicile : trait plein
+    rs+=`<polygon points="${ptsFor('home').join(' ')}" fill="${isScored?'rgba(34,85,255,0.10)':'rgba(217,95,2,0.10)'}" stroke="${baseCol}" stroke-width="2.5" stroke-linejoin="round"/>`;
+    // Extérieur : pointillé
+    rs+=`<polygon points="${ptsFor('away').join(' ')}" fill="none" stroke="${baseCol}" stroke-width="2" stroke-dasharray="5,4" stroke-linejoin="round"/>`;
     data.forEach((d,i)=>{
-      const r=Math.min(d.pct,MAX_PCT)/MAX_PCT*R,a=angles[i];
-      const px=(cx+r*Math.cos(a)).toFixed(1),py=(cy+r*Math.sin(a)).toFixed(1);
-      rs+=`<circle cx="${px}" cy="${py}" r="8" fill="${d.col}" stroke="white" stroke-width="2"/>`;
-      rs+=`<text x="${px}" y="${py}" font-size="8" text-anchor="middle" dominant-baseline="middle" fill="white" font-weight="700">${d.count}</text>`;
+      const a=angles[i];
+      const rH=Math.min(d.home.pct,MAX_PCT)/MAX_PCT*R;
+      const pxH=(cx+rH*Math.cos(a)).toFixed(1),pyH=(cy+rH*Math.sin(a)).toFixed(1);
+      rs+=`<circle cx="${pxH}" cy="${pyH}" r="7" fill="${d.col}" stroke="white" stroke-width="2"/>`;
+      const rA=Math.min(d.away.pct,MAX_PCT)/MAX_PCT*R;
+      const pxA=(cx+rA*Math.cos(a)).toFixed(1),pyA=(cy+rA*Math.sin(a)).toFixed(1);
+      rs+=`<circle cx="${pxA}" cy="${pyA}" r="7" fill="white" stroke="${d.col}" stroke-width="2.5"/>`;
     });
-    return `<svg viewBox="0 0 460 360" width="460" height="360" style="display:block;overflow:hidden">${rs}</svg>`;
+    // Légende (trait plein = domicile, pointillé = extérieur)
+    rs+=`<g transform="translate(10,340)">
+      <line x1="0" y1="0" x2="22" y2="0" stroke="${baseCol}" stroke-width="2.5"/>
+      <text x="27" y="3.5" font-size="10" fill="#334" font-weight="600">🏠 ${_lang==='en'?'Home':'Domicile'}</text>
+      <line x1="0" y1="16" x2="22" y2="16" stroke="${baseCol}" stroke-width="2" stroke-dasharray="5,4"/>
+      <text x="27" y="19.5" font-size="10" fill="#334" font-weight="600">✈️ ${_lang==='en'?'Away':'Extérieur'}</text>
+    </g>`;
+    return `<svg viewBox="0 0 460 370" width="460" height="370" style="display:block;overflow:hidden">${rs}</svg>`;
   }
 
   const el1=document.getElementById('radar-scored-svg');
@@ -6894,14 +6979,28 @@ if(ct.teams.length===0){
   }
 
   // ── Radar chart ────────────────────────────────────────────────────────
+  // 25/07/2026 — Christian : pouvoir comparer domicile/extérieur sur le
+  // radar. On construit ici 2 contextes dédiés (toujours domicile / tou-
+  // jours extérieur), indépendants du filtre Domicile/Extérieur global de
+  // la page (qui, lui, continue de piloter le tableau au-dessus).
   _radarCt = ct; _radarKey = key;
+  _radarCtHome = buildCrossTab(key, {...opts, goalFilter: _combinedGoalFilter, venueFilter:'home'});
+  _radarCtAway = buildCrossTab(key, {...opts, goalFilter: _combinedGoalFilter, venueFilter:'away'});
   const _teamOpts = `<option value="">— ${_lang==='en'?'All Teams':'Toutes équipes'} —</option>` + ct.teams.map(t=>`<option value="${t}">${tf(t)}</option>`).join('');
+  const radarVenueBar = [['all',_lang==='en'?'All':'Tous'],['compare',_lang==='en'?'🏠 vs ✈️ Compare':'🏠 vs ✈️ Comparer']].map(pair=>{
+    const active = _radarVenueMode===pair[0];
+    return `<button onclick="setRadarVenueMode('${pair[0]}')" style="padding:4px 12px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:16px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${pair[1]}</button>`;
+  }).join(' ');
   html += `<div style="margin-top:28px;padding:18px 22px;background:#fff;border:1px solid var(--border);border-radius:10px;max-width:1040px">
     <div style="font-size:.75em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">📡 Radar</div>
-    <div style="margin-bottom:16px">
-      <label style="font-size:.85em;color:#556;font-weight:600;margin-right:8px">${_lang==='en'?'Team:':'Équipe :'}</label>
-      <select onchange="renderRadar(this.value)" style="padding:5px 12px;border:1px solid #ccd;border-radius:5px;font-size:.85em;cursor:pointer">${_teamOpts}</select>
+    <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
+      <span><label style="font-size:.85em;color:#556;font-weight:600;margin-right:8px">${_lang==='en'?'Team:':'Équipe :'}</label>
+      <select onchange="renderRadar(this.value)" style="padding:5px 12px;border:1px solid #ccd;border-radius:5px;font-size:.85em;cursor:pointer">${_teamOpts}</select></span>
+      <span style="display:flex;gap:6px">${radarVenueBar}</span>
     </div>
+    <div style="font-size:.72em;color:var(--muted);margin-bottom:14px">💡 ${_lang==='en'
+      ? '"Compare" overlays two polygons per radar: solid line/filled marker = home, dashed line/hollow marker = away.'
+      : '« Comparer » superpose 2 polygones par radar : trait plein/marqueur plein = domicile, pointillé/marqueur creux = extérieur.'}</div>
     <div style="display:flex;flex-direction:row;gap:48px;flex-wrap:wrap">
       <div>
         <div style="font-size:.72em;font-weight:700;color:#2255ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Scored':'Buts marqués'}</div>
@@ -6913,7 +7012,7 @@ if(ct.teams.length===0){
       </div>
     </div>
   </div>`;
-  setTimeout(()=>renderRadar(''), 0);
+  setTimeout(()=>renderRadar(_radarTeam), 0);
 
   document.getElementById('view-analysis').innerHTML = html;
 }
