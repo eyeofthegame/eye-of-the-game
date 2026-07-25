@@ -225,6 +225,7 @@ nav.sidebar h3, nav.sidebar h4, nav.sidebar .section-title {
 </div>
 <h3>Encodage</h3>
 <a href="#" onclick="showPage('matches')" id="nav-matches">Liste des matchs</a>
+<a href="#" onclick="showPage('toencode')" id="nav-toencode">📋 Reste à encoder <span id="toencode-count" style="background:#cc6600;color:#fff;border-radius:10px;padding:1px 6px;font-size:.75em;margin-left:3px"></span></a>
 <a href="#" onclick="showPage('encode')" id="nav-encode">Encoder un match</a>
 <a href="#" onclick="showPage('direct')" id="nav-direct" style="color:var(--red);font-weight:bold">⚡ Mode Direct</a>
 <h3>Données</h3>
@@ -466,6 +467,12 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 <li>Pensez à exporter régulièrement en JSON pour sauvegarder</li>
 </ul>
 </div>
+</div>
+
+<!-- PAGE: RESTE A ENCODER -->
+<div id="page-toencode" class="hidden">
+<h1>📋 Matchs restant à encoder</h1>
+<div id="toencode-page-content"></div>
 </div>
 
 <!-- PAGE: MISSING LINKS -->
@@ -2154,6 +2161,7 @@ function switchComp(id){
   currentMatchId = null;
   updateCompUI();
   showPage('matches');
+  try { refreshToEncodeCount(); } catch(e){}
   // 18 juillet 2026 — chaque compétition a son propre fichier lié
   // (voir _flinkKeyForComp) : on relit son handle à chaque changement de
   // compétition, comme au démarrage de l'appli.
@@ -2513,6 +2521,7 @@ function showPage(name){
   if(name==='export') renderExport();
   if(name==='options') renderOptions();
   if(name==='direct') renderDirectPage();
+  if(name==='toencode') renderToEncodePage();
   if(name==='missing-links') renderMissingLinksPage();
   if(name==='all-videos') renderAllVideosPage();
 }
@@ -7265,7 +7274,7 @@ async function flinkUnlink() {
 
 // Hooker saveData pour appeler flinkSave après chaque sauvegarde
 const _origSaveData = saveData;
-saveData = function() { _origSaveData(); flinkSave(); try { refreshMissingLinksCount(); } catch(e){} };
+saveData = function() { _origSaveData(); flinkSave(); try { refreshMissingLinksCount(); } catch(e){} try { refreshToEncodeCount(); } catch(e){} };
 
 
 // ══════════════════════════════════════════════════════════
@@ -8794,6 +8803,55 @@ function getMissingLinks() {
   });
   return missing;
 }
+
+// 25/07/2026 — Christian a demandé une page qui regroupe, sous forme de
+// liste, tous les matchs qui restent à encoder (score entré mais analyse
+// tactique VDJ pas encore faite) — pour ne plus devoir cliquer journée
+// par journée pour retrouver où il en est. Un match "à jouer" (pas encore
+// de score) n'est PAS listé ici : il n'y a encore rien à encoder dessus.
+function getMatchesToEncode() {
+  return MATCHES
+    .filter(m => {
+      const md = getMatchData(m.id);
+      return md.score !== null && !md.validated;
+    })
+    .sort((a, b) => {
+      function pd(d){ const [dd,mm,yy]=d.split('/'); return new Date(yy,mm-1,dd); }
+      const da = pd(a.date), db = pd(b.date);
+      if (da - db !== 0) return da - db;
+      return (a.heure||'').localeCompare(b.heure||'');
+    });
+}
+
+function refreshToEncodeCount() {
+  const n = getMatchesToEncode().length;
+  const el = document.getElementById('toencode-count');
+  if (el) el.textContent = n > 0 ? n : '';
+}
+
+function renderToEncodePage() {
+  const container = document.getElementById('toencode-page-content');
+  const list = getMatchesToEncode();
+  if (list.length === 0) {
+    container.innerHTML = '<div class="step-box" style="color:#2a7a2a;font-weight:600">✅ Aucun match en attente — tout ce qui a un score est encodé !</div>';
+    return;
+  }
+  let html = `<p style="color:var(--muted);margin-bottom:1.2em">${list.length} match${list.length>1?'s':''} avec un score entré, en attente d'analyse tactique VDJ — clique sur une ligne pour l'ouvrir</p>`;
+  list.forEach(m => {
+    const md = getMatchData(m.id);
+    html += `<div class="match-row" onclick="openMatch(${m.id})" style="cursor:pointer;display:flex;align-items:center;gap:10px;margin-bottom:6px;padding:7px 10px;background:#faf6f0;border-radius:6px;border:1px solid var(--border)">
+      <span style="flex:0 0 90px;font-size:.85em;color:var(--muted)">${m.phase||''}</span>
+      <span style="flex:0 0 70px;font-size:.85em;color:var(--muted)">${m.date.slice(0,5)}</span>
+      <span style="flex:1;font-weight:600">${m.dom} — ${m.ext}</span>
+      <span style="font-weight:800;min-width:44px;text-align:center">${md.score.dom}-${md.score.ext}</span>
+      <span class="status pending">Score entré</span>
+      <button class="btn-reset" title="Réinitialiser ce match" onclick="event.stopPropagation();resetMatch(${m.id})">↺</button>
+    </div>`;
+  });
+  container.innerHTML = html;
+}
+
+document.addEventListener('DOMContentLoaded', refreshToEncodeCount);
 
 function refreshMissingLinksCount() {
   const n = getMissingLinks().length;
