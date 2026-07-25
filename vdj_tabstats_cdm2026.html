@@ -3413,7 +3413,14 @@ function renderResults(){
         } else if(tab){
           subBadge = `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">${_lang==='en'?'pens':'t.a.b.'} ${tab}${tabWin?` (${tf(tabWin)})`:''}</div>`;
         }
-        scoreHtml = `<span style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center"><span style="font-weight:900;font-size:1.1em;color:${scoreColor}">${reg.dom} — ${reg.ext}</span>${subBadge}</span>`;
+        // 25/07/2026 — Christian a demandé de pouvoir cliquer sur le score
+        // pour voir le détail des buts, comme sur les autres tableaux
+        // (Meilleurs buteurs, etc.) — voir showResultsGoalsDetail().
+        const canShowGoals = goalsList.length > 0;
+        const scoreClickAttrs = canShowGoals
+          ? `onclick="showResultsGoalsDetail(${m.id})" style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center;cursor:pointer" title="${_lang==='en'?'See goal details':'Voir le détail des buts'}"`
+          : `style="display:flex;flex-direction:column;align-items:center;min-width:56px;text-align:center"`;
+        scoreHtml = `<span ${scoreClickAttrs}><span style="font-weight:900;font-size:1.1em;color:${scoreColor}">${reg.dom} — ${reg.ext}</span>${subBadge}</span>`;
       } else if(hasFallback){
         const tabBadge = m.tab ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(t.a.b. ${m.tab})</div>` : '';
         const aetBadge = m.aet ? `<div style="font-size:.68em;font-weight:700;color:var(--muted);white-space:nowrap;text-align:center;margin-top:1px">(a.p.)</div>` : '';
@@ -6804,6 +6811,64 @@ function renderAssists(){
 // ==============================================
 // DETAIL PANEL (click on cell)
 // ==============================================
+// 25/07/2026 — Christian : pouvoir cliquer sur le score d'un match, dans
+// "Résultats par journée", pour voir le détail des buts comme sur les
+// autres tableaux (Meilleurs buteurs, etc.).
+// Particularité : getAllGoals() n'inclut QUE les buts des matchs
+// `validated` (ou les buts individuellement validés d'un match en
+// direct) — volontaire, voir la convention `validated` du projet. Or de
+// nombreux matchs de "Résultats par journée" ont un score + des buts
+// (buteur/passeur) déjà connus (recherche IA) mais pas encore analysés
+// tactiquement par Christian (`validated` faux) : getAllGoals() ne les
+// verrait pas. Pour un match validé, on réutilise donc le chemin complet
+// existant (drill-down vers le schéma tactique de chaque but). Pour un
+// match pas encore validé, on affiche une liste simple en lecture seule
+// construite directement depuis md.goals (score progressif recalculé
+// localement plutôt que via getAllGoals, qui l'exclurait).
+function showResultsGoalsDetail(matchId){
+  const md = data[matchId];
+  const m = MATCHES.find(x=>x.id===matchId);
+  if(!md || !md.score || !m || !md.goals || !md.goals.length) return;
+  document.getElementById('detail-title').innerHTML = `${tf(m.dom)} — ${tf(m.ext)} (${md.score.dom} – ${md.score.ext})`;
+  if(md.validated){
+    const goals = getAllGoals().filter(g=>g.matchId===matchId);
+    renderDetailGoals(goals);
+  } else {
+    renderResultsGoalsSimple(md, m);
+  }
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function _minuteSortValPL(g){
+  const s = String(g.minute||'');
+  let n = parseInt(s) || 0;
+  if(s.includes('+')) n += 0.5;
+  return n;
+}
+
+function renderResultsGoalsSimple(md, m){
+  const goals = md.goals.slice().sort((a,b)=>_minuteSortValPL(a)-_minuteSortValPL(b));
+  let dom=0, ext=0;
+  let html = `<div style="font-size:.75em;color:var(--muted);margin-bottom:8px">${goals.length} ${_lang==='en'?(goals.length>1?'goals':'goal'):(goals.length>1?'buts':'but')} <span style="color:#e65100;font-weight:600">— ${_lang==='en'?'not yet tactically analysed':'analyse tactique pas encore faite'}</span></div>`;
+  goals.forEach(g=>{
+    if(g.team===m.dom) dom++; else ext++;
+    const csc = isCsc(g) ? ' <span style="color:#cc4400;font-size:.8em">(csc)</span>' : '';
+    const videoBtn = g.lien ? `<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:2px 8px;font-size:.78em;cursor:pointer;flex-shrink:0">▶</button>` : '';
+    const assistLine = (g.assist && !g.noAssist) ? `<div style="font-size:.8em;color:#666;margin-top:1px">→ ${g.assist}</div>` : '';
+    html += `<div style="padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc;display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:8px">
+      <span style="font-weight:800;color:var(--accent);font-size:.95em">${g.minute||'?'}'</span>
+      <div>
+        <div style="font-weight:700;font-size:.9em">${g.buteur||'?'}${csc}</div>
+        ${assistLine}
+        <div style="font-size:.78em;color:#888;margin-top:2px">${g.team}</div>
+      </div>
+      <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${dom}-${ext}</span>
+      ${videoBtn||'<span></span>'}
+    </div>`;
+  });
+  document.getElementById('detail-content').innerHTML = html;
+}
+
 function showGoalDetail(key, catVal, team){
   const goals = getAllGoals().filter(g=>{
     let v = g[key];
