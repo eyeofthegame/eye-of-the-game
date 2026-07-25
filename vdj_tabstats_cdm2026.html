@@ -3276,12 +3276,26 @@ const BL_CLUB_SLUGS = {
 // tant que leurs ID n'ont pas été recherchés (gros travail de collecte,
 // pas fait faute de temps le 12/07 — à compléter si besoin).
 const PL_CLUB_IDS = {
-  'Arsenal':          {id:3,  slug:'arsenal'},
-  'Aston Villa':       {id:7,  slug:'aston-villa'},
-  'Chelsea':          {id:8,  slug:'chelsea'},
-  'Liverpool':        {id:14, slug:'liverpool'},
-  'Crystal Palace':   {id:31, slug:'crystal-palace'},
-  'Manchester City':  {id:43, slug:'manchester-city'},
+  'Arsenal':                   {id:3,  slug:'arsenal'},
+  'Aston Villa':               {id:7,  slug:'aston-villa'},
+  'Bournemouth':               {id:91, slug:'bournemouth'},
+  'Brentford':                 {id:94, slug:'brentford'},
+  'Brighton':                  {id:36, slug:'brighton-and-hove-albion'},
+  'Burnley':                   {id:90, slug:'burnley'},
+  'Chelsea':                   {id:8,  slug:'chelsea'},
+  'Crystal Palace':            {id:31, slug:'crystal-palace'},
+  'Everton':                   {id:11, slug:'everton'},
+  'Fulham':                    {id:54, slug:'fulham'},
+  'Leeds United':              {id:2,  slug:'leeds-united'},
+  'Liverpool':                 {id:14, slug:'liverpool'},
+  'Manchester City':           {id:43, slug:'manchester-city'},
+  'Manchester United':         {id:1,  slug:'manchester-united'},
+  'Newcastle United':          {id:4,  slug:'newcastle-united'},
+  'Nottingham Forest':         {id:17, slug:'nottingham-forest'},
+  'Sunderland':                {id:56, slug:'sunderland'},
+  'Tottenham':                 {id:6,  slug:'tottenham-hotspur'},
+  'West Ham':                  {id:21, slug:'west-ham-united'},
+  'Wolverhampton Wanderers':   {id:39, slug:'wolverhampton-wanderers'},
 };
 // Blessés officiels Premier League (Christian, 12/07) — premierinjuries.com
 // est spécifique à l'EPL, donc pas d'équivalent pour les autres compétitions
@@ -3312,6 +3326,23 @@ const FBREF_URLS = {
 // Lien "site officiel" pour un match donné : fiche club officielle de
 // l'équipe à domicile si son ID/slug est connu, sinon repli sur le hub
 // de matchs général de la compétition.
+// 25/07/2026 — Christian a demandé de pouvoir cliquer sur le NOM d'un
+// club (domicile ou extérieur), dans "Résultats par journée", pour
+// tomber sur la fiche effectif officielle de ce club (avec les noms des
+// joueurs) — indépendamment de officialSiteLink(m) ci-dessous, qui ne
+// gère que l'équipe à domicile pour le bouton 🌐.
+function plClubSquadUrl(team){
+  if(ACTIVE_COMP === 'bl2627'){
+    const slug = BL_CLUB_SLUGS[team];
+    return slug ? `https://www.bundesliga.com/en/bundesliga/clubs/${slug}` : null;
+  }
+  if(ACTIVE_COMP === 'pl2627' || ACTIVE_COMP === 'pl2526'){
+    const c = PL_CLUB_IDS[team];
+    return c ? `https://www.premierleague.com/en/clubs/${c.id}/${c.slug}/squad` : null;
+  }
+  return null;
+}
+
 function officialSiteLink(m){
   const cfg = OFFICIAL_SITES[ACTIVE_COMP];
   if(!cfg) return null;
@@ -3470,11 +3501,20 @@ function renderResults(){
         ? `<span style="font-size:.7em;background:#e8eaf6;color:#3949ab;border-radius:3px;padding:1px 5px;margin-right:6px;font-weight:600">${m.group.replace('Groupe ','Gr.')}</span>`
         : '';
 
+      const domClubUrl = plClubSquadUrl(m.dom);
+      const extClubUrl = plClubSquadUrl(m.ext);
+      const clubLinkTitle = _lang==='en'?'Official squad page':'Fiche effectif officielle';
+      const domNameHtml = domClubUrl
+        ? `<a href="${domClubUrl}" target="_blank" title="${clubLinkTitle}" style="text-decoration:none;color:inherit;cursor:pointer">${tf(m.dom)}</a>`
+        : tf(m.dom);
+      const extNameHtml = extClubUrl
+        ? `<a href="${extClubUrl}" target="_blank" title="${clubLinkTitle}" style="text-decoration:none;color:inherit;cursor:pointer">${tf(m.ext)}</a>`
+        : tf(m.ext);
       html += `<div style="display:flex;align-items:center;gap:8px;padding:5px 10px;background:var(--card);border:1px solid var(--border);border-radius:6px;font-size:.85em">
         ${groupBadge}
-        <span style="flex:1;text-align:right;font-weight:600">${tf(m.dom)}</span>
+        <span style="flex:1;text-align:right;font-weight:600">${domNameHtml}</span>
         ${scoreHtml}
-        <span style="flex:1;font-weight:600">${tf(m.ext)}</span>
+        <span style="flex:1;font-weight:600">${extNameHtml}</span>
         <span style="display:flex;gap:5px;flex-shrink:0">
           <a href="${googleUrl}" target="_blank" title="Voir sur Google (compos, stats…)" style="text-decoration:none;background:#4285F4;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">G</a>
           <a href="${sofascoreUrl}" target="_blank" title="Voir sur Fotmob" style="text-decoration:none;background:#1a1a2e;color:#f5a623;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">FM</a>
