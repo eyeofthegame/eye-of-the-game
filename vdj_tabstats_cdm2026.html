@@ -14141,6 +14141,16 @@ function renderRapport(){
   const teams = getTeams().sort();
   const allGoals = getAllGoals();
   const el = document.getElementById('view-rapport');
+  // 25/07/2026 — même bug que celui déjà corrigé ailleurs (Classement,
+  // Temps de jeu, Modèle vs Adversaire) : le libellé de compétition était
+  // codé en dur sur "FIFA Coupe du Monde 2026" quelle que soit la
+  // compétition active (Christian l'a repéré sur un rapport Arsenal en
+  // Premier League). On garde le libellé "FIFA ... World Cup 2026" pour
+  // la Coupe du Monde, et on utilise le vrai libellé de la compétition
+  // active sinon.
+  const _compLabelRapport = ACTIVE_COMP === 'cdm'
+    ? (_lang==='en' ? 'FIFA World Cup 2026' : 'FIFA Coupe du Monde 2026')
+    : ((COMPETITIONS[ACTIVE_COMP] && (COMPETITIONS[ACTIVE_COMP].shortLabel || COMPETITIONS[ACTIVE_COMP].label)) || (_lang==='en'?'WC 2026':'CDM 2026'));
 
   const teamSel = `<select id="rapportTeamSel" onchange="_rapportTeam=this.value;renderRapport()" style="font-size:.9em;padding:4px 10px;border-radius:6px;border:1px solid var(--border)">
     <option value="">${_lang==='en'?'— Choose a Team —':'— Choisir une équipe —'}</option>
@@ -14200,7 +14210,7 @@ function renderRapport(){
     <div>
       <div style="font-size:1.4em;font-weight:900">${_lang==='en'?(TEAM_NAME_EN[_rapportTeam]||_rapportTeam):_rapportTeam}</div>
       <div style="font-size:.9em;opacity:.9;margin:2px 0">🧑‍💼 ${getCoach(_rapportTeam)}</div>
-      <div style="font-size:.82em;opacity:.85">${_lang==='en'?'Analysis Report · FIFA World Cup 2026 · Generated on':"Rapport d'analyse · FIFA Coupe du Monde 2026 · Généré le"} ${new Date().toLocaleDateString(_lang==='en'?'en-GB':'fr-FR')}</div>
+      <div style="font-size:.82em;opacity:.85">${_lang==='en'?'Analysis Report · '+_compLabelRapport+' · Generated on':"Rapport d'analyse · "+_compLabelRapport+" · Généré le"} ${new Date().toLocaleDateString(_lang==='en'?'en-GB':'fr-FR')}</div>
     </div>
   </div>
 
