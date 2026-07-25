@@ -2890,7 +2890,8 @@ const _ENTRAINEURS_PL2526 = [
   {"club":"Burnley","entraineur":"Mike Jackson","dateDebut":"30/04/2026","dateFin":null},
   {"club":"Chelsea","entraineur":"Enzo Maresca","dateDebut":null,"dateFin":"01/01/2026"},
   {"club":"Chelsea","entraineur":"Calum McFarlane","dateDebut":"02/01/2026","dateFin":"07/01/2026"},
-  {"club":"Chelsea","entraineur":"Liam Rosenior","dateDebut":"08/01/2026","dateFin":null},
+  {"club":"Chelsea","entraineur":"Liam Rosenior","dateDebut":"08/01/2026","dateFin":"22/04/2026"},
+  {"club":"Chelsea","entraineur":"Calum McFarlane","dateDebut":"22/04/2026","dateFin":"24/05/2026"},
   {"club":"Crystal Palace","entraineur":"Oliver Glasner","dateDebut":null,"dateFin":null},
   {"club":"Everton","entraineur":"David Moyes","dateDebut":null,"dateFin":null},
   {"club":"Fulham","entraineur":"Marco Silva","dateDebut":null,"dateFin":null},
@@ -3425,7 +3426,13 @@ function renderResults(){
       // Corrigé (12/07) : le libellé de compétition était codé en dur sur
       // "Coupe du Monde 2026" quelle que soit la compétition active.
       const compLabel = COMPETITIONS[ACTIVE_COMP] ? COMPETITIONS[ACTIVE_COMP].label : '';
-      const q = encodeURIComponent(`${tf(m.dom)} ${tf(m.ext)} ${compLabel}`);
+      // 25/07/2026 — même bug que le title="..." ci-dessous : tf(m.dom)
+      // renvoie du HTML (balise <img> + logo en base64), ce qui rendait
+      // la recherche Google inutilisable (requête = logo encodé au lieu
+      // du nom d'équipe). On utilise le nom seul ici aussi.
+      const domNameOnlyG = _lang==='en' ? (TEAM_NAME_EN[m.dom]||m.dom) : m.dom;
+      const extNameOnlyG = _lang==='en' ? (TEAM_NAME_EN[m.ext]||m.ext) : m.ext;
+      const q = encodeURIComponent(`${domNameOnlyG} ${extNameOnlyG} ${compLabel}`);
       const googleUrl = `https://www.google.com/search?q=${q}`;
       const sfq = encodeURIComponent(`${m.dom} vs ${m.ext} site:fotmob.com`);
       const sofascoreUrl = `https://www.google.com/search?q=${sfq}`;
@@ -3433,8 +3440,14 @@ function renderResults(){
       // pro (ex. diffuseur TV) — voir OFFICIAL_SITES / officialSiteLink().
       const officialCfg = OFFICIAL_SITES[ACTIVE_COMP];
       const officialUrl = officialSiteLink(m);
+      // 25/07/2026 — Christian a signalé un bug d'affichage : tf(m.dom)
+      // renvoie du HTML (balise <img> avec des guillemets pour src/style),
+      // ce qui cassait l'attribut title="..." et faisait fuir le HTML brut
+      // en texte visible sur la page (ex. "Leeds United)" style=..."). On
+      // utilise ici le nom d'équipe seul (sans logo) pour un attribut HTML.
+      const domNameOnly = _lang==='en' ? (TEAM_NAME_EN[m.dom]||m.dom) : m.dom;
       const officialPill = officialUrl
-        ? `<a href="${officialUrl}" target="_blank" title="Site officiel ${officialCfg.label} (${tf(m.dom)})" style="text-decoration:none;background:#38003c;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">🌐</a>`
+        ? `<a href="${officialUrl}" target="_blank" title="Site officiel ${officialCfg.label} (${domNameOnly})" style="text-decoration:none;background:#38003c;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">🌐</a>`
         : '';
       const injuryPill = (officialCfg && officialCfg.injuriesUrl)
         ? `<a href="${officialCfg.injuriesUrl}" target="_blank" title="Blessés officiels ${officialCfg.label}" style="text-decoration:none;background:#c62828;color:#fff;font-size:.72em;font-weight:700;padding:2px 7px;border-radius:4px">🩹</a>`
