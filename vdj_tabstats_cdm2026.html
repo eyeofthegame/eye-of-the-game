@@ -6257,10 +6257,18 @@ const ADN_COLORS = ['#2255ff','#e63030','#1a9a1a','#d97706'];
 const ADN_FILLS  = ['rgba(34,85,255,.14)','rgba(230,48,48,.14)','rgba(26,154,26,.14)','rgba(217,119,6,.14)'];
 let _adnState = { teams:['','','',''], n:2, key:'tactique1', side:'scored', phase:'all', venue:'all', mode:'overlay', periods:[null,null,null,null] };
 
+// 25/07/2026 — compare la "phase" sélectionnée (numéro de journée pour une
+// ligue, nom de phase pour un tournoi à élimination) au match, via
+// jrGetKey() qui sait déjà distinguer les deux structures.
+function _adnPhaseMatches(m, phaseF){
+  if(phaseF == null || phaseF === '' || phaseF === 'all') return true;
+  var k = jrGetKey(m);
+  return jrUsesJournees() ? (String(k) === String(phaseF)) : (k === phaseF);
+}
 function _adnGetCt(){
   loadData();
   var phaseF = _adnState.phase !== 'all' ? _adnState.phase : null;
-  return buildCrossTab(_adnState.key, { venueFilter: _adnState.venue, goalFilter: phaseF ? function(g){ return g.match && g.match.phase === phaseF; } : null });
+  return buildCrossTab(_adnState.key, { venueFilter: _adnState.venue, goalFilter: phaseF ? function(g){ return _adnPhaseMatches(g.match, phaseF); } : null });
 }
 
 // 20/07/2026 — variante de _adnGetCt qui applique EN PLUS un filtre de
@@ -6270,7 +6278,7 @@ function _adnCtForPeriod(period){
   loadData();
   var phaseF = _adnState.phase !== 'all' ? _adnState.phase : null;
   var filters = [];
-  if(phaseF) filters.push(function(g){ return g.match && g.match.phase === phaseF; });
+  if(phaseF) filters.push(function(g){ return _adnPhaseMatches(g.match, phaseF); });
   if(period){
     var dFrom = period.dateFrom ? _dateKeyPL2526(period.dateFrom) : -Infinity;
     var dTo = period.dateTo ? _dateKeyPL2526(period.dateTo) : Infinity;
@@ -6755,7 +6763,9 @@ function renderAdnJeu(){
     loadData(); var ct=_adnGetCt(), teams=ct.teams;
     var keyOpts=(_lang==='en'?[['tactique1','Playing Style'],['origine1','General Origin'],['origine2','Playing Direction'],['origine3','Zone'],['actions','Shooting Action'],['tactique3','Nature of Goal'],['mitemps','Half-time'],['minutes','Minutes (15min)']]:[['tactique1','Style de jeu'],['origine1','Origine générale'],['origine2','Intention de jeu'],['origine3','Zone'],['actions','Action de tir'],['tactique3','Nature du but'],['mitemps','Mi-temps'],['minutes','Minutes (15min)']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.key===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var sideOpts=(_lang==='en'?[['scored','⚽ Goals Scored'],['conceded','🛡️ Goals Conceded'],['both','Both']]:[['scored','⚽ Buts marqués'],['conceded','🛡️ Buts encaissés'],['both','Les deux']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.side===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
-    var phaseOpts=(_lang==='en'?[['all','All Rounds'],['Phase de groupes','Group Stage'],['16e de finale','Round of 16'],['8e de finale','Round of 8'],['Quart de finale','Quarterfinals'],['Demi-finale','Semifinals'],['Finale','Final']]:[['all','Toutes les phases'],['Phase de groupes','Phase de groupes'],['16e de finale','16e de finale'],['8e de finale','8e de finale'],['Quart de finale','Quart de finale'],['Demi-finale','Demi-finale'],['Finale','Finale']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.phase===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var _adnUsesJ = jrUsesJournees();
+    var phaseAllLabel = _lang==='en' ? (_adnUsesJ?'All Matchdays':'All Rounds') : (_adnUsesJ?'Toutes les journées':'Toutes les phases');
+    var phaseOpts=[['all',phaseAllLabel]].concat(jrKeyList().map(function(k){return [String(k), jrLabel(k)];})).map(function(a){return '<option value="'+a[0]+'"'+(String(_adnState.phase)===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var venueOpts=(_lang==='en'?[['all','Home + Away'],['home','🏠 Home'],['away','✈️ Away']]:[['all','Dom. + Ext.'],['home','🏠 Domicile'],['away','✈️ Extérieur']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.venue===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var modeOpts=(_lang==='en'?[['overlay','🔀 Overlay'],['sidebyside','▥ Side by Side']]:[['overlay','🔀 Superposé'],['sidebyside','▥ Côte à côte']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.mode===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var selHtml=function(id,opts,fn){return '<select id="'+id+'" onchange="'+fn+'(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">'+opts+'</select>';};
@@ -6788,7 +6798,7 @@ function renderAdnJeu(){
       +'<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 18px">'+(_lang==='en'?'Playing DNA — Comparator':'ADN de Jeu — Comparateur')+'</h2>'
       +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">'+selHtml('adn-key',keyOpts,'adnSetKey')+' '+selHtml('adn-side',sideOpts,'adnSetSide')+' '+selHtml('adn-phase',phaseOpts,'adnSetPhase')+' '+selHtml('adn-venue',venueOpts,'adnSetVenue')+' '+selHtml('adn-mode',modeOpts,'adnSetMode')+'</div>'
       +'<div style="display:flex;gap:6px;margin-bottom:12px;align-items:center;flex-wrap:wrap"><span style="font-size:.78em;font-weight:700;color:var(--muted)">'+(_lang==='en'?'No. of teams:':'Nb équipes :')+'</span>'+nBtns+'</div>'
-      +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"><span style="font-size:.78em;font-weight:700;color:var(--muted)">'+(_lang==='en'?'Presets:':'Présélections :')+'</span>'+presetBtn(_lang==='en'?"🏆 Tournament Progress":"🏆 Avancement tournoi","adnPreset('tournament')",_lang==='en'?"Top 4 furthest teams":"Les 4 allées le plus loin")+' '+presetBtn(_lang==='en'?"⚽ Top Scorers":"⚽ Top buteurs","adnPreset('topscorers')",_lang==='en'?"4 teams with most goals":"4 équipes avec le plus de buts")+' '+presetBtn(_lang==='en'?"🛡️ Best Defenses":"🛡️ Meilleures défenses","adnPreset('topdefs')",_lang==='en'?"4 teams with fewest conceded":"4 équipes ayant le moins encaissé")+'</div>'
+      +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:14px;align-items:center"><span style="font-size:.78em;font-weight:700;color:var(--muted)">'+(_lang==='en'?'Presets:':'Présélections :')+'</span>'+(jrUsesJournees()?'':presetBtn(_lang==='en'?"🏆 Tournament Progress":"🏆 Avancement tournoi","adnPreset('tournament')",_lang==='en'?"Top 4 furthest teams":"Les 4 allées le plus loin")+' ')+presetBtn(_lang==='en'?"⚽ Top Scorers":"⚽ Top buteurs","adnPreset('topscorers')",_lang==='en'?"4 teams with most goals":"4 équipes avec le plus de buts")+' '+presetBtn(_lang==='en'?"🛡️ Best Defenses":"🛡️ Meilleures défenses","adnPreset('topdefs')",_lang==='en'?"4 teams with fewest conceded":"4 équipes ayant le moins encaissé")+'</div>'
       +'<div style="background:var(--card);border:1px solid var(--border);border-radius:8px;padding:12px 16px;margin-bottom:16px"><div style="font-size:.72em;font-weight:700;color:var(--muted);margin-bottom:8px;text-transform:uppercase;letter-spacing:.05em">'+(_lang==='en'?'Teams to Compare':'Équipes à comparer')+'</div>'+teamSlots+'</div>'
       +'<div id="adn-radars" style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 24px"><div style="color:#aab;font-size:.9em;text-align:center;padding:30px">Sélectionnez au moins une équipe</div></div>'
       +'</div>';
