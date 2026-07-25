@@ -6505,8 +6505,58 @@ function adnCompareCoach(club){
 // match encodé peut porter un `arbitre` (nom) et des `cartons` par équipe
 // ({dom:{jaune,rouge}, ext:{jaune,rouge}}). Champs optionnels, absents tant
 // que le match n'a pas été recherché — comme `score` avant encodage.
+// 25/07/2026 — Roster des arbitres Premier League 2025-26 (PGMOL Select
+// Group 1, 21 arbitres) avec ville de naissance ou d'origine (recherche
+// web : Wikipedia en priorité, sinon profils worldfootball/presse locale).
+// "type" = 'naissance' (confirmée) ou 'origine' (approximation : région où
+// l'arbitre a grandi/débuté, quand la ville de naissance exacte n'a pas pu
+// être confirmée). Affiché indépendamment de md.arbitre (qui reste vide —
+// Christian encode l'arbitre par match lui-même via l'Encodage).
+const _REFEREE_ORIGINE_PL2526 = {
+  'Anthony Taylor':    {ville:'Wythenshawe (Manchester)', type:'naissance'},
+  'Chris Kavanagh':    {ville:'Ashton-under-Lyne (Greater Manchester)', type:'naissance'},
+  'Michael Oliver':    {ville:'Ashington (Northumberland)', type:'naissance'},
+  'Stuart Attwell':    {ville:'Nuneaton (Warwickshire)', type:'naissance'},
+  'Sam Barrott':       {ville:'Huddersfield (West Yorkshire)', type:'naissance'},
+  'Peter Bankes':      {ville:'Liverpool / Bootle (Merseyside)', type:'origine'},
+  'Darren England':    {ville:'Doncaster (South Yorkshire)', type:'naissance'},
+  'Jarred Gillett':    {ville:'Gold Coast, Queensland (Australie)', type:'naissance'},
+  'Craig Pawson':      {ville:'Sheffield (South Yorkshire)', type:'naissance'},
+  'Andy Madley':       {ville:'Huddersfield (West Yorkshire)', type:'naissance'},
+  'Thomas Bramall':    {ville:'Sheffield (South Yorkshire)', type:'naissance'},
+  'Robert Jones':      {ville:'Wirral (Merseyside)', type:'naissance'},
+  'Simon Hooper':      {ville:'Swindon (Wiltshire)', type:'naissance'},
+  'Tony Harrington':   {ville:'Teesside (Cleveland)', type:'naissance'},
+  'Michael Salisbury': {ville:'Penwortham (Lancashire)', type:'naissance'},
+  'Paul Tierney':      {ville:'Wigan (Greater Manchester)', type:'naissance'},
+  'John Brooks':       {ville:'Melton Mowbray (Leicestershire)', type:'naissance'},
+  'Tim Robinson':      {ville:'Bognor Regis (West Sussex)', type:'naissance'},
+  'Thomas Kirk':       {ville:'Yorkshire (ville précise inconnue)', type:'origine'},
+  'Andrew Kitchen':    {ville:'Durham', type:'naissance'},
+  'Matt Donohue':      {ville:'Southend-on-Sea (Essex)', type:'naissance'},
+  'Farai Hallam':      {ville:'Rugby (Angleterre)', type:'naissance'},
+  'Lewis Smith':       {ville:'Wigan (Greater Manchester)', type:'origine'},
+};
+// Alias : variantes orthographiques du même arbitre rencontrées dans les
+// données de match réelles (md.arbitre). Utilisé UNIQUEMENT pour retrouver
+// la ville d'origine à afficher — ne modifie jamais md.arbitre lui-même,
+// donc les statistiques par arbitre restent groupées par chaîne exacte
+// (Christian pourra harmoniser l'orthographe dans l'Encodage s'il le souhaite).
+const _REFEREE_ALIASES_PL2526 = {
+  'Tom Bramall': 'Thomas Bramall',
+  'Rob Jones': 'Robert Jones',
+  'Tom Kirk': 'Thomas Kirk',
+  'Matthew Donohue': 'Matt Donohue',
+};
+function _refereeOrigine(ref){
+  return _REFEREE_ORIGINE_PL2526[ref] || _REFEREE_ORIGINE_PL2526[_REFEREE_ALIASES_PL2526[ref]] || null;
+}
+
 // Regroupe, pour chaque arbitre déjà renseigné, le bilan de chaque équipe
 // qu'il a dirigée : matchs, V-N-D, points, points/match, cartons reçus.
+// 25/07/2026 — étendu pour séparer domicile/extérieur (Christian veut voir
+// combien de points un club a pris SOUS CET ARBITRE à domicile, et
+// séparément en déplacement), au lieu d'une seule ligne combinée.
 function _refereeTeamStatsPL2526(){
   const comp = COMPETITIONS['pl2526'];
   if(!comp) return {};
@@ -6523,7 +6573,11 @@ function _refereeTeamStatsPL2526(){
       const gf = side === 'dom' ? md.score.dom : md.score.ext;
       const ga = side === 'dom' ? md.score.ext : md.score.dom;
       const cards = (md.cartons && md.cartons[side]) || {};
-      const rec = out[ref][team] = out[ref][team] || {matches:0, w:0, d:0, l:0, gf:0, ga:0, pts:0, jaune:0, rouge:0};
+      out[ref][team] = out[ref][team] || {
+        dom:{matches:0,w:0,d:0,l:0,gf:0,ga:0,pts:0,jaune:0,rouge:0},
+        ext:{matches:0,w:0,d:0,l:0,gf:0,ga:0,pts:0,jaune:0,rouge:0}
+      };
+      const rec = out[ref][team][side];
       rec.matches++; rec.gf += gf; rec.ga += ga;
       if(gf > ga){ rec.w++; rec.pts += 3; } else if(gf === ga){ rec.d++; rec.pts += 1; } else { rec.l++; }
       rec.jaune += cards.jaune || 0; rec.rouge += cards.rouge || 0;
@@ -6546,19 +6600,34 @@ function renderArbitres(){
     var stats = _refereeTeamStatsPL2526();
     var refs = Object.keys(stats).sort(function(a,b){
       var na=0, nb=0;
-      Object.values(stats[a]).forEach(function(r){na+=r.matches;});
-      Object.values(stats[b]).forEach(function(r){nb+=r.matches;});
+      Object.values(stats[a]).forEach(function(r){na+=r.dom.matches+r.ext.matches;});
+      Object.values(stats[b]).forEach(function(r){nb+=r.dom.matches+r.ext.matches;});
       return nb-na;
     });
     var totalMatchesWithRef = 0;
-    Object.keys(stats).forEach(function(r){ Object.values(stats[r]).forEach(function(t){ totalMatchesWithRef += t.matches; }); });
+    Object.keys(stats).forEach(function(r){ Object.values(stats[r]).forEach(function(t){ totalMatchesWithRef += t.dom.matches+t.ext.matches; }); });
     totalMatchesWithRef = totalMatchesWithRef / 2; // chaque match compte pour 2 équipes
 
     var html = '<div style="max-width:1100px">';
     html += '<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">🟨 '+(_lang==='en'?'Referees':'Arbitres')+'</div>';
     html += '<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 6px">'+(_lang==='en'?'Referees — Premier League 2025-26':'Arbitres — Premier League 2025-26')+'</h2>';
+
+    // 25/07/2026 — Roster toujours affiché (nom + ville d'origine), même
+    // sans aucune donnée de match encodée : Christian a demandé la ville
+    // d'origine de chaque arbitre indépendamment du suivi match par match.
+    var rosterNames = Object.keys(_REFEREE_ORIGINE_PL2526).sort();
+    html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:14px 18px;margin-bottom:20px">';
+    html += '<div style="font-size:.78em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:10px">'+(_lang==='en'?'Roster — Select Group ('+rosterNames.length+' referees)':'Effectif — Select Group ('+rosterNames.length+' arbitres)')+'</div>';
+    html += '<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:6px 16px">';
+    rosterNames.forEach(function(name){
+      var o = _REFEREE_ORIGINE_PL2526[name];
+      var tag = o.type==='origine' ? (_lang==='en'?' (origin)':' (origine)') : '';
+      html += '<div style="font-size:.82em;padding:4px 0;border-bottom:1px solid var(--border)"><span style="font-weight:700;color:var(--text)">'+name+'</span><br><span style="color:var(--muted);font-size:.92em">'+o.ville+tag+'</span></div>';
+    });
+    html += '</div></div>';
+
     if(!refs.length){
-      html += '<div style="color:#aab;font-size:.9em;padding:30px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px">'+(_lang==='en'?'No referee data researched yet for this competition.':'Aucune donnée d\'arbitre encore renseignée pour cette compétition.')+'</div></div>';
+      html += '<div style="color:#aab;font-size:.9em;padding:30px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px">'+(_lang==='en'?'No match-by-match referee data encoded yet — encode md.arbitre via the match Encoding screen to populate the per-team, home/away breakdown below.':'Aucune donnée arbitre par match encodée pour l\'instant — encode l\'arbitre de chaque match via l\'écran d\'Encodage pour faire apparaître le détail domicile/extérieur par club ci-dessous.')+'</div></div>';
       el.innerHTML = html;
       return;
     }
@@ -6566,30 +6635,36 @@ function renderArbitres(){
 
     refs.forEach(function(ref){
       var teams = Object.keys(stats[ref]).sort();
-      var nMatches = 0; teams.forEach(function(t){ nMatches += stats[ref][t].matches; });
+      var nMatches = 0; teams.forEach(function(t){ nMatches += stats[ref][t].dom.matches + stats[ref][t].ext.matches; });
+      var origine = _refereeOrigine(ref);
       html += '<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-bottom:14px">';
-      html += '<div style="font-size:1.02em;font-weight:800;color:var(--text);margin-bottom:10px">'+ref+' <span style="font-size:.78em;font-weight:600;color:var(--muted)">('+nMatches+' '+(_lang==='en'?'matches':'matchs')+')</span></div>';
+      html += '<div style="font-size:1.02em;font-weight:800;color:var(--text);margin-bottom:10px">'+ref
+        +(origine ? ' <span style="font-size:.78em;font-weight:600;color:var(--muted)">— '+origine.ville+'</span>' : '')
+        +' <span style="font-size:.78em;font-weight:600;color:var(--muted)">('+nMatches+' '+(_lang==='en'?'matches':'matchs')+')</span></div>';
       html += '<table style="width:100%;border-collapse:collapse;font-size.82em">'.replace('font-size.82em','font-size:.82em');
       html += '<thead><tr style="color:var(--muted);text-align:left;font-size:.78em;text-transform:uppercase;letter-spacing:.04em">'
         +'<th style="padding:4px 8px 4px 0">'+(_lang==='en'?'Team':'Équipe')+'</th>'
-        +'<th style="padding:4px 8px;text-align:center">MJ</th>'
-        +'<th style="padding:4px 8px;text-align:center">V-N-D</th>'
-        +'<th style="padding:4px 8px;text-align:center">Pts</th>'
-        +'<th style="padding:4px 8px;text-align:center">Pts/M</th>'
-        +'<th style="padding:4px 8px;text-align:center">🟨</th>'
-        +'<th style="padding:4px 8px;text-align:center">🟥</th>'
+        +'<th style="padding:4px 8px;text-align:center" colspan="4">🏠 '+(_lang==='en'?'Home':'Domicile')+'</th>'
+        +'<th style="padding:4px 8px;text-align:center;border-left:1px solid var(--border)" colspan="4">✈️ '+(_lang==='en'?'Away':'Extérieur')+'</th>'
+        +'</tr><tr style="color:var(--muted);text-align:center;font-size:.72em;text-transform:uppercase">'
+        +'<th></th>'
+        +'<th style="padding:2px 6px">MJ</th><th style="padding:2px 6px">V-N-D</th><th style="padding:2px 6px">Pts</th><th style="padding:2px 6px">Pts/M</th>'
+        +'<th style="padding:2px 6px;border-left:1px solid var(--border)">MJ</th><th style="padding:2px 6px">V-N-D</th><th style="padding:2px 6px">Pts</th><th style="padding:2px 6px">Pts/M</th>'
         +'</tr></thead><tbody>';
       teams.forEach(function(t){
-        var r = stats[ref][t];
-        var ppg = r.matches ? (r.pts/r.matches).toFixed(2) : '0.00';
-        html += '<tr style="border-top:1px solid var(--border)">'
-          +'<td style="padding:6px 8px 6px 0;font-weight:700;color:var(--text)">'+tf(t)+'</td>'
-          +'<td style="padding:6px 8px;text-align:center">'+r.matches+'</td>'
-          +'<td style="padding:6px 8px;text-align:center">'+r.w+'-'+r.d+'-'+r.l+'</td>'
-          +'<td style="padding:6px 8px;text-align:center;font-weight:700">'+r.pts+'</td>'
-          +'<td style="padding:6px 8px;text-align:center">'+ppg+'</td>'
-          +'<td style="padding:6px 8px;text-align:center">'+r.jaune+'</td>'
-          +'<td style="padding:6px 8px;text-align:center">'+r.rouge+'</td>'
+        var rd = stats[ref][t].dom, re = stats[ref][t].ext;
+        var ppgD = rd.matches ? (rd.pts/rd.matches).toFixed(2) : '—';
+        var ppgE = re.matches ? (re.pts/re.matches).toFixed(2) : '—';
+        html += '<tr style="border-top:1px solid var(--border);text-align:center">'
+          +'<td style="padding:6px 8px 6px 0;text-align:left;font-weight:700;color:var(--text)">'+tf(t)+'</td>'
+          +'<td style="padding:6px">'+(rd.matches||'—')+'</td>'
+          +'<td style="padding:6px">'+(rd.matches?rd.w+'-'+rd.d+'-'+rd.l:'—')+'</td>'
+          +'<td style="padding:6px;font-weight:700">'+(rd.matches?rd.pts:'—')+'</td>'
+          +'<td style="padding:6px">'+ppgD+'</td>'
+          +'<td style="padding:6px;border-left:1px solid var(--border)">'+(re.matches||'—')+'</td>'
+          +'<td style="padding:6px">'+(re.matches?re.w+'-'+re.d+'-'+re.l:'—')+'</td>'
+          +'<td style="padding:6px;font-weight:700">'+(re.matches?re.pts:'—')+'</td>'
+          +'<td style="padding:6px">'+ppgE+'</td>'
           +'</tr>';
       });
       html += '</tbody></table></div>';
