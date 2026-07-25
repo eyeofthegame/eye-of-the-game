@@ -4084,7 +4084,7 @@ function renderModeleAdversaire(){
 
   // ── Réglages des tiers ──
   function sizePills(current, setter, max){
-    return [4,5,6].filter(n=>n<max).map(n=>{
+    return [3,4,5,6].filter(n=>n<max).map(n=>{
       const active = current===n;
       return `<button onclick="${setter}(${n})" style="padding:3px 11px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:14px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.76em;font-weight:700;cursor:pointer;font-family:inherit;margin-right:4px">${n}</button>`;
     }).join('');
@@ -4094,22 +4094,34 @@ function renderModeleAdversaire(){
     <span><b>Bottom :</b> ${sizePills(_maBottomN,'setMaBottomN',ranked.length)}</span>
   </div>`;
 
-  // ── Presets (les 4 cas décrits par Christian + le symétrique bottom) ──
-  const presets = [
-    ['milieu','top', (_lang==='en'?'Mid → Top':'Milieu → Top')],
-    ['top','milieu', (_lang==='en'?'Top → Mid':'Top → Milieu')],
-    ['milieu','bottom', (_lang==='en'?'Mid → Bottom':'Milieu → Bottom')],
-    ['bottom','milieu', (_lang==='en'?'Bottom → Mid':'Bottom → Milieu')],
-    ['bottom','top', (_lang==='en'?'Bottom → Top':'Bottom → Top')],
-    ['top','bottom', (_lang==='en'?'Top → Bottom':'Top → Bottom')],
-    ['top','top', (_lang==='en'?'Top ↔ Top':'Top ↔ Top')],
-    ['milieu','milieu', (_lang==='en'?'Mid ↔ Mid':'Milieu ↔ Milieu')],
-    ['bottom','bottom', (_lang==='en'?'Bottom ↔ Bottom':'Bottom ↔ Bottom')],
+  // ── Presets en grille 3x3 (colonnes = groupe analysé Top/Milieu/Bottom,
+  // lignes = adversaire Top/Milieu/Bottom) — voir Christian 25/07/2026.
+  const presetGrid = [
+    [['top','top', (_lang==='en'?'Top ↔ Top':'Top ↔ Top')],
+     ['milieu','top', (_lang==='en'?'Mid → Top':'Milieu → Top')],
+     ['bottom','top', (_lang==='en'?'Bottom → Top':'Bottom → Top')]],
+    [['top','milieu', (_lang==='en'?'Top → Mid':'Top → Milieu')],
+     ['milieu','milieu', (_lang==='en'?'Mid ↔ Mid':'Milieu ↔ Milieu')],
+     ['bottom','milieu', (_lang==='en'?'Bottom → Mid':'Bottom → Milieu')]],
+    [['top','bottom', (_lang==='en'?'Top → Bottom':'Top → Bottom')],
+     ['milieu','bottom', (_lang==='en'?'Mid → Bottom':'Milieu → Bottom')],
+     ['bottom','bottom', (_lang==='en'?'Bottom ↔ Bottom':'Bottom ↔ Bottom')]],
   ];
-  html += '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">' + presets.map(p=>{
+  const colHeaders = [
+    _lang==='en'?'Top analysed':'Top analysé',
+    _lang==='en'?'Mid-table analysed':'Milieu analysé',
+    _lang==='en'?'Bottom analysed':'Bottom analysé'
+  ];
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:5px 8px;margin-bottom:4px;max-width:640px">'
+    + colHeaders.map(h=>`<div style="font-size:.7em;font-weight:700;color:var(--muted);text-align:center">${h}</div>`).join('')
+    + '</div>';
+  html += '<div style="display:grid;grid-template-columns:repeat(3,1fr);gap:6px 8px;margin-bottom:6px;max-width:640px">' + presetGrid.flat().map(p=>{
     const active = _maFocusTier===p[0] && _maOppTier===p[1];
-    return `<button onclick="setMaPreset('${p[0]}','${p[1]}')" style="padding:5px 13px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:18px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${p[2]}</button>`;
+    return `<button onclick="setMaPreset('${p[0]}','${p[1]}')" style="padding:5px 10px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:18px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit;width:100%">${p[2]}</button>`;
   }).join('') + '</div>';
+  html += `<div style="font-size:.72em;color:var(--muted);margin-bottom:10px">💡 ${_lang==='en'
+    ? 'Each column analyses one group (Top / Mid-table / Bottom); each row picks the opponent it faces.'
+    : "Chaque colonne analyse un groupe (Top / Milieu / Bottom) ; chaque ligne choisit l'adversaire affronté."}</div>`;
 
   // ── Sélecteurs avancés (au cas où un preset ne suffit pas) ──
   const tierOpts = ['top','milieu','bottom'];
