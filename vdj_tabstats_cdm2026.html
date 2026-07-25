@@ -7095,9 +7095,33 @@ function renderRecap(){
   document.getElementById('view-recap').innerHTML = html;
 }
 
+// 25/07/2026 — Christian : pilules "5 dernières"/"10 dernières journées"
+// sur Meilleurs buteurs ET Passes décisives, pour repérer qui est "en
+// forme". Même logique que _analysisLastN (page Répartition) : les N
+// dernières journées JOUÉES de la compétition (pas par équipe) — donc
+// uniquement pertinent pour les compétitions à journées (JOURNEE_COMPS),
+// masqué sinon (ex. Coupe du Monde, qui fonctionne par phases).
+function _lastNJourneesFilter(n){
+  if(!n || !jrUsesJournees()) return null;
+  const played = [...new Set(getAllGoals().map(g=>jrGetKey(g.match)).filter(k=>k!=null))].sort((a,b)=>a-b);
+  const keep = new Set(played.slice(-n));
+  return function(g){ return keep.has(jrGetKey(g.match)); };
+}
+function _lastNPillBar(current, setterName){
+  if(!jrUsesJournees()) return '';
+  const opts = [[null,_lang==='en'?'All matchdays':'Toutes les journées'],[5,_lang==='en'?'Last 5':'5 dernières'],[10,_lang==='en'?'Last 10':'10 dernières']];
+  return '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px">' + opts.map(pair=>{
+    const active = current===pair[0];
+    const bg = active ? '#2d5a8a' : '#fff', col = active ? '#fff' : '#2d5a8a', bord = active ? '#2d5a8a' : 'var(--border)';
+    return `<button onclick="${setterName}(${pair[0]===null?'null':pair[0]})" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${pair[1]}</button>`;
+  }).join('') + '</div>';
+}
+
+let _scorerLastN = null; // null | 5 | 10
+function setScorerLastN(n){ _scorerLastN = n; renderTopScorers(); }
+
 function renderTopScorers(){
   loadData();
-  const allGoals = getAllGoals();
   const teams = getTeams().sort();
 
   // Build dropdown options for each filter dimension
@@ -7116,7 +7140,7 @@ function renderTopScorers(){
   const lieuOpts  = makeOptions(VDJ.lieu,       [1,2,3],       _lang==='en'?'All locations':'Tous les lieux');
   const teamOpts  = `<option value="">${_lang==='en'?'All teams':'Toutes les équipes'}</option>` + teams.map(t=>`<option value="${t}">${tf(t)}</option>`).join('');
 
-  const filterBar = `<div id="scorer-filter-bar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
+  const filterBar = _lastNPillBar(_scorerLastN, 'setScorerLastN') + `<div id="scorer-filter-bar" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:10px;align-items:center">
     <select id="sf-team"    onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${teamOpts}</select>
     <select id="sf-tac1"   onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${tac1Opts}</select>
     <select id="sf-nat"    onchange="refreshScorers()" style="font-size:.82em;padding:3px 6px;border-radius:4px">${natOpts}</select>
@@ -7129,7 +7153,7 @@ function renderTopScorers(){
   <div id="scorer-table-body"></div>`;
 
   document.getElementById('view-topscorers').innerHTML = '<h1>'+(_lang==='en'?'Top Scorers':'Meilleurs buteurs')+'</h1>' + filterBar;
-  buildScorerTable(allGoals);
+  refreshScorers();
 }
 
 function resetScorers(){
@@ -7137,7 +7161,8 @@ function resetScorers(){
     const el = document.getElementById(id);
     if(el) el.value = '';
   });
-  refreshScorers();
+  _scorerLastN = null;
+  renderTopScorers();
 }
 
 // Lit l'état courant des filtres de la page Meilleurs buteurs (retourne des
@@ -7174,7 +7199,10 @@ function _applyScorerFilters(goals, f){
 }
 
 function refreshScorers(){
-  const filtered = _applyScorerFilters(getAllGoals(), _currentScorerFilters());
+  let pool = getAllGoals();
+  const lastNFilter = _lastNJourneesFilter(_scorerLastN);
+  if(lastNFilter) pool = pool.filter(lastNFilter);
+  const filtered = _applyScorerFilters(pool, _currentScorerFilters());
   buildScorerTable(filtered);
 }
 
@@ -7223,9 +7251,14 @@ function buildScorerTable(goals){
   container.innerHTML = html;
 }
 
+let _assistLastN = null; // null | 5 | 10
+function setAssistLastN(n){ _assistLastN = n; renderAssists(); }
+
 function renderAssists(){
   loadData();
-  const goals = getAllGoals();
+  let goals = getAllGoals();
+  const lastNFilterA = _lastNJourneesFilter(_assistLastN);
+  if(lastNFilterA) goals = goals.filter(lastNFilterA);
   const assists = {};
   goals.forEach(g=>{
     if(!g.assist || g.noAssist) return;
@@ -7234,7 +7267,7 @@ function renderAssists(){
   });
   const sorted = Object.entries(assists).sort((a,b)=>b[1]-a[1]);
 
-  let html = '<h1>Passes décisives</h1>';
+  let html = '<h1>Passes décisives</h1>' + _lastNPillBar(_assistLastN, 'setAssistLastN');
   if(sorted.length===0){ html+='<div class="no-data">Pas de données</div>'; }
   else {
     html += '<table class="tableau" style="width:auto;min-width:320px"><tr><th>#</th><th style="text-align:left">'+(_lang==='en'?'Key passer':'Passeur')+'</th><th style="white-space:nowrap">Assists</th></tr>';
@@ -7410,6 +7443,8 @@ function showGoalDetailScorer(playerName, team, isAssist){
   if(!isAssist && document.getElementById('sf-team')){
     pool = _applyScorerFilters(pool, _currentScorerFilters());
   }
+  const lastNFilterScorer = _lastNJourneesFilter(isAssist ? _assistLastN : _scorerLastN);
+  if(lastNFilterScorer) pool = pool.filter(lastNFilterScorer);
   const goals = pool.filter(g=>{
     if(isAssist) return g.assist===playerName && g.team===team && !g.noAssist;
     return g.buteur===playerName && g.team===team;
