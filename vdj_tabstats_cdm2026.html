@@ -3181,6 +3181,20 @@ function xgBadge(g, size){
   return '<span title="'+(_lang==='en'?'Estimated xG (categorical model)':'xG estimé (modèle catégoriel)')+'" style="font-size:'+s+';font-weight:700;color:#6a3d9a;background:#f1e6fa;border-radius:3px;padding:1px 5px;white-space:nowrap">xG '+xg.toFixed(2)+'</span>';
 }
 
+// 25/07/2026 — Christian : afficher sous chaque but, dans le détail des
+// buts (liste de match, buteurs, assists, etc.), un badge de la catégorie
+// tactique1 (Jeu Dominant placé/rapide, Reconversion rapide, Transition
+// rapide, Phase arrêtée, Penalty) dans sa couleur respective — même
+// palette que le graphe "Distribution tactique par match" (page
+// Évolution). Retourne '' si tactique1 n'est pas encore encodé (ex. buts
+// d'un match pas encore tactiquement analysé, page "Résultats").
+function tacticalBadge(g){
+  const k = g && g.tactique1;
+  const info = (k!=null && VDJ.tactique1) ? VDJ.tactique1[k] : null;
+  if(!info) return '';
+  return '<span style="display:inline-block;font-size:.7em;font-weight:700;color:#'+info.c2+';background:#'+info.c1+';border-radius:3px;padding:1px 6px;white-space:nowrap;margin-left:4px">'+info.nom+'</span>';
+}
+
 function getAllGoals(){
   const goals = [];
   Object.keys(data).forEach(matchId=>{
@@ -7086,7 +7100,7 @@ function renderResultsGoalsSimple(md, m){
       <div>
         <div style="font-weight:700;font-size:.9em">${g.buteur||'?'}${csc}</div>
         ${assistLine}
-        <div style="font-size:.78em;color:#888;margin-top:2px">${g.team}</div>
+        <div style="font-size:.78em;color:#888;margin-top:2px">${g.team}${tacticalBadge(g)}</div>
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${dom}-${ext}</span>
       ${videoBtn||'<span></span>'}
@@ -7569,7 +7583,7 @@ function renderDetailList(goals){
       <div>
         <div style="font-weight:700;font-size:.9em">${primaryLine}</div>
         ${secondaryLine}
-        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}</div>
+        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}${tacticalBadge(g)}</div>
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
       ${videoBtn||'<span></span>'}
