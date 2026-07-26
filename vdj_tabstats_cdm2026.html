@@ -14633,6 +14633,125 @@ function showGoalDetailJournee(key, catVal, journeeKey, filterPa){
   document.getElementById('detail-panel').classList.add('open');
 }
 
+function setScoutingTeam(t){ _scoutingTeam=t; renderScouting(); }
+
+function renderScouting(){
+  loadData();
+  const el=document.getElementById('view-scouting');
+  if(!el) return;
+  const teams=getTeams().sort();
+  if(!_scoutingTeam && teams.length) _scoutingTeam=teams[0];
+  const allGoals=getAllGoals();
+  const sel=_scoutingTeam;
+
+  const COMP=[
+    {id:'ld', icon:'➡',col:'#2a5cbf',colL:'rgba(42,92,191,.13)',
+     nom:'Latéral Droit',nomEn:'Right Back',
+     role:'Centre depuis la droite',roleEn:'Cross from right flank',
+     fn:g=>g.origine1===2&&g.origine2===2,target:5},
+    {id:'lg', icon:'⬅',col:'#2a5cbf',colL:'rgba(42,92,191,.13)',
+     nom:'Latéral Gauche',nomEn:'Left Back',
+     role:'Centre depuis la gauche',roleEn:'Cross from left flank',
+     fn:g=>g.origine1===2&&g.origine2===4,target:5},
+    {id:'dc', icon:'🔲',col:'#7a3a10',colL:'rgba(122,58,16,.13)',
+     nom:'Défenseur Central',nomEn:'Centre Back',
+     role:'Corner + CF indirect (aérien)',roleEn:'Corner + Indirect FK',
+     fn:g=>(g.origine1===5)||(g.origine1===4)||(g.tactique1===5&&(g.paType===1||g.paType===2||g.paType===4)),target:4},
+    {id:'mc', icon:'🎭',col:'#4a3a8a',colL:'rgba(74,58,138,.13)',
+     nom:'Milieu / No. 10',nomEn:'Creative Mid / No.10',
+     role:'Jeu dominant placé',roleEn:'Possession build-up',
+     fn:g=>g.tactique1===1,target:18},
+    {id:'ai', icon:'⚡',col:'#1a7a4a',colL:'rgba(26,122,74,.13)',
+     nom:'Ailier / Avant-Centre',nomEn:'Winger / Striker',
+     role:'Jeu dominant rapide',roleEn:'Quick attacking play',
+     fn:g=>g.tactique1===2,target:16},
+    {id:'pr', icon:'🔄',col:'#8a4a00',colL:'rgba(138,74,0,.13)',
+     nom:'Pressing / Transition',nomEn:'Pressing / Transition',
+     role:'Reconversion rapide + Transition',roleEn:'Counter-attack / Transition',
+     fn:g=>g.tactique1===3||g.tactique1===4,target:10},
+    {id:'cfd',icon:'🎯',col:'#1a6a3a',colL:'rgba(26,106,58,.13)',
+     nom:'Coup franc direct',nomEn:'Direct Free Kick',
+     role:'CF direct — spécialiste',roleEn:'Direct FK specialist',
+     fn:g=>g.origine1===3||(g.tactique1===5&&g.paType===3),target:2},
+    {id:'pen',icon:'⚽',col:'#cc0000',colL:'rgba(204,0,0,.10)',
+     nom:'Penalty',nomEn:'Penalty',
+     role:'Penalty',roleEn:'Penalty',
+     fn:g=>g.tactique1===6||g.paType===5||g.origine1===7,target:5},
+    {id:'ind',icon:'⭐',col:'#8a6a00',colL:'rgba(138,106,0,.12)',
+     nom:'Action individuelle',nomEn:'Individual Action',
+     role:'Solo / Technique personnelle',roleEn:'Solo / Individual',
+     fn:g=>g.origine1===8,target:4},
+  ];
+
+  const allFor=allGoals.filter(g=>g.team===sel);
+  const allAgt=allGoals.filter(g=>g.opponent===sel);
+  const gFor=allFor.filter(g=>g.tactique1>0||g.origine1>0);
+  const gAgt=allAgt.filter(g=>g.tactique1>0||g.origine1>0);
+  const nFor=allFor.length,nAgt=allAgt.length;
+
+  const teamSel=`<select onchange="setScoutingTeam(this.value)" style="font-family:inherit;font-size:.88em;padding:5px 10px;border:1.5px solid var(--border);border-radius:8px;background:var(--card);color:var(--text);font-weight:600;cursor:pointer">${teams.map(t=>`<option value="${t}"${t===sel?' selected':''}>${t}</option>`).join('')}</select>`;
+
+  function pBar(c,goals,total){
+    const hits=goals.filter(c.fn);
+    const n=hits.length;
+    const pct=total>0?Math.round(n/total*100):0;
+    const bw=Math.min(100,pct*2.5);
+    const ratio=total>0?n/c.target:0;
+    const ok=ratio>=0.85,near=ratio>=0.55;
+    const stCol=ok?'#1a7a4a':near?'#8a6a00':'#aa2222';
+    const stIco=ok?'✅':near?'⚠️':'○';
+    const tMarkW=Math.min(97,Math.round(c.target/total*100*2.5));
+    return `<div style="margin-bottom:11px;padding:11px 14px;border-radius:10px;background:linear-gradient(155deg,#ffffff 0%,var(--card) 55%,${c.colL});border:1px solid var(--border);box-shadow:0 2px 6px rgba(0,0,0,.06),inset 0 1px 0 rgba(255,255,255,.85);cursor:pointer;transition:box-shadow .16s,transform .14s" onmouseover="this.style.boxShadow='0 5px 16px rgba(0,0,0,.12)';this.style.transform='translateY(-1.5px)'" onmouseout="this.style.boxShadow='0 2px 6px rgba(0,0,0,.06)';this.style.transform='none'">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:7px">
+        <div style="display:flex;align-items:center;gap:9px">
+          <div style="width:35px;height:35px;border-radius:50%;background:linear-gradient(135deg,${c.col}cc,${c.col});display:flex;align-items:center;justify-content:center;font-size:.88em;box-shadow:0 2px 6px ${c.col}44,inset 0 1px 0 rgba(255,255,255,.28)">${c.icon}</div>
+          <div>
+            <div style="font-weight:700;font-size:.86em;color:var(--text)">${_lang==='en'?c.nomEn:c.nom}</div>
+            <div style="font-size:.7em;color:var(--muted);margin-top:1px">${_lang==='en'?c.roleEn:c.role}</div>
+          </div>
+        </div>
+        <div style="text-align:right">
+          <div style="font-size:1.55em;font-weight:200;font-family:var(--vdj-font-serif);color:${c.col};line-height:1">${n}</div>
+          <div style="font-size:.7em;color:var(--muted);margin-top:2px">${pct}%&nbsp;&thinsp;<span style="color:${stCol};font-weight:700">${stIco}</span>&thinsp;cible&thinsp;<strong style="color:var(--text)">${c.target}</strong></div>
+        </div>
+      </div>
+      <div style="position:relative;background:linear-gradient(to right,#f2ede6,#e0d4c4);border-radius:5px;height:7px;overflow:visible;box-shadow:inset 0 1px 2px rgba(0,0,0,.08)">
+        <div style="position:absolute;top:0;left:0;height:100%;width:${bw}%;background:linear-gradient(to right,${c.col}88,${c.col});border-radius:5px;box-shadow:0 1px 3px ${c.col}55;transition:width .5s ease"></div>
+        <div style="position:absolute;left:${tMarkW}%;top:-4px;width:3px;height:15px;background:${stCol};border-radius:2px;opacity:.65;box-shadow:0 0 4px ${stCol}88" title="Cible: ${c.target}"></div>
+      </div>
+    </div>`;
+  }
+
+  function col(title,goals,total,colAccent){
+    const pctEnc=total>0?Math.round(goals.length/total*100):0;
+    return `<div style="flex:1;min-width:300px;max-width:520px">
+      <div style="font-weight:700;text-transform:uppercase;letter-spacing:.14em;font-size:.72em;color:${colAccent};margin-bottom:.9em;padding-bottom:.5em;border-bottom:2px solid ${colAccent};display:flex;justify-content:space-between;align-items:center">
+        <span>${title} &mdash; <strong style="font-size:1.15em">${total}</strong> buts</span>
+        <span style="font-weight:500;color:var(--muted);text-transform:none;letter-spacing:0">${pctEnc}% encodés</span>
+      </div>
+      ${COMP.map(c=>pBar(c,goals,total)).join('')}
+    </div>`;
+  }
+
+  el.innerHTML=`
+  <h1>🎯 ${_lang==='en'?'Scouting Profile — Positional Competencies':'Profil Scouting — Compétences par Poste'}</h1>
+  <div style="background:linear-gradient(155deg,#f5f0e8,#ede4d4);border-radius:10px;padding:11px 16px;margin-bottom:1.2em;border:1px solid var(--border);font-size:.81em;color:var(--muted);line-height:1.6;box-shadow:inset 0 1px 0 rgba(255,255,255,.8)">
+    <strong style="color:var(--accent)">💡 ${_lang==='en'?'Concept':'Concept'}</strong> —
+    ${_lang==='en'
+      ?'Each row maps to a positional role and the situations that role should generate. Right back = crosses from the right; centre back = aerial set pieces; creative mid = possession play; etc. The vertical marker shows the target for a ~70-goal season. ✅ on/above target · ⚠️ close · ○ below.'
+      :'Chaque ligne correspond à un rôle de poste et aux situations qu\'il génère. Latéral droit = centres depuis la droite ; DC = phases aériennes sur arrêt de jeu ; milieu créateur = jeu placé, etc. Le marqueur vertical indique la cible pour une saison à ~70 buts. ✅ atteint · ⚠️ proche · ○ en-dessous.'}
+  </div>
+  <div style="display:flex;gap:14px;align-items:center;margin-bottom:1.4em;flex-wrap:wrap">
+    <label style="font-weight:700;color:var(--accent);font-size:.88em">${_lang==='en'?'Team':'Équipe'}</label>
+    ${teamSel}
+  </div>
+  <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
+    ${col(_lang==='en'?'⚽ Goals Scored':'⚽ Buts Marqués',gFor,nFor,'var(--accent)')}
+    ${col(_lang==='en'?'🛡 Buts Encaissés':'🛡 Buts Encaissés',gAgt,nAgt,'var(--red)')}
+  </div>`;
+}
+
+
 function renderLesNoms(){
   loadData();
   const el = document.getElementById('view-lesnoms');
