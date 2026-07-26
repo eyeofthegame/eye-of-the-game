@@ -5944,8 +5944,9 @@ let _radarCt = null, _radarKey = null;
 // 'compare' (2 polygones superposés, domicile plein/trait continu vs
 // extérieur creux/pointillé). _radarTeam mémorise la dernière équipe
 // choisie pour que le bouton Tous/Comparer ne perde pas la sélection.
-let _radarCtHome = null, _radarCtAway = null, _radarVenueMode = 'all', _radarTeam = '';
+let _radarCtHome = null, _radarCtAway = null, _radarVenueMode = 'all', _radarTeam = '', _radarChartType = 'barres';
 function setRadarVenueMode(mode){ _radarVenueMode = mode; renderRadar(_radarTeam); }
+function setRadarChartType(t){ _radarChartType = t; renderRadar(_radarTeam); }
 
 function renderRadar(team){
   if(!_radarCt) return;
@@ -6082,10 +6083,219 @@ function renderRadar(team){
     return `<svg viewBox="0 0 460 370" width="460" height="370" style="display:block;overflow:hidden">${rs}</svg>`;
   }
 
+
+  function buildBarsSVG(side){
+    const isScored = side==='scored';
+    const data=[];
+    if(_radarVenueMode==='compare'){
+      if(!_radarCtHome||!_radarCtAway) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
+      sortedKeys.forEach(k=>{
+        const h=valFor(_radarCtHome,k,isScored), aw=valFor(_radarCtAway,k,isScored);
+        if(h.v===0&&aw.v===0) return;
+        data.push({nom:catName(k,isScored),col:catColor(k),home:h,away:aw});
+      });
+    } else {
+      sortedKeys.forEach(k=>{
+        const {v,pct}=valFor(ct,k,isScored);
+        if(v===0) return;
+        data.push({nom:catName(k,isScored),pct,count:v,col:catColor(k)});
+      });
+    }
+    if(!data.length) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
+    const isCompare=_radarVenueMode==='compare';
+    const barH=34, gap=10, padL=170, padR=90, svgW=580;
+    const svgH=data.length*(barH+gap)+50;
+    const baseCol=isScored?'#2a5cbf':'#c95a0d';
+    const maxPctVal=50;
+    let rs='';
+    // Grid lines
+    [10,20,30,40,50].forEach(p=>{
+      const x=padL+Math.round(p/maxPctVal*(svgW-padL-padR));
+      rs+=`<line x1="${x}" y1="10" x2="${x}" y2="${svgH-15}" stroke="#ddd" stroke-width="1" stroke-dasharray="3,3"/>`;
+      rs+=`<text x="${x}" y="8" font-size="9" text-anchor="middle" fill="#aab">${p}%</text>`;
+    });
+    data.forEach((d,i)=>{
+      const y=20+i*(barH+gap);
+      const mid=y+barH/2;
+      // Color dot + label
+      rs+=`<circle cx="12" cy="${mid}" r="7" fill="${d.col}"/>`;
+      const words=d.nom.split(' ');
+      if(words.length<=2){
+        rs+=`<text x="25" y="${mid+4}" font-size="12.5" fill="#222" font-weight="700" dominant-baseline="auto">${d.nom}</text>`;
+      } else {
+        rs+=`<text x="25" y="${mid-5}" font-size="12" fill="#222" font-weight="700">${words.slice(0,2).join(' ')}</text>`;
+        rs+=`<text x="25" y="${mid+9}" font-size="12" fill="#222" font-weight="700">${words.slice(2).join(' ')}</text>`;
+      }
+      // BG track
+      rs+=`<rect x="${padL}" y="${y+4}" width="${svgW-padL-padR}" height="${barH-8}" rx="5" fill="#ececec"/>`;
+      if(isCompare){
+        const wH=Math.max(4,Math.round(d.home.pct/maxPctVal*(svgW-padL-padR)));
+        const wA=Math.max(4,Math.round(d.away.pct/maxPctVal*(svgW-padL-padR)));
+        // Home bar (top half)
+        rs+=`<rect x="${padL}" y="${y+4}" width="${wH}" height="${(barH-8)/2-1}" rx="4" fill="${baseCol}"/>`;
+        rs+=`<text x="${padL+wH+6}" y="${y+4+(barH-8)/4+4}" font-size="11" fill="${baseCol}" font-weight="800">🏠 ${d.home.pct}%</text>`;
+        rs+=`<text x="${padL+wH+60}" y="${y+4+(barH-8)/4+4}" font-size="10" fill="#888">⚽${d.home.v}</text>`;
+        // Away bar (bottom half)
+        rs+=`<rect x="${padL}" y="${y+4+(barH-8)/2+1}" width="${wA}" height="${(barH-8)/2-1}" rx="4" fill="${baseCol}" opacity=".55"/>`;
+        rs+=`<text x="${padL+wA+6}" y="${y+4+(barH-8)/2+1+(barH-8)/4+4}" font-size="11" fill="${baseCol}" font-weight="800" opacity=".8">✈️ ${d.away.pct}%</text>`;
+        rs+=`<text x="${padL+wA+60}" y="${y+4+(barH-8)/2+1+(barH-8)/4+4}" font-size="10" fill="#888">⚽${d.away.v}</text>`;
+      } else {
+        const bw=Math.max(6,Math.round(d.pct/maxPctVal*(svgW-padL-padR)));
+        rs+=`<rect x="${padL}" y="${y+4}" width="${bw}" height="${barH-8}" rx="5" fill="${baseCol}"/>`;
+        const txAfter=padL+bw+8;
+        rs+=`<text x="${txAfter}" y="${mid+4}" font-size="13" fill="${baseCol}" font-weight="900">${d.pct}%</text>`;
+        rs+=`<text x="${txAfter+38}" y="${mid+4}" font-size="11" fill="#888">⚽ ${d.count}</text>`;
+      }
+    });
+    return `<svg viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" style="display:block">${rs}</svg>`;
+  }
+
+  function buildGaugesSVG(side){
+    const isScored=side==='scored';
+    const data=[];
+    if(_radarVenueMode==='compare'){
+      if(!_radarCtHome||!_radarCtAway) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
+      sortedKeys.forEach(k=>{
+        const h=valFor(_radarCtHome,k,isScored), aw=valFor(_radarCtAway,k,isScored);
+        if(h.v===0&&aw.v===0) return;
+        data.push({nom:catName(k,isScored),col:catColor(k),home:h,away:aw});
+      });
+    } else {
+      sortedKeys.forEach(k=>{
+        const {v,pct}=valFor(ct,k,isScored);
+        if(v===0) return;
+        data.push({nom:catName(k,isScored),pct,count:v,col:catColor(k)});
+      });
+    }
+    if(!data.length) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
+    const isCompare=_radarVenueMode==='compare';
+    const cols=3, r=52, cx=72, cy=68, cellW=150, cellH=145;
+    const rows=Math.ceil(data.length/cols);
+    const svgW=cols*cellW+20, svgH=rows*cellH+10;
+    const baseCol=isScored?'#2a5cbf':'#c95a0d';
+    function arc(pct,radius,col,dashArr,thick){
+      if(pct<=0) return '';
+      const p=Math.min(pct,100)/100;
+      const circ=2*Math.PI*radius;
+      const dash=p*circ;
+      const gap=circ-dash;
+      return `<circle cx="0" cy="0" r="${radius}" fill="none" stroke="${col}" stroke-width="${thick||9}" stroke-dasharray="${dash.toFixed(1)} ${gap.toFixed(1)}" stroke-dashoffset="${(circ*0.25).toFixed(1)}" stroke-linecap="round" ${dashArr?'stroke-dasharray="'+dashArr+'"':''}/>`;
+    }
+    let rs='';
+    data.forEach((d,i)=>{
+      const col_i=i%cols, row_i=Math.floor(i/cols);
+      const ox=col_i*cellW+cx+10, oy=row_i*cellH+cy+10;
+      // Track
+      rs+=`<circle cx="${ox}" cy="${oy}" r="${r}" fill="none" stroke="#ebebeb" stroke-width="10"/>`;
+      if(isCompare){
+        // Home arc outer
+        const pH=Math.min(d.home.pct,100)/100, circH=2*Math.PI*r;
+        rs+=`<circle cx="${ox}" cy="${oy}" r="${r}" fill="none" stroke="${baseCol}" stroke-width="9" stroke-dasharray="${(pH*circH).toFixed(1)} ${(circH-pH*circH).toFixed(1)}" stroke-dashoffset="${(circH*0.25).toFixed(1)}" stroke-linecap="round"/>`;
+        // Away arc inner
+        const rA=r-13, pA=Math.min(d.away.pct,100)/100, circA=2*Math.PI*rA;
+        rs+=`<circle cx="${ox}" cy="${oy}" r="${rA}" fill="none" stroke="${baseCol}" stroke-width="7" stroke-dasharray="${(pA*circA).toFixed(1)} ${(circA-pA*circA).toFixed(1)}" stroke-dashoffset="${(circA*0.25).toFixed(1)}" stroke-linecap="round" opacity=".5"/>`;
+        rs+=`<text x="${ox}" y="${oy-6}" font-size="12" text-anchor="middle" fill="${baseCol}" font-weight="900">🏠${d.home.pct}%</text>`;
+        rs+=`<text x="${ox}" y="${oy+10}" font-size="11" text-anchor="middle" fill="${baseCol}" font-weight="700" opacity=".7">✈️${d.away.pct}%</text>`;
+      } else {
+        const p=Math.min(d.pct,100)/100, circ=2*Math.PI*r;
+        rs+=`<circle cx="${ox}" cy="${oy}" r="${r}" fill="none" stroke="${baseCol}" stroke-width="10" stroke-dasharray="${(p*circ).toFixed(1)} ${(circ-p*circ).toFixed(1)}" stroke-dashoffset="${(circ*0.25).toFixed(1)}" stroke-linecap="round"/>`;
+        rs+=`<text x="${ox}" y="${oy-4}" font-size="16" text-anchor="middle" fill="${baseCol}" font-weight="900">${d.pct}%</text>`;
+        rs+=`<text x="${ox}" y="${oy+13}" font-size="11" text-anchor="middle" fill="#888">⚽ ${d.count}</text>`;
+      }
+      // dot + label
+      rs+=`<circle cx="${ox-r-4}" cy="${oy+r+16}" r="5" fill="${d.col}"/>`;
+      const words=d.nom.split(' ');
+      if(words.length<=2){
+        rs+=`<text x="${ox}" y="${oy+r+22}" font-size="11" text-anchor="middle" fill="#334" font-weight="700">${d.nom}</text>`;
+      } else {
+        rs+=`<text x="${ox}" y="${oy+r+18}" font-size="10.5" text-anchor="middle" fill="#334" font-weight="700">${words.slice(0,2).join(' ')}</text>`;
+        rs+=`<text x="${ox}" y="${oy+r+31}" font-size="10.5" text-anchor="middle" fill="#334" font-weight="700">${words.slice(2).join(' ')}</text>`;
+      }
+    });
+    return `<svg viewBox="0 0 ${svgW} ${svgH}" width="${svgW}" height="${svgH}" style="display:block">${rs}</svg>`;
+  }
+
+  function buildTreemapSVG(side){
+    const isScored=side==='scored';
+    const data=[];
+    if(_radarVenueMode==='compare'){
+      if(!_radarCtHome||!_radarCtAway) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
+      sortedKeys.forEach(k=>{
+        const h=valFor(_radarCtHome,k,isScored), aw=valFor(_radarCtAway,k,isScored);
+        if(h.v===0&&aw.v===0) return;
+        data.push({nom:catName(k,isScored),col:catColor(k),pct:h.pct,count:h.v,pct2:aw.pct,count2:aw.v});
+      });
+    } else {
+      sortedKeys.forEach(k=>{
+        const {v,pct}=valFor(ct,k,isScored);
+        if(v===0) return;
+        data.push({nom:catName(k,isScored),pct,count:v,col:catColor(k)});
+      });
+    }
+    if(!data.length) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
+    const isCompare=_radarVenueMode==='compare';
+    const W=560,H=320,pad=2;
+    const total=data.reduce((s,d)=>s+d.pct,0)||1;
+    // Squarify-lite: row-based layout
+    function layoutRow(items,x,y,w,h){
+      const rowTotal=items.reduce((s,d)=>s+d.pct,0);
+      let cx=x;
+      items.forEach(d=>{
+        const rw=Math.round(d.pct/rowTotal*w);
+        d._x=cx; d._y=y; d._w=rw; d._h=h;
+        cx+=rw;
+      });
+      if(items.length) items[items.length-1]._w=x+w-items[items.length-1]._x; // fix rounding
+    }
+    // Simple slice approach: sort desc, split into rows of ~2-3
+    data.sort((a,b)=>b.pct-a.pct);
+    const n=data.length;
+    if(n<=3){
+      layoutRow(data,0,0,W,H);
+    } else {
+      // Split into 2 groups: top half and bottom half by area
+      const half=Math.ceil(n/2);
+      const topData=data.slice(0,half), botData=data.slice(half);
+      const topTotal=topData.reduce((s,d)=>s+d.pct,0);
+      const topH=Math.round(topTotal/total*H);
+      layoutRow(topData,0,0,W,topH);
+      layoutRow(botData,0,topH,W,H-topH);
+    }
+    let rs='';
+    data.forEach(d=>{
+      if(!d._w||!d._h) return;
+      const x=d._x+pad,y=d._y+pad,w=Math.max(0,d._w-pad*2),h=Math.max(0,d._h-pad*2);
+      // Background with category color (lightened)
+      const r=parseInt(d.col.slice(1,3),16),g=parseInt(d.col.slice(3,5),16),b=parseInt(d.col.slice(5,7),16);
+      const lum=(r*299+g*587+b*114)/1000;
+      const textCol=lum>128?'#111':'#fff';
+      rs+=`<rect x="${x}" y="${y}" width="${w}" height="${h}" rx="5" fill="${d.col}" opacity="0.88"/>`;
+      // Percentage — big
+      if(w>60&&h>40){
+        rs+=`<text x="${x+w/2}" y="${y+h/2-8}" font-size="${Math.min(28,Math.max(14,h*0.28))}" text-anchor="middle" fill="${textCol}" font-weight="900" dominant-baseline="middle">${d.pct}%</text>`;
+        rs+=`<text x="${x+w/2}" y="${y+h/2+Math.min(22,h*0.22)}" font-size="${Math.min(13,Math.max(9,w*0.05))}" text-anchor="middle" fill="${textCol}" font-weight="700" opacity="0.85">${d.nom}</text>`;
+        rs+=`<text x="${x+w/2}" y="${y+h/2+Math.min(38,h*0.38)}" font-size="11" text-anchor="middle" fill="${textCol}" opacity="0.7">⚽ ${d.count}</text>`;
+        if(isCompare&&d.pct2!=null&&w>80&&h>60){
+          rs+=`<text x="${x+w/2}" y="${y+h/2+Math.min(52,h*0.52)}" font-size="11" text-anchor="middle" fill="${textCol}" opacity="0.65">✈️ ${d.pct2}% ⚽${d.count2}</text>`;
+        }
+      } else if(w>30&&h>22){
+        rs+=`<text x="${x+w/2}" y="${y+h/2+4}" font-size="${Math.min(14,Math.max(9,h*0.3))}" text-anchor="middle" fill="${textCol}" font-weight="900" dominant-baseline="middle">${d.pct}%</text>`;
+      }
+    });
+    return `<svg viewBox="0 0 ${W} ${H}" width="${W}" height="${H}" style="display:block;border-radius:8px">${rs}</svg>`;
+  }
+
+  function buildChart(side){
+    if(_radarChartType==='barres') return buildBarsSVG(side);
+    if(_radarChartType==='jauges') return buildGaugesSVG(side);
+    if(_radarChartType==='treemap') return buildTreemapSVG(side);
+    return buildRadarSVG(side);
+  }
+
   const el1=document.getElementById('radar-scored-svg');
   const el2=document.getElementById('radar-conceded-svg');
-  if(el1) el1.innerHTML=buildRadarSVG('scored');
-  if(el2) el2.innerHTML=buildRadarSVG('conceded');
+  if(el1) el1.innerHTML=buildChart('scored');
+  if(el2) el2.innerHTML=buildChart('conceded');
 }
 
 
@@ -7285,6 +7495,7 @@ if(ct.teams.length===0){
       <span><label style="font-size:.85em;color:#556;font-weight:600;margin-right:8px">${_lang==='en'?'Team:':'Équipe :'}</label>
       <select onchange="renderRadar(this.value)" style="padding:5px 12px;border:1px solid #ccd;border-radius:5px;font-size:.85em;cursor:pointer">${_teamOpts}</select></span>
       <span style="display:flex;gap:6px">${radarVenueBar}</span>
+      <span style="display:flex;gap:5px">${[['barres',_lang==='en'?'📊 Bars':'📊 Barres'],['radar',_lang==='en'?'🕸 Radar':'🕸 Radar'],['jauges',_lang==='en'?'🎯 Gauges':'🎯 Jauges'],['treemap',_lang==='en'?'🟦 Treemap':'🟦 Treemap']].map(([t,l])=>`<button onclick="setRadarChartType('${t}')" style="padding:4px 12px;border:1.5px solid ${_radarChartType===t?'var(--accent)':'var(--border)'};border-radius:16px;background:${_radarChartType===t?'var(--accent)':'#fff'};color:${_radarChartType===t?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${l}</button>`).join(' ')}</span>
     </div>
     <div style="font-size:.72em;color:var(--muted);margin-bottom:14px">💡 ${_lang==='en'
       ? '"Compare" overlays two polygons per radar: solid line/filled marker = home, dashed line/hollow marker = away.'
@@ -8094,7 +8305,8 @@ function renderDetailList(goals){
       <div>
         <div style="font-weight:700;font-size:.9em">${primaryLine}</div>
         ${secondaryLine}
-        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}${tacticalBadge(g)}</div>
+        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span></div>
+        <div style="margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${xgBadge(g,'.72em')}${tacticalBadge(g)}</div>
         <div style="font-size:.72em;color:#aaa;margin-top:2px">${g.match.date||''} · ${g.match.group||''}</div>
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
