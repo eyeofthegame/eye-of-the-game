@@ -622,6 +622,16 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 .rech-pill.rech-active { animation: pillGlow .5s ease-out; }
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
+<style>body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}</style>
+<script>
+document.addEventListener('contextmenu',function(e){e.preventDefault();return false;});
+document.addEventListener('keydown',function(e){
+  var k=e.key?e.key.toLowerCase():'';
+  if((e.ctrlKey||e.metaKey)&&['c','a','s','u','p','x'].includes(k)){e.preventDefault();return false;}
+  if(k==='f12'){e.preventDefault();return false;}
+});
+document.addEventListener('dragstart',function(e){e.preventDefault();return false;});
+</script>
 </head>
 <body>
 <div class="app">
@@ -1098,8 +1108,8 @@ const _GLOSSAIRE_RUBRIQUES = {
     en: "<strong>Shooting action</strong> — The technical finishing gesture: classic shot, one-on-one, volley, half-volley, lob, direct free kick, direct corner, penalty, acrobatic effort, etc."
   },
   origine1: {
-    fr: "<strong>Origine générale</strong> — L'élément déclencheur immédiat du but : centre, corner, passe adverse (récupération haute), action individuelle, combinaison de passes, coup franc, touche ou tir repoussé.",
-    en: "<strong>General origin</strong> — The immediate trigger of the goal: cross, corner, opposition pass (high recovery), individual action, passing combination, free kick, throw-in or rebound shot."
+    fr: "<strong>Origine générale</strong> — L'élément déclencheur immédiat du but : centre, corner, passe adverse (récupération haute), action individuelle, combinaison de passes, coup franc ou touche.",
+    en: "<strong>General origin</strong> — The immediate trigger of the goal: cross, corner, opposition pass (high recovery), individual action, passing combination, free kick or throw-in."
   },
   origine2: {
     fr: "<strong>Intention de jeu</strong> — Le côté du terrain depuis lequel l'action offensive a été amorcée : droite, axe central ou gauche.",
