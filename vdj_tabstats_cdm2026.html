@@ -961,6 +961,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <a href="#" onclick="showView('tempsdejeu')" id="nav-tempsdejeu" data-i18n="nav-tempsdejeu">⏱️ Temps de jeu</a>
 <a href="#" onclick="showView('arbitres')" id="nav-arbitres" data-i18n="nav-arbitres">🟨 Arbitres</a>
 <a href="#" onclick="showView('modeleadv')" id="nav-modeleadv" data-i18n="nav-modeleadv">🆚 Modèle vs Adversaire</a>
+<a href="#" onclick="showView('scouting')" id="nav-scouting">🎯 Profil Scouting</a>
 
 
 <h3 id="sb-h-howtheymark">⚽ Comment ils marquent</h3>
@@ -1064,6 +1065,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <div id="view-jeupoints" style="display:none"></div>
 <div id="view-journee" style="display:none"></div>
 <div id="view-lesnoms" style="display:none"></div>
+<div id="view-scouting" style="display:none"></div>
 </main>
 </div>
 
@@ -5873,6 +5875,7 @@ function showView(name){
   else if(name==='arbitres') _safeRender(renderArbitres);
   else if(name==='journee') _safeRender(renderJourneeSummary);
   else if(name==='lesnoms') _safeRender(renderLesNoms);
+  else if(name==='scouting') _safeRender(renderScouting);
 }
 
 function showAnalysis(key, opts={}){
@@ -14550,6 +14553,7 @@ const LES_NOMS_RUBRICS = [
   {id:'lieu', key:'lieu', labelFr:'Lieu du tir', labelEn:'Shot location'}
 ];
 let _lesNomsRubricId = 'tactique1';
+let _scoutingTeam = '';
 let _grilleSortCol = null; // null | 'total' | journeeKey (number ou phase string)
 let _grilleSortDir = null; // null | 'desc' | 'asc'
 
