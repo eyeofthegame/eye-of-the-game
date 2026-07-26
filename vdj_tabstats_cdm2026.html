@@ -620,6 +620,169 @@ nav.sidebar{top:8vw;height:calc(100vh - 8vw)}
 }
 .rg-dot-anim { transform-box:fill-box; transform-origin:center; }
 .rech-pill.rech-active { animation: pillGlow .5s ease-out; }
+
+/* ═══════════════════════════════════════════════════════════════════
+   DESIGN PREMIUM — Reflets verre & texture VDJ
+   ═══════════════════════════════════════════════════════════════════ */
+:root {
+  --btn-grad-lo:   #ebe1d5;
+  --btn-active-hi: #637fa0;
+  --btn-active-lo: #1e2a38;
+  --btn-active-glow: rgba(45,63,82,.30);
+  --btn-glass-hi:  rgba(255,255,255,.54);
+  --btn-glass-lo:  rgba(255,255,255,0);
+  --btn-shadow-base:  0 1.5px 4px rgba(0,0,0,.10),
+                      inset 0 1px 0 rgba(255,255,255,.78),
+                      inset 0 -1px 0 rgba(0,0,0,.06);
+  --btn-shadow-hover: 0 4px 12px rgba(0,0,0,.14),
+                      inset 0 1px 0 rgba(255,255,255,.78),
+                      inset 0 -1px 0 rgba(0,0,0,.06);
+  --btn-shadow-press: inset 0 2px 5px rgba(0,0,0,.18),
+                      0 1px 0 rgba(255,255,255,.5);
+}
+body.dark-mode {
+  --btn-grad-lo:   var(--highlight);
+  --btn-active-hi: #9ab0cc;
+  --btn-active-lo: #2d4470;
+  --btn-active-glow: rgba(100,140,210,.22);
+  --btn-glass-hi:  rgba(255,255,255,.18);
+  --btn-glass-lo:  rgba(255,255,255,0);
+}
+
+/* ── Chips / pills ─────────────────────────────────────────────── */
+button[style*="border-radius:20px"],button[style*="border-radius: 20px"],
+button[style*="border-radius:18px"],button[style*="border-radius: 18px"],
+button[style*="border-radius:16px"],button[style*="border-radius: 16px"],
+button[style*="border-radius:14px"],button[style*="border-radius: 14px"] {
+  position: relative !important;
+  overflow: hidden !important;
+  box-shadow: var(--btn-shadow-base) !important;
+  transition: box-shadow .16s ease, transform .14s ease, border-color .14s ease !important;
+}
+button[style*="border-radius:20px"]::before,button[style*="border-radius: 20px"]::before,
+button[style*="border-radius:18px"]::before,button[style*="border-radius: 18px"]::before,
+button[style*="border-radius:16px"]::before,button[style*="border-radius: 16px"]::before,
+button[style*="border-radius:14px"]::before,button[style*="border-radius: 14px"]::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 54%;
+  background: linear-gradient(to bottom, var(--btn-glass-hi), var(--btn-glass-lo));
+  pointer-events: none;
+  border-radius: inherit;
+}
+button[style*="border-radius:20px"]:hover,button[style*="border-radius: 20px"]:hover,
+button[style*="border-radius:18px"]:hover,button[style*="border-radius: 18px"]:hover,
+button[style*="border-radius:16px"]:hover,button[style*="border-radius: 16px"]:hover,
+button[style*="border-radius:14px"]:hover,button[style*="border-radius: 14px"]:hover {
+  transform: translateY(-1.5px) !important;
+  box-shadow: var(--btn-shadow-hover) !important;
+}
+button[style*="border-radius:20px"]:active,button[style*="border-radius: 20px"]:active,
+button[style*="border-radius:18px"]:active,button[style*="border-radius: 18px"]:active,
+button[style*="border-radius:16px"]:active,button[style*="border-radius: 16px"]:active,
+button[style*="border-radius:14px"]:active,button[style*="border-radius: 14px"]:active {
+  transform: translateY(0) !important;
+  box-shadow: var(--btn-shadow-press) !important;
+}
+
+/* ── Inactif : gradient parchemin ──────────────────────────────── */
+button[style*="background:#fff"][style*="border-radius"],
+button[style*="background: #fff"][style*="border-radius"] {
+  background: linear-gradient(170deg, #ffffff 0%, var(--card) 55%, var(--btn-grad-lo) 100%) !important;
+}
+
+/* ── Actif : data-active (radar / venue) ───────────────────────── */
+button[data-active="true"] {
+  background: linear-gradient(152deg,
+    var(--btn-active-hi) 0%,
+    var(--accent)       38%,
+    var(--accent2)      74%,
+    var(--btn-active-lo) 100%) !important;
+  box-shadow: 0 2px 10px var(--btn-active-glow),
+              inset 0 1px 2px rgba(255,255,255,.26),
+              inset 0 -1px 1px rgba(0,0,0,.22) !important;
+}
+button[data-active="false"] {
+  background: linear-gradient(170deg, #ffffff 0%, var(--card) 55%, var(--btn-grad-lo) 100%) !important;
+}
+
+/* ── Actif : inline var(--accent) ──────────────────────────────── */
+button[style*="background:var(--accent)"],
+button[style*="background: var(--accent)"] {
+  background: linear-gradient(152deg,
+    var(--btn-active-hi) 0%,
+    var(--accent)       38%,
+    var(--accent2)      74%,
+    var(--btn-active-lo) 100%) !important;
+  box-shadow: 0 2px 10px var(--btn-active-glow),
+              inset 0 1px 2px rgba(255,255,255,.26),
+              inset 0 -1px 1px rgba(0,0,0,.22) !important;
+}
+
+/* ── Actif vert (phases arrêtées) ──────────────────────────────── */
+button[style*="background:#1a4a1a"],button[style*="background:#1a3a1a"],
+button[style*="background:#0e7c61"] {
+  background: linear-gradient(152deg, #3d7a3d 0%, #1a4a1a 55%, #0d2e0d 100%) !important;
+  box-shadow: 0 2px 8px rgba(26,74,26,.38),
+              inset 0 1px 2px rgba(255,255,255,.20),
+              inset 0 -1px 0 rgba(0,0,0,.18) !important;
+}
+/* ── Actif rouge (penaltys) ────────────────────────────────────── */
+button[style*="background:#884400"],button[style*="background:#cc2200"] {
+  background: linear-gradient(152deg, #bb6622 0%, #884400 55%, #552200 100%) !important;
+  box-shadow: 0 2px 8px rgba(136,68,0,.38),
+              inset 0 1px 2px rgba(255,255,255,.18),
+              inset 0 -1px 0 rgba(0,0,0,.18) !important;
+}
+
+/* ── Bouton vidéo ──────────────────────────────────────────────── */
+button[style*="background:#cc0000"] {
+  background: linear-gradient(152deg, #e84040 0%, #cc0000 50%, #8a0000 100%) !important;
+  box-shadow: 0 2px 6px rgba(204,0,0,.35),
+              inset 0 1px 0 rgba(255,255,255,.22),
+              inset 0 -1px 0 rgba(0,0,0,.16) !important;
+  position: relative !important; overflow: hidden !important;
+  transition: box-shadow .14s ease, transform .12s ease !important;
+}
+button[style*="background:#cc0000"]::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 50%;
+  background: linear-gradient(to bottom, rgba(255,255,255,.28), transparent);
+  pointer-events: none;
+}
+button[style*="background:#cc0000"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 4px 10px rgba(204,0,0,.45),
+              inset 0 1px 0 rgba(255,255,255,.22) !important;
+}
+
+/* ── Boutons rect (6px, 8px) ───────────────────────────────────── */
+button[style*="border-radius:6px"],button[style*="border-radius: 6px"],
+button[style*="border-radius:8px"],button[style*="border-radius: 8px"] {
+  position: relative !important; overflow: hidden !important;
+  box-shadow: 0 1px 3px rgba(0,0,0,.09),
+              inset 0 1px 0 rgba(255,255,255,.65) !important;
+  transition: box-shadow .15s ease, transform .12s ease !important;
+}
+button[style*="border-radius:6px"]::before,button[style*="border-radius: 6px"]::before,
+button[style*="border-radius:8px"]::before,button[style*="border-radius: 8px"]::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 50%;
+  background: linear-gradient(to bottom, rgba(255,255,255,.45), transparent);
+  pointer-events: none; border-radius: inherit;
+}
+button[style*="border-radius:6px"]:hover,button[style*="border-radius: 6px"]:hover,
+button[style*="border-radius:8px"]:hover,button[style*="border-radius: 8px"]:hover {
+  transform: translateY(-1px) !important;
+  box-shadow: 0 3px 8px rgba(0,0,0,.12),
+              inset 0 1px 0 rgba(255,255,255,.65) !important;
+}
+button[style*="border-radius:6px"]:active,button[style*="border-radius:8px"]:active {
+  transform: translateY(0) !important;
+  box-shadow: inset 0 2px 4px rgba(0,0,0,.16) !important;
+}
+
 </style>
 <link rel="preconnect" href="https://fonts.googleapis.com"><link href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,200;0,300;0,400;1,200;1,300;1,400&family=Montserrat:wght@300;400;500&display=swap" rel="stylesheet">
 <style>body{-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none;user-select:none}</style>
@@ -5945,8 +6108,22 @@ let _radarCt = null, _radarKey = null;
 // extérieur creux/pointillé). _radarTeam mémorise la dernière équipe
 // choisie pour que le bouton Tous/Comparer ne perde pas la sélection.
 let _radarCtHome = null, _radarCtAway = null, _radarVenueMode = 'all', _radarTeam = '', _radarChartType = 'barres';
-function setRadarVenueMode(mode){ _radarVenueMode = mode; renderRadar(_radarTeam); }
-function setRadarChartType(t){ _radarChartType = t; renderRadar(_radarTeam); }
+function setRadarVenueMode(mode){
+  _radarVenueMode = mode;
+  ['all','compare'].forEach(function(m){
+    var b=document.getElementById('rvb-'+m);
+    if(b){ b.dataset.active=(m===mode).toString(); b.style.color=m===mode?'#fff':'var(--accent)'; b.style.borderColor=m===mode?'var(--accent)':'var(--border)'; }
+  });
+  renderRadar(_radarTeam);
+}
+function setRadarChartType(t){
+  _radarChartType = t;
+  ['barres','radar','jauges','treemap'].forEach(function(type){
+    var b=document.getElementById('rcb-'+type);
+    if(b){ b.dataset.active=(type===t).toString(); b.style.color=type===t?'#fff':'var(--accent)'; b.style.borderColor=type===t?'var(--accent)':'var(--border)'; }
+  });
+  renderRadar(_radarTeam);
+}
 
 function renderRadar(team){
   if(!_radarCt) return;
@@ -7487,7 +7664,7 @@ if(ct.teams.length===0){
   const _teamOpts = `<option value="">— ${_lang==='en'?'All Teams':'Toutes équipes'} —</option>` + ct.teams.map(t=>`<option value="${t}">${tf(t)}</option>`).join('');
   const radarVenueBar = [['all',_lang==='en'?'All':'Tous'],['compare',_lang==='en'?'🏠 vs ✈️ Compare':'🏠 vs ✈️ Comparer']].map(pair=>{
     const active = _radarVenueMode===pair[0];
-    return `<button onclick="setRadarVenueMode('${pair[0]}')" style="padding:4px 12px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:16px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${pair[1]}</button>`;
+    return `<button id="rvb-${pair[0]}" data-active="${active}" onclick="setRadarVenueMode('${pair[0]}')" style="padding:4px 12px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:16px;color:${active?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${pair[1]}</button>`;
   }).join(' ');
   html += `<div style="margin-top:28px;padding:18px 22px;background:#fff;border:1px solid var(--border);border-radius:10px;max-width:1240px">
     <div style="font-size:.75em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">📡 Radar</div>
@@ -7495,7 +7672,7 @@ if(ct.teams.length===0){
       <span><label style="font-size:.85em;color:#556;font-weight:600;margin-right:8px">${_lang==='en'?'Team:':'Équipe :'}</label>
       <select onchange="renderRadar(this.value)" style="padding:5px 12px;border:1px solid #ccd;border-radius:5px;font-size:.85em;cursor:pointer">${_teamOpts}</select></span>
       <span style="display:flex;gap:6px">${radarVenueBar}</span>
-      <span style="display:flex;gap:5px">${[['barres',_lang==='en'?'📊 Bars':'📊 Barres'],['radar',_lang==='en'?'🕸 Radar':'🕸 Radar'],['jauges',_lang==='en'?'🎯 Gauges':'🎯 Jauges'],['treemap',_lang==='en'?'🟦 Treemap':'🟦 Treemap']].map(([t,l])=>`<button onclick="setRadarChartType('${t}')" style="padding:4px 12px;border:1.5px solid ${_radarChartType===t?'var(--accent)':'var(--border)'};border-radius:16px;background:${_radarChartType===t?'var(--accent)':'#fff'};color:${_radarChartType===t?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${l}</button>`).join(' ')}</span>
+      <span style="display:flex;gap:5px">${[['barres',_lang==='en'?'📊 Bars':'📊 Barres'],['radar',_lang==='en'?'🕸 Radar':'🕸 Radar'],['jauges',_lang==='en'?'🎯 Gauges':'🎯 Jauges'],['treemap',_lang==='en'?'🟦 Treemap':'🟦 Treemap']].map(([t,l])=>`<button id="rcb-${t}" data-active="${_radarChartType===t}" onclick="setRadarChartType('${t}')" style="padding:4px 12px;border:1.5px solid ${_radarChartType===t?'var(--accent)':'var(--border)'};border-radius:16px;color:${_radarChartType===t?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${l}</button>`).join(' ')}</span>
     </div>
     <div style="font-size:.72em;color:var(--muted);margin-bottom:14px">💡 ${_lang==='en'
       ? '"Compare" overlays two polygons per radar: solid line/filled marker = home, dashed line/hollow marker = away.'
