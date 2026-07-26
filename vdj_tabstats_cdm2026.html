@@ -1083,6 +1083,34 @@ const VDJ_LABELS = {
   tactique3:"Nature du but", paType:"Type de phase arrêtée", finitions:"Finition", minutes:"Minutes 15", minutes10:"Minutes 10", mitemps:"Mi-temps"
 };
 
+// Glossaire des rubriques d'analyse
+const _GLOSSAIRE_RUBRIQUES = {
+  tactique1: {
+    fr: "<strong>Style de jeu</strong> — Comment l'action offensive a été construite : jeu posé (dominant placé ou rapide), contre-attaque (reconversion / transition rapide), phase arrêtée ou penalty.",
+    en: "<strong>Playing style</strong> — How the attacking move was built: settled play (dominant, placed or quick), counter-attack (reconversion / quick transition), set piece or penalty."
+  },
+  tactique3: {
+    fr: "<strong>Nature du but</strong> — Qualification du but : intentionnel (action voulue), circonstance favorable (rebond, déviation), erreur provoquée chez l'adversaire, ou décision arbitrale.",
+    en: "<strong>Nature of the goal</strong> — Goal classification: intentional (deliberate action), favourable circumstance (rebound, deflection), error provoked from the opponent, or referee decision."
+  },
+  actions: {
+    fr: "<strong>Action de tir</strong> — Le geste technique de la finition : tir classique, face à face, volée, demi-volée, lob, coup franc direct, corner direct, penalty, geste acrobatique, etc.",
+    en: "<strong>Shooting action</strong> — The technical finishing gesture: classic shot, one-on-one, volley, half-volley, lob, direct free kick, direct corner, penalty, acrobatic effort, etc."
+  },
+  origine1: {
+    fr: "<strong>Origine générale</strong> — L'élément déclencheur immédiat du but : centre, corner, passe adverse (récupération haute), action individuelle, combinaison de passes, coup franc, touche ou tir repoussé.",
+    en: "<strong>General origin</strong> — The immediate trigger of the goal: cross, corner, opposition pass (high recovery), individual action, passing combination, free kick, throw-in or rebound shot."
+  },
+  origine2: {
+    fr: "<strong>Intention de jeu</strong> — Le côté du terrain depuis lequel l'action offensive a été amorcée : droite, axe central ou gauche.",
+    en: "<strong>Playing intention</strong> — The side of the pitch from which the attacking move originated: right flank, central axis or left flank."
+  },
+  origine3: {
+    fr: "<strong>Zone de départ</strong> — La profondeur depuis laquelle le ballon a démarré l'action : propre zone défensive, rond central, zone offensive ou dernier 16 mètres adverses.",
+    en: "<strong>Starting zone</strong> — The depth from which the ball initiated the move: own defensive zone, central circle, offensive zone or opponent's final 16 metres."
+  }
+};
+
 // MATCHES array (same as encoding page)
 const MATCHES_CDM = [
   {id:1,date:"11/06/2026",heure:"15:00",group:"Groupe A",dom:"Mexique",ext:"Afrique du Sud",ville:"Mexico City",stade:"Estadio Azteca",phase:"Phase de groupes"},
@@ -6967,8 +6995,10 @@ function renderAnalysis(key, opts={}){
     return `<button onclick="setAnalysisSide('${v}')" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${sideLabels[v]}</button>`;
   }).join('');
 
+  const _glossEntry = _GLOSSAIRE_RUBRIQUES[key];
+  const _glossHtml = _glossEntry ? `<details style="margin:2px 0 10px;color:#666;font-size:.78em"><summary style="cursor:pointer;list-style:none;display:inline-flex;align-items:center;gap:5px;padding:3px 8px;border:1px solid #ddd;border-radius:12px;background:#fafafa;user-select:none"><span style="font-size:.95em">ℹ</span> ${_lang==='en'?'What does this rubric measure?':'Que mesure cette rubrique ?'}</summary><div style="margin-top:7px;padding:8px 12px;background:#f7f7f7;border-radius:6px;border:1px solid #eee;line-height:1.5">${_lang==='en'?_glossEntry.en:_glossEntry.fr}</div></details>` : '';
   let html = `<h1>${label}</h1>
-${resetBtn}
+${_glossHtml}${resetBtn}
   <div style="display:flex;gap:6px;align-items:center;margin:10px 0 4px;flex-wrap:wrap">${venueBar}${lastNBar}</div>
   <div style="display:flex;gap:6px;align-items:center;margin:0 0 12px;flex-wrap:wrap">${sideBar}</div>`;
 
