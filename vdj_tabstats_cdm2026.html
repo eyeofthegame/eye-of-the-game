@@ -7489,7 +7489,7 @@ if(ct.teams.length===0){
     const active = _radarVenueMode===pair[0];
     return `<button onclick="setRadarVenueMode('${pair[0]}')" style="padding:4px 12px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:16px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${pair[1]}</button>`;
   }).join(' ');
-  html += `<div style="margin-top:28px;padding:18px 22px;background:#fff;border:1px solid var(--border);border-radius:10px;max-width:1040px">
+  html += `<div style="margin-top:28px;padding:18px 22px;background:#fff;border:1px solid var(--border);border-radius:10px;max-width:1240px">
     <div style="font-size:.75em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.06em;margin-bottom:12px">📡 Radar</div>
     <div style="display:flex;gap:18px;align-items:center;flex-wrap:wrap;margin-bottom:8px">
       <span><label style="font-size:.85em;color:#556;font-weight:600;margin-right:8px">${_lang==='en'?'Team:':'Équipe :'}</label>
@@ -7500,14 +7500,14 @@ if(ct.teams.length===0){
     <div style="font-size:.72em;color:var(--muted);margin-bottom:14px">💡 ${_lang==='en'
       ? '"Compare" overlays two polygons per radar: solid line/filled marker = home, dashed line/hollow marker = away.'
       : '« Comparer » superpose 2 polygones par radar : trait plein/marqueur plein = domicile, pointillé/marqueur creux = extérieur.'}</div>
-    <div style="display:flex;flex-direction:row;gap:48px;flex-wrap:wrap">
+    <div style="display:flex;flex-direction:row;gap:32px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start">
       <div>
         <div style="font-size:.72em;font-weight:700;color:#2255ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Scored':'Buts marqués'}</div>
-        <div id="radar-scored-svg"></div>
+        <div id="radar-scored-svg" style="min-width:0"></div>
       </div>
       <div>
         <div style="font-size:.72em;font-weight:700;color:#dd2222;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Conceded':'Buts encaissés'}</div>
-        <div id="radar-conceded-svg"></div>
+        <div id="radar-conceded-svg" style="min-width:0"></div>
       </div>
     </div>
   </div>`;
