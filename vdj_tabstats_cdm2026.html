@@ -8095,6 +8095,7 @@ function renderDetailList(goals){
         <div style="font-weight:700;font-size:.9em">${primaryLine}</div>
         ${secondaryLine}
         <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}${tacticalBadge(g)}</div>
+        <div style="font-size:.72em;color:#aaa;margin-top:2px">${g.match.date||''} · ${g.match.group||''}</div>
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
       ${videoBtn||'<span></span>'}
