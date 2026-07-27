@@ -10646,15 +10646,15 @@ function renderEvolution(){
   // Minutes 15 buckets helper
   function getMin15(g){
     const s = String(g.minute||''), i = parseInt(s)||1;
-    if(s.includes('45+')) return 9;  // Mi-temps
+    if(s.includes('45+')) return 4;  // Mi-temps fusionné avec 45
     if(s.includes('90+')) return 8;
     if(i===45) return 4; if(i===90) return 8;
     if(i>90 && g.match?.aet){ return i<=105?10:11; }
     const c = Math.ceil(i/15); return c<1?1:c>6?6:c;
   }
-  const minBuckets = [1,2,3,4,9,5,6,7,8,10,11];
-  const minLabels = {1:'1-15',2:'16-30',3:'31-44',4:'45',9:'45+',5:'46-60',6:'61-75',7:'76-89',8:'90+',10:'P1 (91-105)',11:'P2 (106+)'};
-  const minColors = {1:'#cce5ff',2:'#99ccff',3:'#66b3ff',4:'#007700',9:'#004400',5:'#ffddcc',6:'#ffaa77',7:'#ff7744',8:'#220066',10:'#9b2226',11:'#641220'};
+  const minBuckets = [1,2,3,4,5,6,7,8,10,11];
+  const minLabels = {1:'1-15',2:'16-30',3:'31-44',4:'45/45+',5:'46-60',6:'61-75',7:'76-89',8:'90+',10:'P1 (91-105)',11:'P2 (106+)'};
+  const minColors = {1:'#cce5ff',2:'#99ccff',3:'#66b3ff',4:'#007700',5:'#ffddcc',6:'#ffaa77',7:'#ff7744',8:'#220066',10:'#9b2226',11:'#641220'};
 
   // Team list for filter
   const teamSet = new Set();
@@ -13445,13 +13445,13 @@ function buildScorerCard(name, team, allGoals){
   `;
 
   // ── 3. Minutes distribution ──────────────────────────────────────────
-  const minBuckets=[1,2,3,4,9,5,6,7,8,10,11];
-  const minLabels={1:'1-15',2:'16-30',3:'31-44',4:'45',9:'45+',5:'46-60',6:'61-75',7:'76-89',8:'90+',10:'P1',11:'P2'};
+  const minBuckets=[1,2,3,4,5,6,7,8,10,11];
+  const minLabels={1:'1-15',2:'16-30',3:'31-44',4:'45/45+',5:'46-60',6:'61-75',7:'76-89',8:'90+',10:'P1',11:'P2'};
   const byMin={};
   minBuckets.forEach(k=>{ byMin[k]=0; });
   goals.forEach(g=>{
     const s=String(g.minute||''),i=parseInt(s)||1;
-    const b=s.includes('45+')?9:s.includes('90+')?8:i===45?4:i===90?8:i>90&&g.match?.aet?(i<=105?10:11):(()=>{let c=Math.ceil(i/15);return c<1?1:c>6?6:c;})();
+    const b=s.includes('45+')?4:s.includes('90+')?8:i===45?4:i===90?8:i>90&&g.match?.aet?(i<=105?10:11):(()=>{let c=Math.ceil(i/15);return c<1?1:c>6?6:c;})();
     byMin[b]=(byMin[b]||0)+1;
   });
   const maxMin=Math.max(...Object.values(byMin),1);
@@ -13459,7 +13459,7 @@ function buildScorerCard(name, team, allGoals){
   minBuckets.forEach(b=>{
     const v=byMin[b];
     const h=v?Math.max(Math.round(v/maxMin*40),4):0;
-    const col=b===4?'#007700':b===9?'#004400':b===8?'#220066':b===10?'#9b2226':b===11?'#641220':'var(--accent)';
+    const col=b===4?'#007700':b===8?'#220066':b===10?'#9b2226':b===11?'#641220':'var(--accent)';
     minHtml+=`<div style="flex:1;display:flex;flex-direction:column;align-items:center;gap:2px">
       ${v?`<span style="font-size:7px;color:var(--accent);font-weight:bold">${v}</span>`:''}
       <div style="width:100%;height:${h}px;background:${col};border-radius:2px 2px 0 0;opacity:.85"></div>
