@@ -1074,7 +1074,6 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <button class="close-btn" onclick="closeDetail()">✕</button>
 <h3 id="detail-title">Détail des buts</h3>
 <div id="detail-content"></div>
-<div id="detail-match-panel" style="display:none;margin-top:10px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
 </div>
 
 <script>
@@ -8698,74 +8697,6 @@ function renderDetailGoals(goals, isAssist){
 let _detailGoalsCache = [];
 let _detailIsAssist = false;
 
-function detailGoalClick(i){
-  // Highlight selected row
-  document.querySelectorAll('[id^="dgl-"]').forEach(el=>{
-    el.style.background = '#f5f2ec';
-    el.style.borderColor = '#e0d8cc';
-  });
-  const row = document.getElementById('dgl-'+i);
-  if(row){ row.style.background='#e8f0fa'; row.style.borderColor='var(--accent)'; }
-  detailUpdateMatchPanel(i);
-}
-
-function detailUpdateMatchPanel(i){
-  const panel = document.getElementById('detail-match-panel');
-  if(!panel) return;
-  const g = _detailGoalsCache[i];
-  if(!g){ panel.style.display='none'; return; }
-  const m = g.match;
-
-  loadData();
-  const allGoals = getAllGoals();
-  const matchGoals = allGoals
-    .filter(gg=>gg.matchId===g.matchId)
-    .sort((a,b)=>(parseInt(a.minute)||0)-(parseInt(b.minute)||0));
-  let fh=0,fe=0;
-  matchGoals.forEach(gg=>{ if(!isCsc(gg)) gg.team===m.dom ? fh++ : fe++; else gg.team===m.dom ? fe++ : fh++; });
-  let sh=0,se=0;
-  for(const gg of matchGoals){
-    if(!isCsc(gg)) gg.team===m.dom ? sh++ : se++; else gg.team===m.dom ? se++ : sh++;
-    if(gg.buteur===g.buteur && gg.minute===g.minute && gg.team===g.team && gg.origine1===g.origine1) break;
-  }
-
-  const tac = VDJ.tactique1[g.tactique1] ? VDJ.tactique1[g.tactique1].nom : '—';
-  const tacCol = VDJ.tactique1[g.tactique1] ? '#'+VDJ.tactique1[g.tactique1].c1 : '#888';
-  const _tc=(hex)=>{ const h=hex.replace('#',''),r=parseInt(h.slice(0,2),16),g2=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return (0.299*r+0.587*g2+0.114*b)>140?'#111':'#fff'; };
-  const isCscGoal = isCsc(g);
-  const scorer = isCscGoal ? `CSC (${tf(g.team)})` : (g.buteur||'—');
-  const scorerTeam = isCscGoal ? tf(g.opponent) : tf(g.team);
-  const hasAssist = g.assist && !g.noAssist;
-  const assistLine = hasAssist ? `<span style="font-size:.75em;color:var(--muted)">→ ${g.assist}</span>` : '';
-  const venue = g.team===m.dom ? (_lang==='en'?'🏠 Home':'🏠 Domicile') : (_lang==='en'?'✈️ Away':'✈️ Extérieur');
-  const expandBtn = `<button onclick="event.stopPropagation();renderSingleGoal(${i})" style="margin-left:auto;font-size:.7em;padding:2px 8px;border:1px solid var(--border);border-radius:4px;background:var(--card);cursor:pointer;flex-shrink:0">${_lang==='en'?'Detail →':'Détail →'}</button>`;
-
-  panel.style.display='block';
-  panel.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9em">
-        <span>${tf(m.dom)}</span>
-        <span style="font-size:1.35em;font-weight:900;color:var(--accent);min-width:36px;text-align:center">${fh}–${fe}</span>
-        <span>${tf(m.ext)}</span>
-      </div>
-      <div style="font-size:.72em;color:var(--muted);text-align:right">
-        📅 ${m.date} · ${m.heure} &nbsp;|&nbsp; 🏟 ${m.stade}, ${m.ville}<br>
-        <span>${m.phase}${m.group?' · '+m.group:''}</span>
-      </div>
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-weight:800;font-size:.88em">${scorer}</span>
-      <span style="font-size:.78em;color:var(--muted)">${scorerTeam}</span>
-      ${assistLine}
-      <span style="font-size:.73em;background:${tacCol};color:${_tc(tacCol)};border-radius:3px;padding:2px 7px;font-weight:700">${tac}</span>
-      <span style="font-size:.82em;font-weight:700;color:var(--accent)">⏱ ${g.minute}'</span>
-      <span style="font-size:.72em;color:var(--muted)">${venue}</span>
-      <span style="font-size:.75em;color:var(--muted)">Score à ce but : <b style="color:var(--red);font-size:1.1em">${sh}–${se}</b></span>
-      ${expandBtn}
-    </div>`;
-}
-
-
 function renderDetailList(goals){
   // Pre-compute all goals sorted for score tracking
   const allGoals = getAllGoals();
@@ -8803,14 +8734,12 @@ function renderDetailList(goals){
     const secondaryLine = _detailIsAssist
       ? `<div style="font-size:.8em;color:#666;margin-top:1px">⚽ ${buteurLine}</div>`
       : (hasAssist ? `<div style="font-size:.8em;color:#666;margin-top:1px">→ ${g.assist}</div>` : '');
-    html += `<div onclick="detailGoalClick(${i})" id="dgl-${i}" style="cursor:pointer;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc;display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:8px">
+    html += `<div onclick="renderSingleGoal(${i})" style="cursor:pointer;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc;display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:8px">
       <span style="font-weight:800;color:var(--accent);font-size:.95em">${g.minute||'?'}'</span>
       <div>
         <div style="font-weight:700;font-size:.9em">${primaryLine}</div>
         ${secondaryLine}
-        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span></div>
-        <div style="margin-top:3px;display:flex;align-items:center;gap:5px;flex-wrap:wrap">${xgBadge(g,'.72em')}${tacticalBadge(g)}</div>
-        <div style="font-size:.72em;color:#aaa;margin-top:2px">${g.match.date||''} · ${g.match.group||''}</div>
+        <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}</div>
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
       ${videoBtn||'<span></span>'}
@@ -16162,7 +16091,6 @@ function spUpdateMatchPanel(){
   const g = _spCurrentGoals[gi];
   const m = g.match;
 
-  // Compute match scores
   loadData();
   const allGoals = getAllGoals();
   const matchGoals = allGoals
