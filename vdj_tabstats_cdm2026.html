@@ -13100,6 +13100,71 @@ function rechToggleGoal(pill, gi){
   rechUpdateMatchPanel();
 }
 
+function rechUpdateMatchPanel(){
+  const panel = document.getElementById('rech-match-panel');
+  if(!panel) return;
+  const gi = _rechLastClickedGi;
+  if(gi < 0 || !_rechCurrentGoals[gi]){ panel.style.display='none'; panel.innerHTML=''; return; }
+  const g = _rechCurrentGoals[gi];
+  const m = g.match;
+
+  // Compute full match goals for score
+  loadData();
+  const allGoals = getAllGoals();
+  const matchGoals = allGoals
+    .filter(gg=>gg.matchId===g.matchId)
+    .sort((a,b)=>(parseInt(a.minute)||0)-(parseInt(b.minute)||0));
+
+  // Final score
+  let fh=0, fe=0;
+  matchGoals.forEach(gg=>{
+    if(!isCsc(gg)) gg.team===m.dom ? fh++ : fe++;
+    else gg.team===m.dom ? fe++ : fh++;
+  });
+
+  // Score at time of this goal
+  let sh=0, se=0;
+  for(const gg of matchGoals){
+    if(!isCsc(gg)) gg.team===m.dom ? sh++ : se++;
+    else gg.team===m.dom ? se++ : sh++;
+    if(gg.buteur===g.buteur && gg.minute===g.minute && gg.team===g.team && gg.origine1===g.origine1) break;
+  }
+
+  // Tactic label + color
+  const tac = VDJ.tactique1[g.tactique1] ? VDJ.tactique1[g.tactique1].nom : '—';
+  const tacCol = VDJ.tactique1[g.tactique1] ? '#'+VDJ.tactique1[g.tactique1].c1 : '#888';
+  const _tc = (hex)=>{ const h=hex.replace('#',''); const r=parseInt(h.slice(0,2),16),g2=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16); return (0.299*r+0.587*g2+0.114*b)>140?'#111':'#fff'; };
+  const tacTc = _tc(tacCol);
+
+  const isCscGoal = isCsc(g);
+  const scorer = isCscGoal ? `CSC (${tf(g.team)})` : (g.buteur || '—');
+  const scorerTeam = isCscGoal ? tf(g.opponent) : tf(g.team);
+  const venue = g.team===m.dom ? (_lang==='en'?'🏠 Home':'🏠 Domicile') : (_lang==='en'?'✈️ Away':'✈️ Extérieur');
+
+  panel.style.display = 'block';
+  panel.innerHTML = `
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
+      <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9em">
+        <span>${tf(m.dom)}</span>
+        <span style="font-size:1.35em;font-weight:900;color:var(--accent);min-width:36px;text-align:center">${fh}–${fe}</span>
+        <span>${tf(m.ext)}</span>
+      </div>
+      <div style="font-size:.72em;color:var(--muted);text-align:right">
+        📅 ${m.date} · ${m.heure} &nbsp;|&nbsp; 🏟 ${m.stade}, ${m.ville}<br>
+        <span style="font-size:.95em">${m.phase}${m.group?(' · '+m.group):''}</span>
+      </div>
+    </div>
+    <div style="border-top:1px solid var(--border);padding-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <span style="font-weight:800;font-size:.88em">${scorer}</span>
+      <span style="font-size:.78em;color:var(--muted)">${scorerTeam}</span>
+      <span style="font-size:.73em;background:${tacCol};color:${tacTc};border-radius:3px;padding:2px 7px;font-weight:700">${tac}</span>
+      <span style="font-size:.82em;font-weight:700;color:var(--accent)">⏱ ${g.minute}'</span>
+      <span style="font-size:.72em;color:var(--muted)">${venue}</span>
+      <span style="margin-left:auto;font-size:.75em;color:var(--muted)">Score à ce but : <b style="color:var(--red);font-size:1.1em">${sh}–${se}</b></span>
+    </div>`;
+}
+
+
 function rechResetPills(){
   _rechActiveGoals.clear();
   document.querySelectorAll('[id^="rg-goal-"]').forEach(g=>{ g.style.opacity='1'; });
