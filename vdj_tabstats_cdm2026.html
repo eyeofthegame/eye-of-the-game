@@ -4268,9 +4268,49 @@ function renderClassement(){
 // ═══════════════════════════════════════════════════════════════════
 let _tdjSortCol = 'minutes'; // 'minutes' | 'apps' | 'starts' | 'subs' | 'name'
 let _tdjSortDir = 'desc';
+let _tdjRefView = false;
+let _fbrefSortCol = 'min';
+let _fbrefSortDir = 'desc';
+// Données FBref Arsenal PL 2025-26 (17 joueurs les plus utilisés, capturés depuis screenshot)
+const FBREF_REFS = {
+  Arsenal: {
+    label: 'Arsenal — Premier League 2025-26',
+    source: 'FBref.com',
+    updated: 'Juillet 2026',
+    note: '20 joueurs · 17 depuis screenshot FBref (juillet 2026) + 3 titulaires reconstitués depuis les 90s partiellement visibles · 2 joueurs (30.6 et 29.0 90s) non identifiés',
+    players: [
+      {name:'David Raya',         pos:'GK',    age:30, apps:37, starts:37, min:3330, gls:0,  ast:0},
+      {name:'Declan Rice',        pos:'MF',    age:26, apps:36, starts:34, min:3096, gls:4,  ast:5},
+      {name:'Gabriel Magalhães', pos:'DF',    age:27, apps:35, starts:33, min:2988, gls:5,  ast:1},
+      {name:'Jurriën Timber',     pos:'DF',    age:24, apps:30, starts:28, min:2454, gls:0,  ast:0},
+      {name:'Viktor Gyökeres',    pos:'FW',    age:27, apps:36, starts:26, min:2224, gls:14, ast:1},
+      {name:'Bukayo Saka',        pos:'FW,MF', age:23, apps:31, starts:25, min:2222, gls:7,  ast:5},
+      {name:'Leandro Trossard',   pos:'FW,MF', age:30, apps:31, starts:21, min:2000, gls:6,  ast:6},
+      {name:'Eberechi Eze',       pos:'MF,FW', age:27, apps:32, starts:21, min:1812, gls:7,  ast:2},
+      {name:'Piero Hincapié',    pos:'DF',    age:23, apps:25, starts:20, min:1792, gls:1,  ast:2},
+      {name:'Riccardo Calafiori', pos:'DF',    age:23, apps:26, starts:22, min:1699, gls:1,  ast:2},
+      {name:'Martin Ødegaard',   pos:'MF',    age:26, apps:24, starts:16, min:1369, gls:1,  ast:6},
+      {name:'Noni Madueke',       pos:'FW,MF', age:23, apps:26, starts:16, min:1211, gls:3,  ast:1},
+      {name:'Gabriel Martinelli', pos:'FW,MF', age:24, apps:30, starts:11, min:1081, gls:1,  ast:4},
+      {name:'Mikel Merino',       pos:'MF,FW', age:29, apps:22, starts:10, min:1036, gls:4,  ast:3},
+      {name:'Cristhian Mosquera', pos:'DF',    age:21, apps:20, starts:9,  min:994,  gls:0,  ast:0},
+      {name:'Myles Lewis-Skelly', pos:'MF,DF', age:18, apps:20, starts:5,  min:709,  gls:0,  ast:0},
+      {name:'Ben White',          pos:'DF',    age:27, apps:12, starts:9,  min:702,  gls:0,  ast:1},
+      {name:'Kai Havertz',        pos:'MF,FW', age:29, apps:12, starts:7,  min:581,  gls:2,  ast:3},
+      {name:'Gabriel Jesus',      pos:'FW',    age:28, apps:14, starts:3,  min:429,  gls:3,  ast:0},
+      {name:'Max Dowman',         pos:'(ENG)', age:15, apps:1,  starts:1,  min:157,  gls:0,  ast:0},
+    ]
+  }
+};
 function setTdjSort(col){
   if(_tdjSortCol === col){ _tdjSortDir = _tdjSortDir==='desc' ? 'asc' : 'desc'; }
   else { _tdjSortCol = col; _tdjSortDir = (col==='name') ? 'asc' : 'desc'; }
+  renderTempsDeJeu();
+}
+function setTdjRefView(v){ _tdjRefView=v; renderTempsDeJeu(); }
+function setFbrefSort(col){
+  if(_fbrefSortCol===col){ _fbrefSortDir=_fbrefSortDir==='desc'?'asc':'desc'; }
+  else { _fbrefSortCol=col; _fbrefSortDir=(col==='name')?'asc':'desc'; }
   renderTempsDeJeu();
 }
 
@@ -4320,6 +4360,86 @@ function renderTempsDeJeu(){
 
   const compLabel = (COMPETITIONS[ACTIVE_COMP] && (COMPETITIONS[ACTIVE_COMP].shortLabel || COMPETITIONS[ACTIVE_COMP].label)) || (_lang==='en'?'WC 2026':'CDM 2026');
   let html = `<h1>⏱️ ${_lang==='en'?'Playing Time':'Temps de jeu'} — ${compLabel}</h1>`;
+
+  // ── Sélecteur de vue : CDM vs Référence FBref
+  html += `<div style="display:flex;gap:8px;margin:0 0 18px;flex-wrap:wrap">
+    <button data-active="${!_tdjRefView}" onclick="setTdjRefView(false)"
+      style="padding:6px 18px;border:1.5px solid var(--border);border-radius:20px;font-size:.82em;font-weight:600;cursor:pointer;font-family:inherit">
+      🏆 CDM 2026
+    </button>
+    <button data-active="${_tdjRefView}" onclick="setTdjRefView(true)"
+      style="padding:6px 18px;border:1.5px solid var(--border);border-radius:20px;font-size:.82em;font-weight:600;cursor:pointer;font-family:inherit">
+      🔴 Arsenal — PL 2025-26
+    </button>
+  </div>`;
+
+  // ── Vue FBref Arsenal
+  if(_tdjRefView){
+    const ref = FBREF_REFS.Arsenal;
+    const maxMin = Math.max(...ref.players.map(p=>p.min));
+    const posCol = pos => {
+      if(pos.startsWith('GK')) return '#1a8a4a';
+      if(pos.startsWith('DF')) return '#2a5cbf';
+      if(pos.startsWith('MF')) return '#7a5a00';
+      if(pos.startsWith('FW')) return '#b00000';
+      return '#666';
+    };
+    const fbCols = [
+      {key:'name',   label:'Joueur',       align:'left'},
+      {key:'pos',    label:'Poste',        noSort:true},
+      {key:'age',    label:'Âge'},
+      {key:'apps',   label:'Matchs'},
+      {key:'starts', label:'Tit.'},
+      {key:'min',    label:'Min'},
+      {key:'n90',    label:'90s',          noSort:true},
+      {key:'gls',    label:'⚽ Buts'},
+      {key:'ast',    label:'🎯 Passe D.'},
+    ];
+    const sorters = {
+      name:(a,b)=>a.name.localeCompare(b.name),
+      age:(a,b)=>a.age-b.age, apps:(a,b)=>a.apps-b.apps,
+      starts:(a,b)=>a.starts-b.starts, min:(a,b)=>a.min-b.min,
+      gls:(a,b)=>a.gls-b.gls, ast:(a,b)=>a.ast-b.ast,
+    };
+    let fbSorted = [...ref.players].sort(sorters[_fbrefSortCol]||sorters.min);
+    if(_fbrefSortDir==='desc') fbSorted.reverse();
+
+    html += `<div style="background:rgba(180,30,10,.07);border:1.5px solid rgba(180,30,10,.22);border-radius:10px;padding:10px 16px;margin-bottom:16px;font-size:.82em">
+      📊 <strong>Source :</strong> ${ref.source} — ${ref.label} · Mise à jour : ${ref.updated}<br>
+      <span style="color:var(--muted)">${ref.note}</span>
+    </div>`;
+
+    html += '<div style="overflow-x:auto"><table class="tableau" style="width:100%;max-width:1020px">';
+    html += '<tr>' + fbCols.map(c=>{
+      const arrow = (_fbrefSortCol===c.key) ? (_fbrefSortDir==='desc'?' ▼':' ▲') : '';
+      const cursor = c.noSort ? '' : 'cursor:pointer;';
+      const onclick = c.noSort ? '' : ` onclick="setFbrefSort('${c.key}')"`;
+      return `<th style="text-align:${c.align||'center'};${cursor}"${onclick}>${c.label}${arrow}</th>`;
+    }).join('') + '</tr>';
+
+    fbSorted.forEach(p=>{
+      const pc = posCol(p.pos);
+      const barW = Math.round(p.min/maxMin*100);
+      const n90 = (p.min/90).toFixed(1);
+      html += `<tr>
+        <td style="text-align:left;font-weight:600">${p.name}
+          <div style="height:3px;background:linear-gradient(90deg,${pc},${pc}22);width:${barW}%;margin-top:3px;border-radius:2px"></div>
+        </td>
+        <td style="text-align:center"><span style="background:${pc}22;color:${pc};padding:2px 8px;border-radius:10px;font-size:.78em;font-weight:700;white-space:nowrap">${p.pos}</span></td>
+        <td style="text-align:center">${p.age}</td>
+        <td style="text-align:center">${p.apps}</td>
+        <td style="text-align:center">${p.starts}</td>
+        <td style="text-align:center;font-weight:700">${p.min}'</td>
+        <td style="text-align:center;color:var(--muted);font-size:.9em">${n90}</td>
+        <td style="text-align:center;font-weight:${p.gls>0?'700':'400'};color:${p.gls>0?'#cc0000':'var(--muted)'}">${p.gls>0?p.gls:'—'}</td>
+        <td style="text-align:center;font-weight:${p.ast>0?'700':'400'};color:${p.ast>0?'#2a5cbf':'var(--muted)'}">${p.ast>0?p.ast:'—'}</td>
+      </tr>`;
+    });
+
+    html += '</table></div>';
+    el.innerHTML = html;
+    return;
+  }
 
   const {rows, anyLineup} = _tdjCompute();
 
@@ -12380,6 +12500,8 @@ function renderRecherche(){
         ${pillsHtml}
       </div>
     </div>
+    <!-- Panneau détail match -->
+    <div id="rech-match-panel" style="display:none;margin-top:10px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
   </div>`;
   }
 
@@ -12959,7 +13081,9 @@ function animateGoalPath(gi, pfx){
   });
 }
 
+let _rechLastClickedGi = -1;
 function rechToggleGoal(pill, gi){
+  _rechLastClickedGi = gi;
   if(_rechActiveGoals.has(gi)){
     _rechActiveGoals.delete(gi);
     pill.style.background='#fff';
@@ -12973,6 +13097,7 @@ function rechToggleGoal(pill, gi){
     setTimeout(()=>animateGoalPath(gi,'rg'), 20);
   }
   _rechApplyOpacity();
+  rechUpdateMatchPanel();
 }
 
 function rechResetPills(){
