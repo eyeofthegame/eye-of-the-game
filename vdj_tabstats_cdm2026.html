@@ -1394,7 +1394,7 @@ const _GLOSSAIRE_RUBRIQUES = {
   tactique1: {
     fr: "<strong>Style de jeu</strong> — Comment l'action offensive a été construite :<br><br><strong>· Jeu dominant placé</strong> : possession dans le tiers finition, construction normale jusqu'au but.<br><strong>· Jeu dominant rapide</strong> : possession dans le tiers finition avec une accélération soudaine pour changer le rythme de la phase avant d'aller au but.<br><strong>· Transition rapide</strong> : possession lointaine (zone défensive jusqu'au rond central), puis accélération et jeu direct vers le but.<br><strong>· Reconversion rapide</strong> : l'adversaire est en possession de balle. Il y a une récupération rapide, et le plus vite possible on se projette vers l'avant pour aller marquer.<br><strong>· Phase arrêtée</strong> : but issu d'un coup franc, d'un corner ou d'une touche — action à partir d'un arrêt de jeu.<br><strong>· Penalty</strong> : tir au but accordé par l'arbitre après faute dans la surface.",
     en: "<strong>Playing style</strong> — How the attacking move was built:<br><br><strong>· Dominant settled play</strong>: possession in the final third, normal build-up to goal.<br><strong>· Dominant quick play</strong>: possession in the final third with a sudden acceleration to change tempo before finishing.<br><strong>· Quick transition</strong>: ball held deep (defensive zone to centre circle), then acceleration and direct play toward goal.<br><strong>· Quick reconversion</strong>: the opponent is in possession. The ball is quickly recovered, and the team projects forward as fast as possible to score.<br><strong>· Set piece</strong>: goal from a free kick, corner or throw-in — action from a dead ball situation.<br><strong>· Penalty</strong>: spot kick awarded by the referee for a foul in the area.",
-    nl: "<strong>Speelstijl</strong> — Hoe de aanvallende actie werd opgebouwd:<br><br><strong>· Positiespel dominant</strong>: balbezit in het afwerkingsderde, normale opbouw tot het doelpunt.<br><strong>· Snel spel dominant</strong>: balbezit in het afwerkingsderde met een plotse versnelling om het tempo te wijzigen vóór de afwerking.<br><strong>· Herneming</strong>: de bal wordt diep bijgehouden (verdedigingszone tot middencirkel), daarna versnelling en direct spel naar het doel.<br><strong>· Omschakeling</strong>: de tegenstander heeft balbezit. De bal wordt snel veroverd en zo snel mogelijk naar voor geprojecteerd om te scoren.<br><strong>· Stilstaande fase</strong>: doelpunt uit een vrije trap, corner of inworp — actie vanuit een dode bal.<br><strong>· Strafschop</strong>: strafschop toegekend door de scheidsrechter na een overtreding in het strafschopgebied."
+    nl: "<strong>Speelstijl</strong> — Hoe de aanvallende actie werd opgebouwd:<br><br><strong>· Positiespel dominant</strong>: balbezit in het afwerkingsderde, normale opbouw tot het doelpunt.<br><strong>· Snel spel dominant</strong>: balbezit in het afwerkingsderde met een plotse versnelling om het tempo te wijzigen vóór de afwerking.<br><strong>· Aanvallende omschakeling</strong>: de bal wordt diep bijgehouden (verdedigingszone tot middencirkel), daarna versnelling en direct spel naar het doel.<br><strong>· Omschakeling</strong>: de tegenstander heeft balbezit. De bal wordt snel veroverd en zo snel mogelijk naar voor geprojecteerd om te scoren.<br><strong>· Stilstaande fase</strong>: doelpunt uit een vrije trap, corner of inworp — actie vanuit een dode bal.<br><strong>· Strafschop</strong>: strafschop toegekend door de scheidsrechter na een overtreding in het strafschopgebied."
   },
   tactique3: {
     fr: "<strong>Nature du but</strong> — Qualification du but : intentionnel (action voulue), circonstance favorable (rebond, déviation), erreur provoquée chez l'adversaire, ou décision arbitrale.",
@@ -3646,7 +3646,7 @@ function calcMin10(m, aet){
 // sans dupliquer/faire diverger la logique.
 const HEADER_LABEL_OVERRIDES    = { tactique1: { 3: 'REC. Rapide' }, tactique3: { 2: 'CIRC. Favorable' } };
 const HEADER_LABEL_OVERRIDES_EN = { tactique1: { 3: 'Fast Reco.' }, tactique3: { 2: 'Fav. Circum.' } };
-const HEADER_LABEL_OVERRIDES_NL = { tactique1: { 3: 'Herneming', 4: 'Omschakeling' }, tactique3: { 2: 'Gunst. Omst.' } };
+const HEADER_LABEL_OVERRIDES_NL = { tactique1: { 3: 'Aanv. omsch.', 4: 'Omschakeling' }, tactique3: { 2: 'Gunst. Omst.' } };
 function _renomFavorableConcede(nom, isScoredView){
   if(isScoredView) return nom;
   if(nom === 'Circonstance Favorable') return 'Circonstance Défavorable';
@@ -12714,7 +12714,7 @@ function rechUpdateFilter(key, val){
 const _RECH_PRESETS = [
   {key:'jdp',    label:'🎭 Jeu placé', labelEn:'🎭 Set play', labelNl:'🎭 Geplaatst spel',       filters:{tac1:'1'}, color:'#888888', tc:'#fff'},
   {key:'jdr',    label:'⚡ Dominant rapide', labelEn:'⚡ Fast dominant', labelNl:'⚡ Snel dominant',  filters:{tac1:'2'}, color:'#BBC4C3', tc:'#444'},
-  {key:'reco',   label:'🔥 Reconversion', labelEn:'🔥 Counter-press', labelNl:'🔥 Tegenpressing',     filters:{tac1:'3'}, color:'#ffcccc', tc:'#880000'},
+  {key:'reco',   label:'🔥 Reconversion', labelEn:'🔥 Counter-press', labelNl:'🔥 Aanv. omschakeling',     filters:{tac1:'3'}, color:'#ffcccc', tc:'#880000'},
   {key:'trans',  label:'🚀 Transition', labelEn:'🚀 Transition', labelNl:'🚀 Omschakeling',        filters:{tac1:'4'}, color:'#880044', tc:'#fff'},
   {key:'pa',     label:'🎯 Phase arrêtée', labelEn:'🎯 Set piece', labelNl:'🎯 Stilstaande fase',    filters:{tac1:'5'}, color:'#ffff44', tc:'#0000ff'},
   {key:'pen',    label:'⚽ Penalty', labelEn:'⚽ Penalty', labelNl:'⚽ Penalty',           filters:{tac1:'6'}, color:'#cc0000', tc:'#fff'},
@@ -16426,7 +16426,7 @@ const _LANG_EN = {
   mitemps:{1:"1st Half",2:"2nd Half"}
 };
 const _LANG_NL = {
-  tactique1:{1:"Positiespel dominant",2:"Snel spel dominant",3:"Snelle herneming",4:"Snelle omschakeling",5:"Stilstaande fase",6:"Strafschop"},
+  tactique1:{1:"Positiespel dominant",2:"Snel spel dominant",3:"Aanvallende omschakeling",4:"Snelle omschakeling",5:"Stilstaande fase",6:"Strafschop"},
   origine3:{1:"-",2:"Laatste 16m",3:"Aanvallend derde",4:"Middenderde",5:"Verdedigend derde"},
   origine2:{1:"-",2:"Rechts",3:"Centraal",4:"Links"},
   origine1:{1:"Balverlies tegenstander",2:"Voorzet",3:"Directe vrije trap",4:"Indirecte vrije trap",5:"Hoekschop",6:"Pas",7:"Strafschop",8:"Individuele actie",9:"Schot",10:"Inworp"},
