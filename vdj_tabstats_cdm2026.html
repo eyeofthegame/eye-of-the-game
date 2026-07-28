@@ -3646,7 +3646,7 @@ function calcMin10(m, aet){
 // sans dupliquer/faire diverger la logique.
 const HEADER_LABEL_OVERRIDES    = { tactique1: { 3: 'REC. Rapide' }, tactique3: { 2: 'CIRC. Favorable' } };
 const HEADER_LABEL_OVERRIDES_EN = { tactique1: { 3: 'Fast Reco.' }, tactique3: { 2: 'Fav. Circum.' } };
-const HEADER_LABEL_OVERRIDES_NL = { tactique1: { 3: 'Aanv. omsch.', 4: 'Omschakeling' }, tactique3: { 2: 'Gunst. Omst.' } };
+const HEADER_LABEL_OVERRIDES_NL = { tactique1: { 3: 'Aanv. omsch.', 4: 'Omschakeling', 5: 'Stilst. fase', 6: 'Strafsch.' }, tactique3: { 2: 'Gunst. Omst.' } };
 function _renomFavorableConcede(nom, isScoredView){
   if(isScoredView) return nom;
   if(nom === 'Circonstance Favorable') return 'Circonstance Défavorable';
