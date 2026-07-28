@@ -5677,7 +5677,7 @@ function renderSetpieces(){
   const comboPill = `<button onclick="_spComboOnly=!_spComboOnly;renderSetpieces()" style="padding:4px 12px;border-radius:20px;font-size:.8em;cursor:pointer;border:2px solid ${comboActive?'#0e7c61':'#ccc'};background:${comboActive?'#0e7c61':'#fff'};color:${comboActive?'#fff':'#555'};font-weight:${comboActive?700:400}">🔧 ${_lang==='en'?'Worked Combination':_lang==='nl'?'Uitgewerkte combinatie':'Combinaison travaillée'} (${comboCount})</button>`;
 
   const html = `<div style="padding:20px 10px;max-width:1200px;margin:0 auto">
-    <h2 style="margin:0 0 16px;font-size:1.4em">🗺 ${_lang==='en'?'Set-Piece Diagrams':_lang==='nl'?'Schema's stilstaande fasen':'Schémas Phases arrêtées'}</h2>
+    <h2 style="margin:0 0 16px;font-size:1.4em">🗺 ${_lang==='en'?'Set-Piece Diagrams':_lang==='nl'?'Schema’s stilstaande fasen':'Schémas Phases arrêtées'}</h2>
     <div style="margin-bottom:8px;display:flex;flex-wrap:wrap;gap:6px">${teamPills.join('')}</div>
     <div style="margin-bottom:12px;display:flex;flex-wrap:wrap;gap:6px">${paPills}${comboPill}</div>
     <div style="margin-bottom:16px;display:flex;flex-wrap:wrap;gap:8px;padding:8px 12px;background:#f5f5f5;border-radius:8px">${legend}</div>
@@ -15893,7 +15893,7 @@ function renderFicheMatch(){
 
   <!-- SCÉNARIOS -->
   <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px 18px">
-    <div style="font-size:.72em;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">${_lang==='en'?'🔭 Key Scenarios':_lang==='nl'?'🔭 Sleutelscenario's':'🔭 Scénarios probables'}</div>
+    <div style="font-size:.72em;font-weight:800;color:var(--accent);text-transform:uppercase;letter-spacing:.08em;margin-bottom:10px">${_lang==='en'?'🔭 Key Scenarios':_lang==='nl'?'🔭 Sleutelscenario’s':'🔭 Scénarios probables'}</div>
     ${scenarios.map(s => `<div style="font-size:.88em;line-height:1.6;padding:7px 12px;background:#f8f9ff;border-radius:6px;margin-bottom:6px">${s}</div>`).join('')}
   </div>
   <div style="margin-top:20px;text-align:right">
