@@ -6508,7 +6508,7 @@ function openPitchExport(viewId, nameBase){
     +radioRow('pxBg','white','⬜ '+t('white'),true)
     +radioRow('pxBg','transparent','🔲 '+t('transp'),false)
     +radioRow('pxBg','custom','🎨 '+t('custom'),false)
-    +'<input type="color" id="pxCustomColor" value="#0d1b4b" style="width:34px;height:34px;border:2px solid #dde;border-radius:8px;cursor:pointer;padding:2px" onchange="document.querySelector('input[name=pxBg][value=custom]').checked=true">'
+    +'<input type="color" id="pxCustomColor" value="#0d1b4b" style="width:34px;height:34px;border:2px solid #dde;border-radius:8px;cursor:pointer;padding:2px" onchange="document.querySelector(\x27input[name=pxBg][value=custom]\x27).checked=true\">'
     +'</div></div>'
     +'<div style="margin-bottom:26px"><div style="font-size:.68em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">'+t('fmt')+'</div>'
     +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
@@ -6558,8 +6558,7 @@ function doPitchExport(){
   if(bgColor) body+='<rect width="'+totalW+'" height="'+totalH+'" fill="'+bgColor+'"/>';
   body+='<g transform="translate('+PAD+','+PAD+')"><svg viewBox="'+vbStr+'" width="'+w+'" height="'+h+'" xmlns="http://www.w3.org/2000/svg">'+inner+'</svg></g>';
 
-  var svgDoc='<?xml version="1.0" encoding="UTF-8"?>
-'
+  var svgDoc='<?xml version="1.0" encoding="UTF-8"?>'
     +'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
     +' viewBox="0 0 '+totalW+' '+totalH+'" width="'+totalW+'" height="'+totalH+'">'+body+'</svg>';
 
