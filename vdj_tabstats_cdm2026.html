@@ -6468,6 +6468,132 @@ function openExportModal(){
   document.body.appendChild(overlay);
 }
 
+
+function openPitchExport(viewId, nameBase){
+  if(document.getElementById('vdj-export-modal')) return;
+  var svgEl=document.querySelector('#'+viewId+' svg');
+  if(!svgEl){ alert(_lang==='en'?'No chart to export.':_lang==='nl'?'Geen grafiek om te exporteren.':'Aucun graphique à exporter.'); return; }
+  var L={
+    title:{fr:'Exporter le graphique',en:'Export Chart',nl:'Grafiek exporteren'},
+    bg:{fr:'Fond',en:'Background',nl:'Achtergrond'},
+    white:{fr:'Blanc',en:'White',nl:'Wit'},
+    transp:{fr:'Transparent (PNG alpha)',en:'Transparent (PNG with alpha)',nl:'Transparant (PNG met alpha)'},
+    custom:{fr:'Couleur personnalisée',en:'Custom color',nl:'Aangepaste kleur'},
+    fmt:{fr:'Format & résolution',en:'Format & resolution',nl:'Formaat & resolutie'},
+    cancel:{fr:'Annuler',en:'Cancel',nl:'Annuleren'},
+    dl:{fr:'⬇ Télécharger',en:'⬇ Download',nl:'⬇ Downloaden'},
+    note:{fr:'SVG vectoriel : qualité infinie, modifiable dans Illustrator. PNG 4× : qualité broadcast TV.',
+          en:'SVG vector: infinite quality, editable in Illustrator. PNG 4×: broadcast TV quality.',
+          nl:'SVG vector: oneindige kwaliteit, bewerkbaar in Illustrator. PNG 4×: broadcast TV kwaliteit.'}
+  };
+  var t=function(k){ return L[k][_lang]||L[k].fr; };
+
+  function radioRow(name,val,lbl,chk){
+    return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border:1.5px solid #dde;border-radius:8px;font-size:.82em;font-weight:600">'
+      +'<input type="radio" name="'+name+'" value="'+val+'" '+(chk?'checked':'')+' style="accent-color:var(--accent);width:14px;height:14px"> '+lbl+'</label>';
+  }
+
+  var overlay=document.createElement('div');
+  overlay.id='vdj-export-modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(10,15,30,.72);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  overlay.addEventListener('click',function(e){ if(e.target===overlay) closeExportModal(); });
+  overlay.innerHTML=
+    '<div style="background:#f8f9fb;border-radius:16px;box-shadow:0 12px 50px rgba(0,0,0,.45);padding:30px 34px;min-width:420px;max-width:540px;font-family:inherit">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">'
+    +'<span style="font-size:1.12em;font-weight:800;color:#1a2340">📷 '+t('title')+'</span>'
+    +'<button onclick="closeExportModal()" style="background:none;border:none;font-size:1.3em;cursor:pointer;color:#aaa;padding:0 4px">✕</button>'
+    +'</div>'
+    +'<div style="margin-bottom:20px"><div style="font-size:.68em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">'+t('bg')+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    +radioRow('pxBg','white','⬜ '+t('white'),true)
+    +radioRow('pxBg','transparent','🔲 '+t('transp'),false)
+    +radioRow('pxBg','custom','🎨 '+t('custom'),false)
+    +'<input type="color" id="pxCustomColor" value="#0d1b4b" style="width:34px;height:34px;border:2px solid #dde;border-radius:8px;cursor:pointer;padding:2px" onchange="document.querySelector('input[name=pxBg][value=custom]').checked=true">'
+    +'</div></div>'
+    +'<div style="margin-bottom:26px"><div style="font-size:.68em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">'+t('fmt')+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +radioRow('pxFmt','png2','PNG HD — 2×',true)
+    +radioRow('pxFmt','png4','PNG Ultra — 4×',false)
+    +radioRow('pxFmt','svg','SVG vectoriel',false)
+    +'</div><div style="margin-top:10px;font-size:.72em;color:#8896aa;line-height:1.5">💡 '+t('note')+'</div></div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #e8eaf0;padding-top:20px">'
+    +'<button onclick="closeExportModal()" style="padding:9px 22px;border:1.5px solid #ccc;border-radius:9px;background:#fff;cursor:pointer;font-size:.88em;font-weight:600;color:#445">'+t('cancel')+'</button>'
+    +'<button onclick="doPitchExport()" style="padding:9px 24px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-size:.88em;font-weight:700">'+t('dl')+'</button>'
+    +'</div></div>';
+
+  // Stocker la cible
+  overlay._svgEl=svgEl;
+  overlay._nameBase=nameBase;
+  document.body.appendChild(overlay);
+}
+
+function doPitchExport(){
+  var modal=document.getElementById('vdj-export-modal');
+  if(!modal) return;
+  var svgEl=modal._svgEl;
+  var nameBase=modal._nameBase||'vdj-chart';
+  var bg=(document.querySelector('input[name="pxBg"]:checked')||{}).value||'white';
+  var fmt=(document.querySelector('input[name="pxFmt"]:checked')||{}).value||'png2';
+  var customColor=(document.getElementById('pxCustomColor')||{}).value||'#0d1b4b';
+  var bgColor=bg==='white'?'#ffffff':bg==='custom'?customColor:null;
+
+  var cs=getComputedStyle(document.documentElement);
+  var cssVars={
+    'var(--accent)':cs.getPropertyValue('--accent').trim()||'#2255ff',
+    'var(--border)':cs.getPropertyValue('--border').trim()||'#dde3ec',
+    'var(--muted)':cs.getPropertyValue('--muted').trim()||'#8896aa',
+    'var(--text)':cs.getPropertyValue('--text').trim()||'#222233',
+    'var(--card)':cs.getPropertyValue('--card').trim()||'#ffffff',
+    'var(--red)':cs.getPropertyValue('--red').trim()||'#dd2222'
+  };
+  function resolveCss(s){ Object.keys(cssVars).forEach(function(k){ s=s.split(k).join(cssVars[k]); }); return s; }
+
+  var vbStr=svgEl.getAttribute('viewBox')||'0 0 800 520';
+  var vb=vbStr.split(/[\s,]+/).map(Number);
+  var w=vb[2], h=vb[3];
+  var PAD=0;
+  var totalW=w+PAD*2, totalH=h+PAD*2;
+  var inner=resolveCss(svgEl.innerHTML);
+  var body='';
+  if(bgColor) body+='<rect width="'+totalW+'" height="'+totalH+'" fill="'+bgColor+'"/>';
+  body+='<g transform="translate('+PAD+','+PAD+')"><svg viewBox="'+vbStr+'" width="'+w+'" height="'+h+'" xmlns="http://www.w3.org/2000/svg">'+inner+'</svg></g>';
+
+  var svgDoc='<?xml version="1.0" encoding="UTF-8"?>
+'
+    +'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+    +' viewBox="0 0 '+totalW+' '+totalH+'" width="'+totalW+'" height="'+totalH+'">'+body+'</svg>';
+
+  var ts=new Date().toISOString().slice(0,10);
+  var filename=nameBase+'_'+ts;
+
+  function dlBlob(blob,name){
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
+  }
+
+  if(fmt==='svg'){
+    dlBlob(new Blob([svgDoc],{type:'image/svg+xml'}), filename+'.svg');
+    closeExportModal(); return;
+  }
+  var scale=fmt==='png4'?4:2;
+  var pW=totalW*scale, pH=totalH*scale;
+  var svgScaled=svgDoc.replace('width="'+totalW+'" height="'+totalH+'"','width="'+pW+'" height="'+pH+'"');
+  var blob=new Blob([svgScaled],{type:'image/svg+xml'});
+  var url=URL.createObjectURL(blob);
+  var img=new Image();
+  img.onload=function(){
+    var cv=document.createElement('canvas'); cv.width=pW; cv.height=pH;
+    var ctx=cv.getContext('2d');
+    if(!bgColor) ctx.clearRect(0,0,pW,pH);
+    ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    cv.toBlob(function(b){ dlBlob(b,filename+(scale===4?'_4x':'_2x')+'.png'); },'image/png');
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url); alert('Erreur conversion PNG.'); };
+  img.src=url;
+  closeExportModal();
+}
+
 function closeExportModal(){
   var m=document.getElementById('vdj-export-modal');
   if(m) m.remove();
@@ -9584,6 +9710,7 @@ function renderShotMap(){
     ${tacSelect}
     <div style="flex:1"></div>
     ${countBadge}
+    <button onclick="openPitchExport('view-shotmap','shot-map')" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
 
   </div>`;
 
@@ -9957,6 +10084,8 @@ function renderTete(){
       ${teamOpts}
     </select>
     ${teteTeam?`<a href="#" onclick="teteTeam='';renderTete();return false" style="color:var(--accent);font-size:.82em">✕ ${_lang==='en'?'Show all':_lang==='nl'?'Alles tonen':'Tout voir'}</a>`:''}
+
+    <button onclick="openPitchExport('view-tete','jeu-de-tete')" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
 
   </div>`;
 
@@ -10445,6 +10574,7 @@ function renderPressZones(){
     <select onchange="pzTeam=this.value;pzCoachPeriod=null;renderPressZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
     <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}</span>
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded zone':'but'+(goals.length>1?'s':'')+' avec zone encodée'}</span>
+    <button onclick="openPitchExport('view-presszones','zones-recuperation')" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
   </div>
   ${_teamCoachBlockHtml(pzTeam, pzCoachPeriod, 'setPzCoachPeriod')}
   <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
@@ -10736,6 +10866,7 @@ function renderTriggerZones(){
     <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}${msbPillHtml}</span>
     ${dirPills}
     <span style="font-size:.8em;color:var(--muted)">${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':'')+' with encoded trigger':'but'+(goals.length>1?'s':'')+' avec déclenchement encodé'}</span>
+    <button onclick="openPitchExport('view-triggerzones','zones-declenchement')" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
   </div>
   ${_teamCoachBlockHtml(tzTeam, tzCoachPeriod, 'setTzCoachPeriod')}
   ${dirNote}
