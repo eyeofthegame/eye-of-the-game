@@ -4157,9 +4157,9 @@ function renderClassement(){
   const compLabel = (COMPETITIONS[ACTIVE_COMP] && (COMPETITIONS[ACTIVE_COMP].shortLabel || COMPETITIONS[ACTIVE_COMP].label)) || (_lang==='en'?'WC 2026':_lang==='nl'?'WK 2026':'CDM 2026');
 
   const vLabels = {
-    all: _lang==='en' ? 'Overall' : 'Général',
-    home: _lang==='en' ? '🏠 Home' : '🏠 Domicile',
-    away: _lang==='en' ? '✈️ Away' : '✈️ Extérieur'
+    all: _lang==='en' ? 'Overall' : _lang==='nl' ? 'Algemeen' : 'Général',
+    home: _lang==='en' ? '🏠 Home' : _lang==='nl' ? '🏠 Thuis' : '🏠 Domicile',
+    away: _lang==='en' ? '✈️ Away' : _lang==='nl' ? '✈️ Uit' : '✈️ Extérieur'
   };
   const venueBar = ['all','home','away'].map(v=>{
     const active = _classVenue === v;
@@ -4664,7 +4664,7 @@ function renderModeleAdversaire(){
   let html = `<h1>🆚 ${_lang==='en'?'Model vs Opponent Tier':_lang==='nl'?'Model vs Tegenstander niveau':'Modèle vs Adversaire'} — ${compLabel}</h1>`;
   html += `<div style="color:var(--muted);font-size:.85em;margin-bottom:14px;max-width:720px">${_lang==='en'
     ? 'What does a team’s offensive/defensive model look like, home and away, depending on the tier of opponent it faces? Also see raw results between teams from the same tier.'
-    : 'À quoi ressemble le modèle offensif/défensif d’une équipe, à domicile et à l’extérieur, selon le niveau de l’adversaire ? Et les résultats bruts entre équipes d’un même groupe.'}</div>`;
+    : _lang==='nl' ? 'Hoe ziet het offensief/defensief model van een ploeg eruit, thuis en uit, afhankelijk van het niveau van de tegenstander? En de ruwe resultaten tussen ploegen uit dezelfde groep.' : 'À quoi ressemble le modèle offensif/défensif d’une équipe, à domicile et à l’extérieur, selon le niveau de l’adversaire ? Et les résultats bruts entre équipes d’un même groupe.'}</div>`;
 
   if(ranked.length < 3){
     html += `<div class="no-data">${_lang==='en'?'Not enough validated matches yet to build a standings-based model.':_lang==='nl'?'Nog niet genoeg gevalideerde wedstrijden om een klassementsmodel te bouwen.':'Pas encore assez de matchs validés pour construire un modèle basé sur le classement.'}</div>`;
@@ -4835,8 +4835,8 @@ function renderModeleAdversaire(){
     }).join('') + '</div>';
 
     html += `<div style="font-size:.75em;color:var(--muted);margin-bottom:10px;max-width:640px">${_maTeam
-      ? (_lang==='en' ? `Model for ${tf(_maTeam)}: goals scored (offensive) vs goals conceded (defensive), across all its matches against teams from the same group.` : `Modèle de ${tf(_maTeam)} : buts marqués (offensif) et buts encaissés (défensif), sur tous ses matchs face aux équipes du même groupe.`)
-      : (_lang==='en' ? 'Both teams belong to the same group here, so with no single team selected, "offensive"/"defensive" is split by venue: home = offensive, away = defensive.' : 'Les deux équipes appartiennent au même groupe ici ; sans équipe précise sélectionnée, "offensif"/"défensif" est distingué par lieu du match : domicile = offensif, extérieur = défensif.')}</div>`;
+      ? (_lang==='en' ? `Model for ${tf(_maTeam)}: goals scored (offensive) vs goals conceded (defensive), across all its matches against teams from the same group.` : _lang==='nl' ? `Model van ${tf(_maTeam)}: gescoorde doelpunten (offensief) en doelpunten tegen (defensief), over alle wedstrijden tegen ploegen uit dezelfde groep.` : `Modèle de ${tf(_maTeam)} : buts marqués (offensif) et buts encaissés (défensif), sur tous ses matchs face aux équipes du même groupe.`)
+      : (_lang==='en' ? 'Both teams belong to the same group here, so with no single team selected, "offensive"/"defensive" is split by venue: home = offensive, away = defensive.' : _lang==='nl' ? 'Beide ploegen behoren tot dezelfde groep; zonder geselecteerde ploeg wordt "offensief"/"defensief" onderscheiden op basis van locatie: thuis = offensief, uit = defensief.' : 'Les deux équipes appartiennent au même groupe ici ; sans équipe précise sélectionnée, "offensif"/"défensif" est distingué par lieu du match : domicile = offensif, extérieur = défensif.')}</div>`;
 
     const offTitleSym = _maTeam ? (_lang==='en'?'Offensive model':_lang==='nl'?'Offensief model':'Modèle offensif') : (_lang==='en'?'Offensive model (home)':_lang==='nl'?'Offensief model (thuis)':'Modèle offensif (domicile)');
     const defTitleSym = _maTeam ? (_lang==='en'?'Defensive model':_lang==='nl'?'Defensief model':'Modèle défensif') : (_lang==='en'?'Defensive model (away)':_lang==='nl'?'Defensief model (uit)':'Modèle défensif (extérieur)');
@@ -5148,7 +5148,7 @@ function renderPaPoints() {
     +'<thead><tr style="background:var(--bg);font-size:.77em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">'
     +'<th title="Trier" onclick="paSortBy(\'team\')" style="text-align:left;padding:10px 12px;font-weight:700;'+_paTh('team')+'">'+(_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe')+_paSortIco('team')+'</th>'
     +'<th title="Trier" onclick="paSortBy(\'paScored\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('paScored')+'">'+(_lang==='en'?'SP ⚽':_lang==='nl'?'SF ⚽':'PA ⚽')+_paSortIco('paScored')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'scored':_lang==='nl'?'gescoord':'marquées')+'</span></th>'
-    +'<th title="Trier" onclick="paSortBy(\'paConceded\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('paConceded')+'">'+(_lang==='en'?'SP 🛡️':_lang==='nl'?'SF 🛡️':'PA 🛡️')+_paSortIco('paConceded')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':_lang==='nl'?'gecasseerd':'encaissées')+'</span></th>'
+    +'<th title="Trier" onclick="paSortBy(\'paConceded\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('paConceded')+'">'+(_lang==='en'?'SP 🛡️':_lang==='nl'?'SF 🛡️':'PA 🛡️')+_paSortIco('paConceded')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':_lang==='nl'?'tegen':'encaissées')+'</span></th>'
     +'<th title="Trier" onclick="paSortBy(\'actualPts\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_paTh('actualPts')+'">'+(_lang==='en'?'Pts':_lang==='nl'?'Ptn':'Pts')+_paSortIco('actualPts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'actual':_lang==='nl'?'werkelijk':'réels')+'</span></th>'
     +'<th title="Trier" onclick="paSortBy(\'simBothPts\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#7a4a00;'+_paTh('simBothPts')+'">'+(_lang==='en'?'Pts':_lang==='nl'?'Ptn':'Pts')+_paSortIco('simBothPts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'w/o SP':_lang==='nl'?'z/ SF':'sans PA')+'</span></th>'
     +'<th title="Trier" onclick="paSortBy(\'deltaBoth\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#555;'+_paTh('deltaBoth')+'">Δ'+_paSortIco('deltaBoth')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'impact':_lang==='nl'?'impact':'impact')+'</span></th>'
@@ -6395,7 +6395,7 @@ function openExportModal(){
     title:{fr:'Exporter le graphique',en:'Export Chart',nl:'Grafiek exporteren'},
     graph:{fr:'Graphique',en:'Chart',nl:'Grafiek'},
     scored:{fr:'Buts marqués',en:'Goals Scored',nl:'Doelpunten gescoord'},
-    conceded:{fr:'Buts encaissés',en:'Goals Conceded',nl:'Doelpunten gecasseerd'},
+    conceded:{fr:'Buts encaissés',en:'Goals Conceded',nl:'Doelpunten tegen'},
     both:{fr:'Les deux côte à côte',en:'Both side by side',nl:'Beide naast elkaar'},
     bg:{fr:'Fond',en:'Background',nl:'Achtergrond'},
     white:{fr:'Blanc',en:'White',nl:'Wit'},
@@ -7116,7 +7116,7 @@ function renderJeuPoints(){
     +'<div style="max-width:1000px">'
     +'<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">📊 '+(_lang==='en'?'Tactical Analysis':_lang==='nl'?'Tactische analyse':'Analyse tactique')+'</div>'
     +'<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 6px">'+(_lang==='en'?'Style Value in Points':_lang==='nl'?'Waarde spelstijlen in punten':'Valeur des styles de jeu en points')+'</h2>'
-    +'<p style="font-size:.84em;color:var(--muted);margin:0 0 16px;line-height:1.5">'+(_lang==='en'?'Simulation: if these goals had not been scored (or conceded), what would the result have been? Impact measured in standings points.':_lang==='nl'?'Simulatie: als deze doelpunten niet waren gemaakt (of gecasseerd), wat zou het resultaat zijn geweest? Impact gemeten in klassementspunten.':'Simulation : si ces buts n\'avaient pas été marqués (ou encaissés), quel aurait été le résultat ? Impact mesuré en points de classement.')+'</p>'
+    +'<p style="font-size:.84em;color:var(--muted);margin:0 0 16px;line-height:1.5">'+(_lang==='en'?'Simulation: if these goals had not been scored (or conceded), what would the result have been? Impact measured in standings points.':_lang==='nl'?'Simulatie: als deze doelpunten niet waren gemaakt (of tegendoelpunten), wat zou het resultaat zijn geweest? Impact gemeten in klassementspunten.':'Simulation : si ces buts n\'avaient pas été marqués (ou encaissés), quel aurait été le résultat ? Impact mesuré en points de classement.')+'</p>'
 
     +'<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px">'+btns+'</div>'
     +'<div style="margin-bottom:16px">'+(jrUsesJournees() ? _journeeChips(_jpJournees,'_toggleJpJournee') : _phaseChips(_jpPhases,'_toggleJpPhase'))+'</div>'
@@ -7138,7 +7138,7 @@ function renderJeuPoints(){
     +'<thead><tr style="background:var(--bg);font-size:.77em;color:var(--muted);text-transform:uppercase;letter-spacing:.06em">'
     +'<th title="Trier" onclick="jpSortBy(\'team\')" style="text-align:left;padding:10px 12px;font-weight:700;'+_jpTh('team')+'">'+(_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe')+_jpSortIco('team')+'</th>'
     +'<th title="Trier" onclick="jpSortBy(\'goalsScored\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('goalsScored')+'">'+(_lang==='en'?'Goals ⚽':_lang==='nl'?'Doelpunten ⚽':'Buts ⚽')+_jpSortIco('goalsScored')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'scored':_lang==='nl'?'gescoord':'marqués')+'</span></th>'
-    +'<th title="Trier" onclick="jpSortBy(\'goalsConceded\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('goalsConceded')+'">'+(_lang==='en'?'Goals 🛡️':_lang==='nl'?'Doelpunten 🛡️':'Buts 🛡️')+_jpSortIco('goalsConceded')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':_lang==='nl'?'gecasseerd':'encaissés')+'</span></th>'
+    +'<th title="Trier" onclick="jpSortBy(\'goalsConceded\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('goalsConceded')+'">'+(_lang==='en'?'Goals 🛡️':_lang==='nl'?'Doelpunten 🛡️':'Buts 🛡️')+_jpSortIco('goalsConceded')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'conceded':_lang==='nl'?'tegen':'encaissés')+'</span></th>'
     +'<th title="Trier" onclick="jpSortBy(\'actualPts\')" style="text-align:center;padding:10px 8px;font-weight:700;'+_jpTh('actualPts')+'">Pts'+_jpSortIco('actualPts')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'actual':_lang==='nl'?'werkelijk':'réels')+'</span></th>'
     +'<th title="Trier" onclick="jpSortBy(\'gainScoring\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#1a7a1a;'+_jpTh('gainScoring')+'">'+(_lang==='en'?'Gain':_lang==='nl'?'Winst':'Gain')+_jpSortIco('gainScoring')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'offensive':_lang==='nl'?'offensief':'offensif')+'</span></th>'
     +'<th title="Trier" onclick="jpSortBy(\'costConceding\')" style="text-align:center;padding:10px 8px;font-weight:700;color:#cc2222;'+_jpTh('costConceding')+'">'+(_lang==='en'?'Cost':_lang==='nl'?'Kost':'Coût')+_jpSortIco('costConceding')+'<br><span style="font-weight:400;text-transform:none">'+(_lang==='en'?'defensive':_lang==='nl'?'defensief':'défensif')+'</span></th>'
@@ -7537,7 +7537,7 @@ function renderArbitres(){
     html += '</div></div>';
 
     if(!refs.length){
-      html += '<div style="color:#aab;font-size:.9em;padding:30px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px">'+(_lang==='en'?'No match-by-match referee data encoded yet — encode md.arbitre via the match Encoding screen to populate the per-team, home/away breakdown below.':_lang==='nl'?'Nog geen scheidsrechterdata gecodeerd — codeer de scheidsrechter per wedstrijd voor het thuis/buitenshuis-detail.':'Aucune donnée arbitre par match encodée pour l\'instant — encode l\'arbitre de chaque match via l\'écran d\'Encodage pour faire apparaître le détail domicile/extérieur par club ci-dessous.')+'</div></div>';
+      html += '<div style="color:#aab;font-size:.9em;padding:30px;text-align:center;background:var(--card);border:1px solid var(--border);border-radius:10px">'+(_lang==='en'?'No match-by-match referee data encoded yet — encode md.arbitre via the match Encoding screen to populate the per-team, home/away breakdown below.':_lang==='nl'?'Nog geen scheidsrechterdata gecodeerd — codeer de scheidsrechter per wedstrijd voor het thuis/uit-detail.':'Aucune donnée arbitre par match encodée pour l\'instant — encode l\'arbitre de chaque match via l\'écran d\'Encodage pour faire apparaître le détail domicile/extérieur par club ci-dessous.')+'</div></div>';
       el.innerHTML = html;
       return;
     }
@@ -7717,13 +7717,13 @@ function renderEntraineurs(){
 function renderAdnJeu(){
   try{
     loadData(); var ct=_adnGetCt(), teams=ct.teams;
-    var keyOpts=(_lang==='en'?[['tactique1','Playing Style'],['origine1','General Origin'],['origine2','Playing Direction'],['origine3','Zone'],['actions','Shooting Action'],['tactique3','Nature of Goal'],['mitemps','Half-time'],['minutes','Minutes (15min)']]:[['tactique1','Style de jeu'],['origine1','Origine générale'],['origine2','Intention de jeu'],['origine3','Zone'],['actions','Action de tir'],['tactique3','Nature du but'],['mitemps','Mi-temps'],['minutes','Minutes (15min)']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.key===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
-    var sideOpts=(_lang==='en'?[['scored','⚽ Goals Scored'],['conceded','🛡️ Goals Conceded'],['both','Both']]:[['scored','⚽ Buts marqués'],['conceded','🛡️ Buts encaissés'],['both','Les deux']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.side===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var keyOpts=(_lang==='en'?[['tactique1','Playing Style'],['origine1','General Origin'],['origine2','Playing Direction'],['origine3','Zone'],['actions','Shooting Action'],['tactique3','Nature of Goal'],['mitemps','Half-time'],['minutes','Minutes (15min)']]:_lang==='nl'?[['tactique1','Speelstijl'],['origine1','Algemene oorsprong'],['origine2','Speelrichting'],['origine3','Zone'],['actions','Schietactie'],['tactique3','Aard van het doelpunt'],['mitemps','Helft'],['minutes','Minuten (15min)']]:[['tactique1','Style de jeu'],['origine1','Origine générale'],['origine2','Intention de jeu'],['origine3','Zone'],['actions','Action de tir'],['tactique3','Nature du but'],['mitemps','Mi-temps'],['minutes','Minutes (15min)']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.key===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var sideOpts=(_lang==='en'?[['scored','⚽ Goals Scored'],['conceded','🛡️ Goals Conceded'],['both','Both']]:_lang==='nl'?[['scored','⚽ Doelpunten gescoord'],['conceded','🛡️ Doelpunten tegen'],['both','Beide']]:[['scored','⚽ Buts marqués'],['conceded','🛡️ Buts encaissés'],['both','Les deux']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.side===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var _adnUsesJ = jrUsesJournees();
     var phaseAllLabel = _lang==='en' ? (_adnUsesJ?'All Matchdays':'All Rounds') : (_adnUsesJ?'Toutes les journées':'Toutes les phases');
     var phaseOpts=[['all',phaseAllLabel]].concat(jrKeyList().map(function(k){return [String(k), jrLabel(k)];})).map(function(a){return '<option value="'+a[0]+'"'+(String(_adnState.phase)===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
-    var venueOpts=(_lang==='en'?[['all','Home + Away'],['home','🏠 Home'],['away','✈️ Away']]:[['all','Dom. + Ext.'],['home','🏠 Domicile'],['away','✈️ Extérieur']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.venue===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
-    var modeOpts=(_lang==='en'?[['overlay','🔀 Overlay'],['sidebyside','▥ Side by Side']]:[['overlay','🔀 Superposé'],['sidebyside','▥ Côte à côte']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.mode===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var venueOpts=(_lang==='en'?[['all','Home + Away'],['home','🏠 Home'],['away','✈️ Away']]:_lang==='nl'?[['all','Thuis + Uit'],['home','🏠 Thuis'],['away','✈️ Uit']]:[['all','Dom. + Ext.'],['home','🏠 Domicile'],['away','✈️ Extérieur']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.venue===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
+    var modeOpts=(_lang==='en'?[['overlay','🔀 Overlay'],['sidebyside','▥ Side by Side']]:_lang==='nl'?[['overlay','🔀 Overlappend'],['sidebyside','▥ Naast elkaar']]:[['overlay','🔀 Superposé'],['sidebyside','▥ Côte à côte']]).map(function(a){return '<option value="'+a[0]+'"'+(_adnState.mode===a[0]?' selected':'')+'>'+a[1]+'</option>';}).join('');
     var selHtml=function(id,opts,fn){return '<select id="'+id+'" onchange="'+fn+'(this.value)" style="padding:6px 10px;border:1px solid var(--border);border-radius:6px;font-size:.82em;cursor:pointer;background:var(--card);color:var(--text)">'+opts+'</select>';};
     var nBtns=[2,3,4].map(function(n){return '<button onclick="adnSetN('+n+')" style="padding:5px 14px;border-radius:5px;border:1.5px solid '+(_adnState.n===n?'var(--accent)':'var(--border)')+';background:'+(_adnState.n===n?'var(--accent)':'transparent')+';color:'+(_adnState.n===n?'#fff':'var(--text)')+';font-size:.82em;font-weight:700;cursor:pointer">'+n+(_lang==='en'?' teams':_lang==='nl'?' ploegen':' équipes')+'</button>';}).join('');
     var presetBtn=function(l,fn,tt){return '<button onclick="'+fn+'" title="'+tt+'" style="padding:5px 13px;border-radius:5px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:.8em;cursor:pointer;white-space:nowrap">'+l+'</button>';};
@@ -7808,7 +7808,7 @@ function renderAnalysis(key, opts={}){
     return `<button onclick="setAnalysisLastN(${v==='all'?'null':v})" style="padding:4px 14px;border:1.5px solid ${bord};border-radius:20px;background:${bg};color:${col};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
   }).join('')) : '';
 
-  const sideLabels = { scored: (_lang==='en'?'⚽ Goals Scored':_lang==='nl'?'⚽ Doelpunten gescoord':'⚽ Buts marqués'), conceded: (_lang==='en'?'🥅 Goals Conceded':_lang==='nl'?'🥅 Doelpunten gecasseerd':'🥅 Buts encaissés') };
+  const sideLabels = { scored: (_lang==='en'?'⚽ Goals Scored':_lang==='nl'?'⚽ Doelpunten gescoord':'⚽ Buts marqués'), conceded: (_lang==='en'?'🥅 Goals Conceded':_lang==='nl'?'🥅 Doelpunten tegen':'🥅 Buts encaissés') };
   const sideBar = ['scored','conceded'].map(v => {
     const active = _analysisSide===v;
     const bg = active ? 'var(--accent)' : '#fff';
@@ -7845,7 +7845,7 @@ if(ct.teams.length===0){
     sortedKeys.forEach(k=>{ ct.teams.forEach(t=>{ const v2=(catData[k]&&catData[k][t])||0; if(v2>maxInTable) maxInTable=v2; }); });
     const heatFn = isSc ? (v=>heatColorScored(v,maxInTable)) : (v=>heatColorConceded(v,maxInTable));
     const _renomConc = (nom) => _renomFavorableConcede(nom, isSc);
-    let h = `<div class="section-title">${isSc?(_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'):(_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten gecasseerd':'Buts encaissés')}</div>`;
+    let h = `<div class="section-title">${isSc?(_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'):(_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés')}</div>`;
     h += '<table class="tableau">';
 
     // Grouped header row for origine1
@@ -8004,7 +8004,7 @@ if(ct.teams.length===0){
       });
       const heatFn2 = isSc ? (v=>heatColorScored(v,maxV)) : (v=>heatColorConceded(v,maxV));
 
-      let h = `<div class="section-title">${isSc?(_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'):(_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten gecasseerd':'Buts encaissés')}</div>`;
+      let h = `<div class="section-title">${isSc?(_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'):(_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés')}</div>`;
       if(!isSc && key==='origine2') h += `<div style="font-size:.72em;color:var(--muted);font-style:italic;margin-bottom:4px">⟲ Gauche/Droite inversées (perspective défensive)</div>`;
 
       h += '<table class="tableau">';
@@ -8102,14 +8102,14 @@ if(ct.teams.length===0){
     </div>
     <div style="font-size:.72em;color:var(--muted);margin-bottom:14px">💡 ${_lang==='en'
       ? '"Compare" overlays two polygons per radar: solid line/filled marker = home, dashed line/hollow marker = away.'
-      : '« Comparer » superpose 2 polygones par radar : trait plein/marqueur plein = domicile, pointillé/marqueur creux = extérieur.'}</div>
+      : _lang==='nl' ? '« Vergelijken » toont 2 polygonen per radar: volle lijn/volle marker = thuis, stippellijn/holle marker = uit.' : '« Comparer » superpose 2 polygones par radar : trait plein/marqueur plein = domicile, pointillé/marqueur creux = extérieur.'}</div>
     <div style="display:flex;flex-direction:row;gap:32px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start">
       <div>
         <div style="font-size:.72em;font-weight:700;color:#2255ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'}</div>
         <div id="radar-scored-svg" style="min-width:0"></div>
       </div>
       <div>
-        <div style="font-size:.72em;font-weight:700;color:#dd2222;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten gecasseerd':'Buts encaissés'}</div>
+        <div style="font-size:.72em;font-weight:700;color:#dd2222;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés'}</div>
         <div id="radar-conceded-svg" style="min-width:0"></div>
       </div>
     </div>
@@ -8412,7 +8412,7 @@ function showGoalDetailConc(key, catVal, team){
   });
   const table = getTable(key);
   const catName = table[catVal] ? table[catVal].nom : catVal;
-  document.getElementById('detail-title').innerHTML = `${tf(team)} ${_lang==='en'?'concedes':_lang==='nl'?'casseert':'encaisse'} — ${catName} (${goals.length})`;
+  document.getElementById('detail-title').innerHTML = `${tf(team)} ${_lang==='en'?'concedes':_lang==='nl'?'slikt in':'encaisse'} — ${catName} (${goals.length})`;
   renderDetailGoals(goals);
   document.getElementById('detail-panel').classList.add('open');
 }
@@ -8453,7 +8453,7 @@ function showGoalDetailConcFiltered(key, catVal, team){
   goals = goals.filter(g=>_classAnalysisVenueOk(g, team));
   const table = getTable(key);
   const catName = table[catVal] ? table[catVal].nom : catVal;
-  document.getElementById('detail-title').innerHTML = `${tf(team)} ${_lang==='en'?'concedes':_lang==='nl'?'casseert':'encaisse'} — ${catName} (${goals.length})`;
+  document.getElementById('detail-title').innerHTML = `${tf(team)} ${_lang==='en'?'concedes':_lang==='nl'?'slikt in':'encaisse'} — ${catName} (${goals.length})`;
   renderDetailGoals(goals);
   document.getElementById('detail-panel').classList.add('open');
 }
@@ -9247,7 +9247,7 @@ function renderGPN(){
 
   html += `<div style="background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px;margin:16px 0">
     <div style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px;margin-bottom:12px">
-      <div style="font-weight:700">${_gpnType==='scored'?(_lang==='en'?'How each team scores, by game state':_lang==='nl'?'Hoe elke ploeg scoort, per spelstand':'Comment chaque équipe marque, selon l\'état du score'):(_lang==='en'?'How each team concedes, by game state':_lang==='nl'?'Hoe elke ploeg casseert, per spelstand':'Comment chaque équipe encaisse, selon l\'état du score')}</div>
+      <div style="font-weight:700">${_gpnType==='scored'?(_lang==='en'?'How each team scores, by game state':_lang==='nl'?'Hoe elke ploeg scoort, per spelstand':'Comment chaque équipe marque, selon l\'état du score'):(_lang==='en'?'How each team concedes, by game state':_lang==='nl'?'Hoe elke ploeg tegendoelpunten pakt, per spelstand':'Comment chaque équipe encaisse, selon l\'état du score')}</div>
       <div style="display:flex;gap:6px">${typeBar}</div>
     </div>
     <div style="display:flex;flex-direction:column;gap:6px">
@@ -9609,7 +9609,7 @@ function renderShotMap(){
   // ═══════════════════════════════════════════
   const legendDefs = [
     {key:'scored',        color:'#22cc44', label:_lang==='en'?'Goal scored':_lang==='nl'?'Doelpunt gemaakt':'But marqué',        icon:'⚽'},
-    {key:'conceded',      color:'#ff2222', label:_lang==='en'?'Goal conceded':_lang==='nl'?'Doelpunt gecasseerd':'But encaissé',      icon:'🔴'},
+    {key:'conceded',      color:'#ff2222', label:_lang==='en'?'Goal conceded':_lang==='nl'?'Doelpunt tegen':'But encaissé',      icon:'🔴'},
     {key:'assist',        color:'#2255ff', label:_lang==='en'?'Assist origin':_lang==='nl'?'Assistoorsprong':'Origine assist',    icon:'●'},
     {key:'assist-centre', color:'#00ccff', label:_lang==='en'?'Cross assist':_lang==='nl'?'Voorzetassist':'Assist centre',     icon:'●'},
     {key:'assist-pa',     color:'#aa6633', label:_lang==='en'?'Set-piece assist':_lang==='nl'?'Assist stilstaande fase':'Assist ph. arrêtée',icon:'●'},
@@ -9718,7 +9718,7 @@ function renderShotMap(){
     <div style="max-height:55vh;overflow-y:auto;border-radius:10px;border:2px solid #8896aa;box-shadow:0 4px 16px rgba(72,90,120,.13)">
     <table class="tableau" style="width:auto;min-width:560px;border:none;border-radius:0;box-shadow:none;margin-bottom:0"><thead><tr>
       <th style="z-index:10">Min.</th>
-      ${showBoth?`<th style="z-index:10">⚽ ${_lang==='en'?'Who scores':_lang==='nl'?'Wie scoort':'Qui marque'}</th><th style="z-index:10">🔴 ${_lang==='en'?'Who concedes':_lang==='nl'?'Wie casseert':'Qui encaisse'}</th>`:showConceded?`<th style="z-index:10">🔴 ${_lang==='en'?'Concedes':_lang==='nl'?'Casseert':'Encaisse'}</th><th style="z-index:10">⚽ ${_lang==='en'?'Scored by':_lang==='nl'?'Gescoord door':'Marqué par'}</th>`:`<th style="z-index:10">⚽ ${_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe'}</th>`}
+      ${showBoth?`<th style="z-index:10">⚽ ${_lang==='en'?'Who scores':_lang==='nl'?'Wie scoort':'Qui marque'}</th><th style="z-index:10">🔴 ${_lang==='en'?'Who concedes':_lang==='nl'?'Tegendoelpunten':'Qui encaisse'}</th>`:showConceded?`<th style="z-index:10">🔴 ${_lang==='en'?'Concedes':_lang==='nl'?'Tegendoelpunten':'Encaisse'}</th><th style="z-index:10">⚽ ${_lang==='en'?'Scored by':_lang==='nl'?'Gescoord door':'Marqué par'}</th>`:`<th style="z-index:10">⚽ ${_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe'}</th>`}
       <th style="z-index:10">${_lang==='en'?'Scorer':_lang==='nl'?'Doelschutter':'Buteur'}</th><th style="z-index:10">Assist</th><th style="z-index:10">${_lang==='en'?'Tactical Pattern':_lang==='nl'?'Tactisch patroon':'Tactique'}</th><th style="z-index:10"></th>
     </tr></thead><tbody>`;
     filtered.slice().sort((a,b)=>(parseInt(a.minute)||0)-(parseInt(b.minute)||0)).forEach(g=>{
@@ -10494,7 +10494,7 @@ function showGoalDetailTrigger(team, dir){
     (dir==='conceded' ? g.opponent===team : g.team===team) && _hasTrigger(g)
   );
   const lbl = dir==='conceded'
-    ? (_lang==='en'?'Goals conceded with trigger zone':_lang==='nl'?'Doelpunten gecasseerd met triggerzone':'Buts encaissés avec zone de déclenchement')
+    ? (_lang==='en'?'Goals conceded with trigger zone':_lang==='nl'?'Doelpunten tegen met triggerzone':'Buts encaissés avec zone de déclenchement')
     : (_lang==='en'?'Goals scored with trigger zone':_lang==='nl'?'Doelpunten gemaakt met triggerzone':'Buts marqués avec zone de déclenchement');
   document.getElementById('detail-title').innerHTML =
     tf(team) + ' — ' + lbl + ' (' + goals.length + ')';
@@ -12435,7 +12435,7 @@ function renderRecherche(){
     <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">🔬 ${_lang==='en'?'Filters':_lang==='nl'?'Filters':'Filtres'}</div>
     <div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center">
       <select id="rech-team"  onchange="rechUpdateFilter('team',this.value)" style="${selStyle}${fTeam?' font-weight:bold;border-color:var(--accent)':''}">${teamOptsR}</select>
-      ${(fMode==='def' && !fTeam) ? '<span style="font-size:.75em;color:#8b2020;font-style:italic">👆 '+(_lang==='en'?'Pick a team to see its conceded goals':_lang==='nl'?'Kies een ploeg om de gecasseerde doelpunten te zien':'Choisis une équipe pour voir ses buts encaissés')+'</span>' : ''}
+      ${(fMode==='def' && !fTeam) ? '<span style="font-size:.75em;color:#8b2020;font-style:italic">👆 '+(_lang==='en'?'Pick a team to see its conceded goals':_lang==='nl'?'Kies een ploeg om de doelpunten tegen te zien':'Choisis une équipe pour voir ses buts encaissés')+'</span>' : ''}
       <input  id="rech-buteur" type="text" placeholder="🔍 ${_lang==='en'?'Player':_lang==='nl'?'Speler':'Joueur'}…" value="${fButeur.replace(/"/g,'&quot;')}" oninput="rechUpdateFilter('buteur',this.value)" style="${selStyle};min-width:130px">
       <select id="rech-nat"   onchange="rechUpdateFilter('nat',this.value)" style="${selStyle}${fNat?' font-weight:bold;border-color:var(--accent)':''}">${natOptsR.replace(`value="${fNat}"`,`value="${fNat}" selected`)}</select>
       <select id="rech-ori1"  onchange="rechUpdateFilter('ori1',this.value)" style="${selStyle}${fOri1?' font-weight:bold;border-color:var(--accent)':''}">${ori1OptsR.replace(`value="${fOri1}"`,`value="${fOri1}" selected`)}</select>
@@ -12620,7 +12620,7 @@ function renderRecherche(){
     const tc = isActive ? p.tc : 'var(--text)';
     const border = isActive ? p.color : 'var(--border)';
     const fw = isActive ? 'bold' : 'normal';
-    _presetBtns += '<button onclick="rechApplyPreset(\'' + p.key + '\')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:' + bg + ';color:' + tc + ';border:2px solid ' + border + ';font-weight:' + fw + ';transition:all .15s;white-space:nowrap">' + (_lang==='en'?(p.labelEn||p.label):p.label) + '</button>';
+    _presetBtns += '<button onclick="rechApplyPreset(\'' + p.key + '\')" style="font-size:.78em;padding:4px 10px;border-radius:20px;cursor:pointer;background:' + bg + ';color:' + tc + ';border:2px solid ' + border + ';font-weight:' + fw + ';transition:all .15s;white-space:nowrap">' + (_lang==='en'?(p.labelEn||p.label):_lang==='nl'?(p.labelNl||p.labelEn||p.label):p.label) + '</button>';
   });
   _presetBtns += '</div>';
   const presetsBar = _presetBtns;
@@ -12702,14 +12702,14 @@ function rechUpdateFilter(key, val){
 }
 
 const _RECH_PRESETS = [
-  {key:'jdp',    label:'🎭 Jeu placé', labelEn:'🎭 Set play',       filters:{tac1:'1'}, color:'#888888', tc:'#fff'},
-  {key:'jdr',    label:'⚡ Dominant rapide', labelEn:'⚡ Fast dominant',  filters:{tac1:'2'}, color:'#BBC4C3', tc:'#444'},
-  {key:'reco',   label:'🔥 Reconversion', labelEn:'🔥 Counter-press',     filters:{tac1:'3'}, color:'#ffcccc', tc:'#880000'},
-  {key:'trans',  label:'🚀 Transition', labelEn:'🚀 Transition',        filters:{tac1:'4'}, color:'#880044', tc:'#fff'},
-  {key:'pa',     label:'🎯 Phase arrêtée', labelEn:'🎯 Set piece',    filters:{tac1:'5'}, color:'#ffff44', tc:'#0000ff'},
-  {key:'pen',    label:'⚽ Penalty', labelEn:'⚽ Penalty',           filters:{tac1:'6'}, color:'#cc0000', tc:'#fff'},
-  {key:'dom',    label:'🏠 Domicile', labelEn:'🏠 Home',          filters:{venue:'dom'}, color:'#1a6e2e', tc:'#fff'},
-  {key:'ext',    label:'✈️ Extérieur', labelEn:'✈️ Away',        filters:{venue:'ext'}, color:'#8b2020', tc:'#fff'},
+  {key:'jdp',    label:'🎭 Jeu placé', labelEn:'🎭 Set play', labelNl:'🎭 Geplaatst spel',       filters:{tac1:'1'}, color:'#888888', tc:'#fff'},
+  {key:'jdr',    label:'⚡ Dominant rapide', labelEn:'⚡ Fast dominant', labelNl:'⚡ Snel dominant',  filters:{tac1:'2'}, color:'#BBC4C3', tc:'#444'},
+  {key:'reco',   label:'🔥 Reconversion', labelEn:'🔥 Counter-press', labelNl:'🔥 Tegenpressing',     filters:{tac1:'3'}, color:'#ffcccc', tc:'#880000'},
+  {key:'trans',  label:'🚀 Transition', labelEn:'🚀 Transition', labelNl:'🚀 Omschakeling',        filters:{tac1:'4'}, color:'#880044', tc:'#fff'},
+  {key:'pa',     label:'🎯 Phase arrêtée', labelEn:'🎯 Set piece', labelNl:'🎯 Stilstaande fase',    filters:{tac1:'5'}, color:'#ffff44', tc:'#0000ff'},
+  {key:'pen',    label:'⚽ Penalty', labelEn:'⚽ Penalty', labelNl:'⚽ Penalty',           filters:{tac1:'6'}, color:'#cc0000', tc:'#fff'},
+  {key:'dom',    label:'🏠 Domicile', labelEn:'🏠 Home', labelNl:'🏠 Thuis',          filters:{venue:'dom'}, color:'#1a6e2e', tc:'#fff'},
+  {key:'ext',    label:'✈️ Extérieur', labelEn:'✈️ Away', labelNl:'✈️ Uit',        filters:{venue:'ext'}, color:'#8b2020', tc:'#fff'},
   {key:'rect1',  label:'📦 Petit rectangle', labelEn:'📦 Six-yard box',  filters:{lieu:'1'},  color:'#ffaa00', tc:'#fff'},
   {key:'rect2',  label:'🟦 Grand rectangle', labelEn:'🟦 Penalty box',    filters:{lieu:'2'},  color:'#ff8800', tc:'#fff'},
   {key:'rect3',  label:'🎯 Hors du rectangle', labelEn:'🎯 Outside box',   filters:{lieu:'3'},  color:'#444400', tc:'#fff'},
@@ -13033,7 +13033,7 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
     const bg=isActive?p.color:'var(--card)';
     const tc=isActive?p.tc:'var(--text)';
     const border=isActive?p.color:'var(--border)';
-    presetsHtml+='<button onclick="'+presetFn+'(\''+p.key+'\')" style="font-size:.72em;padding:3px 8px;border-radius:20px;cursor:pointer;background:'+bg+';color:'+tc+';border:2px solid '+border+';white-space:nowrap">'+(_lang==='en'?(p.labelEn||p.label):p.label)+'</button>';
+    presetsHtml+='<button onclick="'+presetFn+'(\''+p.key+'\')" style="font-size:.72em;padding:3px 8px;border-radius:20px;cursor:pointer;background:'+bg+';color:'+tc+';border:2px solid '+border+';white-space:nowrap">'+(_lang==='en'?(p.labelEn||p.label):_lang==='nl'?(p.labelNl||p.labelEn||p.label):p.label)+'</button>';
   });
   presetsHtml+='</div>';
 
@@ -13060,7 +13060,7 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
 
   // Count
   const hasFilter=fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue;
-  const countHtml=_lang==='en'?`<div style="font-size:.78em;color:var(--muted);margin-bottom:6px"><b style="color:var(--accent)">${goals.length}</b> goal${goals.length!==1?'s':''} ${hasFilter?'found':'total'}</div>`:`<div style="font-size:.78em;color:var(--muted);margin-bottom:6px"><b style="color:var(--accent)">${goals.length}</b> but${goals.length!==1?'s':''} ${hasFilter?'trouvé'+(goals.length!==1?'s':''):'au total'}</div>`;
+  const countHtml=_lang==='en'?`<div style="font-size:.78em;color:var(--muted);margin-bottom:6px"><b style="color:var(--accent)">${goals.length}</b> goal${goals.length!==1?'s':''} ${hasFilter?'found':'total'}</div>`:_lang==='nl'?`<div style="font-size:.78em;color:var(--muted);margin-bottom:6px"><b style="color:var(--accent)">${goals.length}</b> doelpunt${goals.length!==1?'en':''} ${hasFilter?'gevonden':'totaal'}</div>`:`<div style="font-size:.78em;color:var(--muted);margin-bottom:6px"><b style="color:var(--accent)">${goals.length}</b> but${goals.length!==1?'s':''} ${hasFilter?'trouvé'+(goals.length!==1?'s':''):'au total'}</div>`;
 
   // Pitch
   const _GC=['#e63946','#2196f3','#4caf50','#ff9800','#9c27b0','#00bcd4','#ff5722','#8bc34a','#f06292','#ffd600'];
@@ -14010,7 +14010,7 @@ function renderPreview(){
     +'<div><div style="font-size:1.25em;font-weight:900;color:var(--text)">'+tf(_prevTeam)+'</div>'
     +'<div style="font-size:.78em;color:var(--muted);margin-top:3px">'
     +'<b style="color:#1a6e2e">⚔️ '+offGoals.length+'</b> '+(_lang==='en'?'goals scored':_lang==='nl'?'doelpunten gescoord':'buts marqués')
-    +' &nbsp;·&nbsp; <b style="color:#8b2020">🛡️ '+defGoals.length+'</b> '+(_lang==='en'?'goals conceded':_lang==='nl'?'doelpunten gecasseerd':'buts encaissés')
+    +' &nbsp;·&nbsp; <b style="color:#8b2020">🛡️ '+defGoals.length+'</b> '+(_lang==='en'?'goals conceded':_lang==='nl'?'doelpunten tegen':'buts encaissés')
     +'</div></div>'
     +'<div style="margin-left:auto">'+buildTeamRadar(_prevTeam, allGoals, 160)+'</div>'
     +'</div>'
@@ -14032,12 +14032,12 @@ function renderPreview(){
     // Defensive
     +'<div>'
     +'<div style="font-size:.72em;font-weight:900;text-transform:uppercase;letter-spacing:.06em;color:#8b2020;margin-bottom:8px">🛡️ '+(_lang==='en'?'How they concede':_lang==='nl'?'Hoe zij casseren':'Comment ils encaissent')+' ('+defGoals.length+' '+(_lang==='en'?'goals':_lang==='nl'?'doelpunten':'buts')+')</div>'
-    +card('🎭 '+(_lang==='en'?'Tactics conceded':_lang==='nl'?'Tactieken gecasseerd':'Tactiques encaissées'), topPatterns(defGoals,'tactique1',VDJ.tactique1,6), '#8b202044')
-    +card('📍 '+(_lang==='en'?'Zones conceded':_lang==='nl'?'Zones gecasseerd':'Zones encaissées'), topPatterns(defGoals,'lieu',VDJ.lieu,3), '#8b202044')
+    +card('🎭 '+(_lang==='en'?'Tactics conceded':_lang==='nl'?'Tactieken tegendoelpunten':'Tactiques encaissées'), topPatterns(defGoals,'tactique1',VDJ.tactique1,6), '#8b202044')
+    +card('📍 '+(_lang==='en'?'Zones conceded':_lang==='nl'?'Zones tegendoelpunten':'Zones encaissées'), topPatterns(defGoals,'lieu',VDJ.lieu,3), '#8b202044')
     +card('⚠️ '+(_lang==='en'?'Scorers against them':_lang==='nl'?'Doelschutters tegen hen':'Auteurs des buts'), topPlayers(defGoals,5), '#8b202044')
-    +card('⏱ '+(_lang==='en'?'Time distribution (conceded)':_lang==='nl'?'Tijdsverdeling (gecasseerd)':'Distribution temporelle (encaissés)'), '<div style="display:grid;grid-template-columns:repeat(8,1fr);align-items:flex-end;gap:2px;height:56px">'+_timingRow(defGoals)+'</div>', '#8b202044')
-    +card('🔍 '+(_lang==='en'?'Playing direction (conceded)':_lang==='nl'?'Spelrichting (gecasseerd)':'Intention de jeu (encaissée)'), _distrBar(defGoals,'origine2',[4,2,3],{2:{nom:_lang==='en'?'Center':_lang==='nl'?'Centrum':'Axe'},3:{nom:_lang==='en'?'Right':_lang==='nl'?'Rechts':'Droite'},4:{nom:_lang==='en'?'Left':_lang==='nl'?'Links':'Gauche'}}), '#8b202044')
-    +card('🦵 '+(_lang==='en'?'Shooting actions conceded':_lang==='nl'?'Schietacties gecasseerd':'Actions de tir encaissées'), topN(defGoals,'actions',5), '#8b202044')
+    +card('⏱ '+(_lang==='en'?'Time distribution (conceded)':_lang==='nl'?'Tijdsverdeling (tegendoelpunten)':'Distribution temporelle (encaissés)'), '<div style="display:grid;grid-template-columns:repeat(8,1fr);align-items:flex-end;gap:2px;height:56px">'+_timingRow(defGoals)+'</div>', '#8b202044')
+    +card('🔍 '+(_lang==='en'?'Playing direction (conceded)':_lang==='nl'?'Spelrichting (tegendoelpunten)':'Intention de jeu (encaissée)'), _distrBar(defGoals,'origine2',[4,2,3],{2:{nom:_lang==='en'?'Center':_lang==='nl'?'Centrum':'Axe'},3:{nom:_lang==='en'?'Right':_lang==='nl'?'Rechts':'Droite'},4:{nom:_lang==='en'?'Left':_lang==='nl'?'Links':'Gauche'}}), '#8b202044')
+    +card('🦵 '+(_lang==='en'?'Shooting actions conceded':_lang==='nl'?'Schietacties tegendoelpunten':'Actions de tir encaissées'), topN(defGoals,'actions',5), '#8b202044')
     +'</div>'
     +'</div>'
 
@@ -14202,8 +14202,8 @@ function renderComparateur(){
       ${kpi(_lang==='en'?'Matches played':_lang==='nl'?'Wedstrijden gespeeld':'Matchs joués', matchesA, matchesB, true)}
       ${kpi(_lang==='en'?'⚽ Goals Scored':_lang==='nl'?'⚽ Doelpunten gescoord':'⚽ Buts marqués', gA.length, gB.length)}
       ${kpi(_lang==='en'?'Avg. scored/match':_lang==='nl'?'Gem. gescoord/wedstrijd':'Moy. marqués/match', avgA_for, avgB_for)}
-      ${kpi(_lang==='en'?'🛡 Goals Conceded':_lang==='nl'?'🛡 Doelpunten gecasseerd':'🛡 Buts encaissés', cA.length, cB.length, false)}
-      ${kpi(_lang==='en'?'Avg. conceded/match':_lang==='nl'?'Gem. gecasseerd/wedstrijd':'Moy. encaissés/match', avgA_con, avgB_con, false)}
+      ${kpi(_lang==='en'?'🛡 Goals Conceded':_lang==='nl'?'🛡 Doelpunten tegen':'🛡 Buts encaissés', cA.length, cB.length, false)}
+      ${kpi(_lang==='en'?'Avg. conceded/match':_lang==='nl'?'Gem. tegendoelpunten/wedstrijd':'Moy. encaissés/match', avgA_con, avgB_con, false)}
       ${kpi(_lang==='en'?'% SP':_lang==='nl'?'% SF':'% PA', paPct(gA), paPct(gB))}
     </table>
   </div>
@@ -15147,7 +15147,7 @@ function renderScouting(){
   </div>
   <div style="display:flex;gap:28px;flex-wrap:wrap;align-items:flex-start">
     ${col(_lang==='en'?'⚽ Goals Scored':_lang==='nl'?'⚽ Doelpunten gescoord':'⚽ Buts Marqués',gFor,nFor,'var(--accent)')}
-    ${col(_lang==='en'?'🛡 Buts Encaissés':_lang==='nl'?'🛡 Doelpunten gecasseerd':'🛡 Buts Encaissés',gAgt,nAgt,'var(--red)')}
+    ${col(_lang==='en'?'🛡 Buts Encaissés':_lang==='nl'?'🛡 Doelpunten tegen':'🛡 Buts Encaissés',gAgt,nAgt,'var(--red)')}
   </div>`;
 }
 
@@ -15318,7 +15318,7 @@ function renderRapport(){
   <!-- KPIs -->
   <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:16px">
     ${kpiCard('⚽',_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués',gFor.length,`${_lang==='en'?'Avg':_lang==='nl'?'Gem':'Moy'}: ${nMatches?(gFor.length/nMatches).toFixed(2):'—'}/match`)}
-    ${kpiCard('🛡',_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten gecasseerd':'Buts encaissés',gAgainst.length,`${_lang==='en'?'Avg':_lang==='nl'?'Gem':'Moy'}: ${nMatches?(gAgainst.length/nMatches).toFixed(2):'—'}/match`)}
+    ${kpiCard('🛡',_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés',gAgainst.length,`${_lang==='en'?'Avg':_lang==='nl'?'Gem':'Moy'}: ${nMatches?(gAgainst.length/nMatches).toFixed(2):'—'}/match`)}
     ${kpiCard('📋',_lang==='en'?'Matches played':_lang==='nl'?'Wedstrijden gespeeld':'Matchs joués',nMatches,'')}
     ${kpiCard('🎯',_lang==='en'?'% Set Pieces':_lang==='nl'?'% Stilstaande fasen':'% Phases arrêtées',gFor.length?Math.round(paFor.length/gFor.length*100)+'%':'—',`${paFor.length} ${_lang==='en'?'goal'+(paFor.length>1?'s':''):'but'+(paFor.length>1?'s':'')}`)}
   </div>
@@ -15330,7 +15330,7 @@ function renderRapport(){
       ${_distrBar(gFor,'tactique1',[1,2,4,3,5,6],VDJ.tactique1)}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
-      <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🛡 Style — Goals Conceded':_lang==='nl'?'🛡 Stijl — Doelpunten gecasseerd':'🛡 Style — Buts encaissés'}</div>
+      <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🛡 Style — Goals Conceded':_lang==='nl'?'🛡 Stijl — Doelpunten tegen':'🛡 Style — Buts encaissés'}</div>
       ${_distrBar(gAgainst,'tactique1',[1,2,4,3,5,6],VDJ.tactique1)}
     </div>
 
@@ -15340,7 +15340,7 @@ function renderRapport(){
       ${_distrBar(gFor,'origine2',[4,2,3],{2:_lang==='en'?'Center':_lang==='nl'?'Centrum':'Axe',3:_lang==='en'?'Right':_lang==='nl'?'Rechts':'Droite',4:_lang==='en'?'Left':_lang==='nl'?'Links':'Gauche'})}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
-      <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Direction — Goals Conceded':_lang==='nl'?'🔍 Richting — Doelpunten gecasseerd':'🔍 Origine — Buts encaissés'}</div>
+      <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🔍 Direction — Goals Conceded':_lang==='nl'?'🔍 Richting — Doelpunten tegen':'🔍 Origine — Buts encaissés'}</div>
       ${_distrBar(gAgainst,'origine2',[4,2,3],{2:_lang==='en'?'Center':_lang==='nl'?'Centrum':'Axe',3:_lang==='en'?'Right':_lang==='nl'?'Rechts':'Droite',4:_lang==='en'?'Left':_lang==='nl'?'Links':'Gauche'})}
     </div>
 
@@ -15350,7 +15350,7 @@ function renderRapport(){
       ${topN(gFor,'actions',5)}
     </div>
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px">
-      <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🦵 Actions — Top 5 Conceded':_lang==='nl'?'🦵 Acties — Top 5 gecasseerd':'🦵 Actions — Top 5 encaissés'}</div>
+      <div style="font-size:.72em;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:10px">${_lang==='en'?'🦵 Actions — Top 5 Conceded':_lang==='nl'?'🦵 Acties — Top 5 tegendoelpunten':'🦵 Actions — Top 5 encaissés'}</div>
       ${topN(gAgainst,'actions',5)}
     </div>
 
@@ -15581,7 +15581,7 @@ function renderFicheMatch(){
     // First goal tendency
     const firstHalf  = counts[0]+counts[1]+counts[2];
     const secondHalf = counts[3]+counts[4]+counts[5];
-    const verb = isConc ? (_lang==='en'?'Concedes':_lang==='nl'?'Casseert':'Encaisse') : (_lang==='en'?'Scores':_lang==='nl'?'Scoort':'Marque');
+    const verb = isConc ? (_lang==='en'?'Concedes':_lang==='nl'?'Tegendoelpunten':'Encaisse') : (_lang==='en'?'Scores':_lang==='nl'?'Scoort':'Marque');
     const verbFr1 = isConc ? 'Encaisse plutôt en' : 'Marque plutôt en';
     const verbEn1 = isConc ? 'Concedes more in the' : 'Scores more in the';
     const tendency = firstHalf > secondHalf
@@ -15665,7 +15665,7 @@ function renderFicheMatch(){
       </div>
       <div style="margin-bottom:8px;font-size:.8em">
         ${_lang==='en'?'Set Pieces scored':_lang==='nl'?'Stilstaande fasen gescoord':'Set Pieces scored'} : <strong>${paFor.length}</strong> (${paPctF}%) &nbsp;·&nbsp;
-        ${_lang==='en'?'Set Pieces conceded':_lang==='nl'?'Stilstaande fasen gecasseerd':'PA encaissés'} : <strong>${paAgt.length}</strong> (${paPctA}%)
+        ${_lang==='en'?'Set Pieces conceded':_lang==='nl'?'Stilstaande fasen tegendoelpunten':'PA encaissés'} : <strong>${paAgt.length}</strong> (${paPctA}%)
       </div>
       ${rows || ('<div style="color:var(--muted);font-size:.8em;font-style:italic">'+(_lang==='en'?'No set piece goals encoded':_lang==='nl'?'Geen doelpunten stilstaande fase gecodeerd':'Aucun but sur PA encodé')+'</div>')}`;
   }
@@ -15710,7 +15710,7 @@ function renderFicheMatch(){
       </div>
       <div style="margin-bottom:8px;font-size:.8em">
         ${_lang==='en'?'Headers scored':_lang==='nl'?'Kopballen gescoord':'Têtes marquées'} : <strong>${headFor.length}</strong> (${hPctF}%${dangerF}) &nbsp;·&nbsp;
-        ${_lang==='en'?'Headers conceded':_lang==='nl'?'Kopballen gecasseerd':'Têtes encaissées'} : <strong>${headAgt.length}</strong> (${hPctA}%${dangerA})
+        ${_lang==='en'?'Headers conceded':_lang==='nl'?'Kopballen tegendoelpunten':'Têtes encaissées'} : <strong>${headAgt.length}</strong> (${hPctA}%${dangerA})
       </div>
       ${rows || ('<div style="color:var(--muted);font-size:.8em;font-style:italic">'+(_lang==='en'?'No headed goals encoded':_lang==='nl'?'Geen kopbaldoelpunten gecodeerd':'Aucun but de la tête encodé')+'</div>')}`;
   }
@@ -15826,17 +15826,17 @@ function renderFicheMatch(){
 
     const stats = [];
     if(topTacNom && topTacPct >= 40)
-      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} scores <strong>${topTacPct}%</strong> of goals via <em>${topTacNom}</em>.`:`${flag} ${team} marque <strong>${topTacPct}%</strong> de ses buts via <em>${topTacNom}</em>.`);
+      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} scores <strong>${topTacPct}%</strong> of goals via <em>${topTacNom}</em>.`:_lang==='nl'?`${flag} ${TEAM_NAME_EN[team]||team} scoort <strong>${topTacPct}%</strong> van de doelpunten via <em>${topTacNom}</em>.`:`${flag} ${team} marque <strong>${topTacPct}%</strong> de ses buts via <em>${topTacNom}</em>.`);
     if(paPct >= 30)
-      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} is dangerous on set pieces: <strong>${paPct}%</strong> of goals.`:`${flag} ${team} est redoutable sur phases arrêtées : <strong>${paPct}%</strong> de ses buts.`);
+      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} is dangerous on set pieces: <strong>${paPct}%</strong> of goals.`:_lang==='nl'?`${flag} ${TEAM_NAME_EN[team]||team} is gevaarlijk op stilstaande fasen: <strong>${paPct}%</strong> van de doelpunten.`:`${flag} ${team} est redoutable sur phases arrêtées : <strong>${paPct}%</strong> de ses buts.`);
     if(sh2Pct >= 60)
-      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} is strong in the 2nd half — <strong>${sh2Pct}%</strong> of goals after the break.`:`${flag} ${team} frappe fort en 2ème mi-temps — <strong>${sh2Pct}%</strong> de ses buts après la pause.`);
+      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} is strong in the 2nd half — <strong>${sh2Pct}%</strong> of goals after the break.`:_lang==='nl'?`${flag} ${TEAM_NAME_EN[team]||team} is sterk in de 2de helft — <strong>${sh2Pct}%</strong> van de doelpunten na de rust.`:`${flag} ${team} frappe fort en 2ème mi-temps — <strong>${sh2Pct}%</strong> de ses buts après la pause.`);
     if(homeGoals > awayGoals * 1.5 && homeGoals > 0)
-      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} is far more effective at home (${homeGoals} goals) than away (${awayGoals}).`:`${flag} ${team} est bien plus efficace à domicile (${homeGoals} buts) qu'à l'extérieur (${awayGoals}).`);
+      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} is far more effective at home (${homeGoals} goals) than away (${awayGoals}).`:_lang==='nl'?`${flag} ${TEAM_NAME_EN[team]||team} is veel effectiever thuis (${homeGoals} doelpunten) dan uit (${awayGoals}).`:`${flag} ${team} est bien plus efficace à domicile (${homeGoals} buts) qu'à l'extérieur (${awayGoals}).`);
     if(awayGoals > homeGoals * 1.5 && awayGoals > 0)
-      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} scores more away (${awayGoals}) than at home (${homeGoals}).`:`${flag} ${team} marque davantage à l'extérieur (${awayGoals}) qu'à domicile (${homeGoals}).`);
+      stats.push(_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} scores more away (${awayGoals}) than at home (${homeGoals}).`:_lang==='nl'?`${flag} ${TEAM_NAME_EN[team]||team} scoort meer uit (${awayGoals}) dan thuis (${homeGoals}).`:`${flag} ${team} marque davantage à l'extérieur (${awayGoals}) qu'à domicile (${homeGoals}).`);
 
-    return stats.length ? stats[0] : (_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} has <strong>${total}</strong> goal${total>1?'s':''} encoded in this tournament.`:`${flag} ${team} compte <strong>${total}</strong> but${total>1?'s':''} encodé${total>1?'s':''} dans ce tournoi.`);
+    return stats.length ? stats[0] : (_lang==='en'?`${flag} ${TEAM_NAME_EN[team]||team} has <strong>${total}</strong> goal${total>1?'s':''} encoded in this tournament.`:_lang==='nl'?`${flag} ${TEAM_NAME_EN[team]||team} heeft <strong>${total}</strong> doelpunt${total>1?'en':''} gecodeerd in dit toernooi.`:`${flag} ${team} compte <strong>${total}</strong> but${total>1?'s':''} encodé${total>1?'s':''} dans ce tournoi.`);
   }
 
   // ── Scénarios ─────────────────────────────────────────────────────────────
@@ -15851,20 +15851,20 @@ function renderFicheMatch(){
     const dConcTrans = concD2.filter(g=>g.tactique1===4||g.tactique1===3).length;
 
     if(dPA > 0 && goalsD2.length > 0 && dPA/goalsD2.length > 0.3)
-      scenarios.push(_lang==='en'?`⚠️ <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> scores from set pieces — watch corners and free kicks in the final 25m.`:`⚠️ <strong>${domTeam}</strong> marque sur phases arrêtées — surveiller les corners et coups francs dans les 25 derniers mètres.`);
+      scenarios.push(_lang==='en'?`⚠️ <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> scores from set pieces — watch corners and free kicks in the final 25m.`:_lang==='nl'?`⚠️ <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> scoort op stilstaande fasen — let op corners en vrije trappen in de laatste 25m.`:`⚠️ <strong>${domTeam}</strong> marque sur phases arrêtées — surveiller les corners et coups francs dans les 25 derniers mètres.`);
     if(eTrans > 0 && goalsE2.length > 0 && eTrans/goalsE2.length > 0.35)
-      scenarios.push(_lang==='en'?`⚡ <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> is dangerous in transition — if ${TEAM_NAME_EN[domTeam]||domTeam} loses the ball high, it's risky.`:`⚡ <strong>${extTeam}</strong> est dangereuse en transition — si ${domTeam} perd le ballon haut, c'est risqué.`);
+      scenarios.push(_lang==='en'?`⚡ <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> is dangerous in transition — if ${TEAM_NAME_EN[domTeam]||domTeam} loses the ball high, it's risky.`:_lang==='nl'?`⚡ <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> is gevaarlijk in de omschakeling — als ${TEAM_NAME_EN[domTeam]||domTeam} hoog balverlies lijdt, wordt het gevaarlijk.`:`⚡ <strong>${extTeam}</strong> est dangereuse en transition — si ${domTeam} perd le ballon haut, c'est risqué.`);
     if(ePA > 0 && goalsE2.length > 0 && ePA/goalsE2.length > 0.3)
-      scenarios.push(_lang==='en'?`⚠️ <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> exploits set pieces well — ${TEAM_NAME_EN[domTeam]||domTeam}'s defense must stay alert.`:`⚠️ <strong>${extTeam}</strong> exploite bien les phases arrêtées — défense de ${domTeam} vigilante sur coups de pied arrêtés.`);
+      scenarios.push(_lang==='en'?`⚠️ <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> exploits set pieces well — ${TEAM_NAME_EN[domTeam]||domTeam}'s defense must stay alert.`:_lang==='nl'?`⚠️ <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> benut stilstaande fasen goed — verdediging van ${TEAM_NAME_EN[domTeam]||domTeam} moet alert blijven.`:`⚠️ <strong>${extTeam}</strong> exploite bien les phases arrêtées — défense de ${domTeam} vigilante sur coups de pied arrêtés.`);
     if(dTrans > 0 && goalsD2.length > 0 && dTrans/goalsD2.length > 0.35)
-      scenarios.push(_lang==='en'?`⚡ <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> likes to counter-attack fast — space behind the opposition defense will be key.`:`⚡ <strong>${domTeam}</strong> aime partir vite en contre — l'espace dans le dos de la défense adverse sera clé.`);
+      scenarios.push(_lang==='en'?`⚡ <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> likes to counter-attack fast — space behind the opposition defense will be key.`:_lang==='nl'?`⚡ <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> houdt van snel omschakelen — de ruimte achter de verdediging wordt cruciaal.`:`⚡ <strong>${domTeam}</strong> aime partir vite en contre — l'espace dans le dos de la défense adverse sera clé.`);
     if(dConcTrans > 1)
-      scenarios.push(_lang==='en'?`🔴 <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> conceded ${dConcTrans} goal${dConcTrans>1?'s':''} in transition — their high line could be exploited.`:`🔴 <strong>${domTeam}</strong> a encaissé ${dConcTrans} but${dConcTrans>1?'s':''} en transition — sa ligne haute pourrait être exploitée.`);
+      scenarios.push(_lang==='en'?`🔴 <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> conceded ${dConcTrans} goal${dConcTrans>1?'s':''} in transition — their high line could be exploited.`:_lang==='nl'?`🔴 <strong>${TEAM_NAME_EN[domTeam]||domTeam}</strong> slikte ${dConcTrans} doelpunt${dConcTrans>1?'en':''} in omschakeling — de hoge linie kan uitgebuit worden.`:`🔴 <strong>${domTeam}</strong> a encaissé ${dConcTrans} but${dConcTrans>1?'s':''} en transition — sa ligne haute pourrait être exploitée.`);
     if(eConcPA > 1)
-      scenarios.push(_lang==='en'?`🔴 <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> conceded ${eConcPA} goal${eConcPA>1?'s':''} from set pieces — flag to ${TEAM_NAME_EN[domTeam]||domTeam} to work this area.`:`🔴 <strong>${extTeam}</strong> a encaissé ${eConcPA} but${eConcPA>1?'s':''} sur phases arrêtées — signaler à ${domTeam} de travailler ce secteur.`);
+      scenarios.push(_lang==='en'?`🔴 <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> conceded ${eConcPA} goal${eConcPA>1?'s':''} from set pieces — flag to ${TEAM_NAME_EN[domTeam]||domTeam} to work this area.`:_lang==='nl'?`🔴 <strong>${TEAM_NAME_EN[extTeam]||extTeam}</strong> slikte ${eConcPA} doelpunt${eConcPA>1?'en':''} op stilstaande fasen — aandacht voor ${TEAM_NAME_EN[domTeam]||domTeam} om dit uit te buiten.`:`🔴 <strong>${extTeam}</strong> a encaissé ${eConcPA} but${eConcPA>1?'s':''} sur phases arrêtées — signaler à ${domTeam} de travailler ce secteur.`);
 
     if(scenarios.length === 0)
-      scenarios.push(_lang==='en'?`📊 Not enough encoded data to generate precise scenarios — check back after more matches.`:`📊 Pas encore assez de données encodées pour générer des scénarios précis — revenez après quelques matchs supplémentaires.`);
+      scenarios.push(_lang==='en'?`📊 Not enough encoded data to generate precise scenarios — check back after more matches.`:_lang==='nl'?`📊 Onvoldoende gecodeerde data om precieze scenario’s te genereren — kom terug na meer wedstrijden.`:`📊 Pas encore assez de données encodées pour générer des scénarios précis — revenez après quelques matchs supplémentaires.`);
 
     return scenarios.slice(0, 3);
   }
@@ -15917,13 +15917,13 @@ function renderFicheMatch(){
   <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px">
     ${kpiBox(_lang==='en'?'Goals scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués', goalsD.length, domTeam, '#27ae60')}
     ${kpiBox(_lang==='en'?'Avg. scored':_lang==='nl'?'Gem. gescoord':' Moy. marqués', avgScD, _lang==='en'?'per match':_lang==='nl'?'per wedstrijd':'par match', '#27ae60')}
-    ${kpiBox(_lang==='en'?'Goals conceded':_lang==='nl'?'Doelpunten gecasseerd':'Buts encaissés', concD.length, domTeam, '#e74c3c')}
-    ${kpiBox(_lang==='en'?'Avg. conceded':_lang==='nl'?'Gem. gecasseerd':'Moy. encaissés', avgD, _lang==='en'?'per match':_lang==='nl'?'per wedstrijd':'par match', '#e74c3c')}
+    ${kpiBox(_lang==='en'?'Goals conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés', concD.length, domTeam, '#e74c3c')}
+    ${kpiBox(_lang==='en'?'Avg. conceded':_lang==='nl'?'Gem. tegendoelpunten':'Moy. encaissés', avgD, _lang==='en'?'per match':_lang==='nl'?'per wedstrijd':'par match', '#e74c3c')}
     <div style="width:2px;background:var(--border);flex-shrink:0;border-radius:2px"></div>
     ${kpiBox(_lang==='en'?'Goals scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués', goalsE.length, extTeam, '#27ae60')}
     ${kpiBox(_lang==='en'?'Avg. scored':_lang==='nl'?'Gem. gescoord':'Moy. marqués', avgScE, _lang==='en'?'per match':_lang==='nl'?'per wedstrijd':'par match', '#27ae60')}
-    ${kpiBox(_lang==='en'?'Goals conceded':_lang==='nl'?'Doelpunten gecasseerd':'Buts encaissés', concE.length, extTeam, '#e74c3c')}
-    ${kpiBox(_lang==='en'?'Avg. conceded':_lang==='nl'?'Gem. gecasseerd':'Moy. encaissés', avgE, _lang==='en'?'per match':_lang==='nl'?'per wedstrijd':'par match', '#e74c3c')}
+    ${kpiBox(_lang==='en'?'Goals conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés', concE.length, extTeam, '#e74c3c')}
+    ${kpiBox(_lang==='en'?'Avg. conceded':_lang==='nl'?'Gem. tegendoelpunten':'Moy. encaissés', avgE, _lang==='en'?'per match':_lang==='nl'?'per wedstrijd':'par match', '#e74c3c')}
   </div>
 
   <!-- DEUX COLONNES : DOM + EXT -->
@@ -15980,14 +15980,14 @@ function renderFicheMatch(){
     <!-- DOM attaque vs EXT défense -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px 16px">
       <div class="section-title" style="margin-bottom:4px">${_lang==='en'?'Tactical Duel':_lang==='nl'?'Tactisch duel':'Duel tactique'}</div>
-      <div style="font-size:.75em;color:var(--muted);margin-bottom:10px">${flagD} <strong>${_lang==='en'?(TEAM_NAME_EN[domTeam]||domTeam):domTeam}</strong> ${_lang==='en'?'scores':_lang==='nl'?'scoort':'marque'} ↔ ${flagE} <strong>${_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam}</strong> ${_lang==='en'?'concedes':_lang==='nl'?'casseert':'encaisse'}</div>
+      <div style="font-size:.75em;color:var(--muted);margin-bottom:10px">${flagD} <strong>${_lang==='en'?(TEAM_NAME_EN[domTeam]||domTeam):domTeam}</strong> ${_lang==='en'?'scores':_lang==='nl'?'scoort':'marque'} ↔ ${flagE} <strong>${_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam}</strong> ${_lang==='en'?'concedes':_lang==='nl'?'slikt in':'encaisse'}</div>
       ${duelTac(goalsD, concE, domTeam, extTeam, flagD, flagE)}
     </div>
 
     <!-- EXT attaque vs DOM défense -->
     <div style="background:#fff;border:1.5px solid var(--border);border-radius:10px;padding:14px 16px">
       <div class="section-title" style="margin-bottom:4px">${_lang==='en'?'Tactical Duel':_lang==='nl'?'Tactisch duel':'Duel tactique'}</div>
-      <div style="font-size:.75em;color:var(--muted);margin-bottom:10px">${flagE} <strong>${_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam}</strong> ${_lang==='en'?'scores':_lang==='nl'?'scoort':'marque'} ↔ ${flagD} <strong>${_lang==='en'?(TEAM_NAME_EN[domTeam]||domTeam):domTeam}</strong> ${_lang==='en'?'concedes':_lang==='nl'?'casseert':'encaisse'}</div>
+      <div style="font-size:.75em;color:var(--muted);margin-bottom:10px">${flagE} <strong>${_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam}</strong> ${_lang==='en'?'scores':_lang==='nl'?'scoort':'marque'} ↔ ${flagD} <strong>${_lang==='en'?(TEAM_NAME_EN[domTeam]||domTeam):domTeam}</strong> ${_lang==='en'?'concedes':_lang==='nl'?'slikt in':'encaisse'}</div>
       ${duelTac(goalsE, concD, extTeam, domTeam, flagE, flagD)}
     </div>
   </div>
@@ -16516,7 +16516,7 @@ const _SIDEBAR_NL = {
   "sb-btn-unlink":"Ontkoppelen",
   "nav-home":"Dashboard",
   "nav-results":"📅 Resultaten",
-  "nav-classement":"🏆 Klassement",
+  "nav-classement":"🏆 Stand",
   "nav-tempsdejeu":"⏱️ Speeltijd",
   "nav-evolution":"📈 Evolutie",
   "nav-modeleadv":"🆚 Model vs Tegenstander",
@@ -16531,7 +16531,7 @@ const _SIDEBAR_NL = {
   "nav-shotmap":"🗺 Evenementenkaart",
   "nav-scorerprofile":"⚡ Doelschutterprofiel",
   "nav-topscorers":"Topschutters",
-  "nav-assists":"Beslissende passes",
+  "nav-assists":"Assists",
   "nav-topbuts":"🏆 Top Doelpunten",
   "nav-mitemps":"1ste / 2de helft",
   "nav-minutes":"Minuten (15')",
@@ -16540,7 +16540,7 @@ const _SIDEBAR_NL = {
   "nav-presszones":"🟠 Recuperatiezones",
   "nav-triggerzones":"🟣 Triggerzones",
   "nav-pa":"Oorsprong stilstaande fasen",
-  "nav-setpieces":"🗺 Schémas stilstaande fasen",
+  "nav-setpieces":"🗺 Schema's stilstaande fasen",
   "nav-penalties":"🎯 Penaltykaart",
   "nav-gpn":"GPN — Wie leidt",
   "nav-overunder":"Over / Under",
