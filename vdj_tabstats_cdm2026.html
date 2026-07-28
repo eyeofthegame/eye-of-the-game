@@ -4172,7 +4172,7 @@ function renderClassement(){
   const formOptions = [null,5,10,15,20];
   const formBar = formOptions.map(n=>{
     const active = _classFormN === n;
-    const lbl = n===null ? (_lang==='en'?'Full season':_lang==='nl'?'Volledig seizoen':'Saison complète') : (_lang==='en'?`Last ${n}`:`${n} derniers`);
+    const lbl = n===null ? (_lang==='en'?'Full season':_lang==='nl'?'Volledig seizoen':'Saison complète') : (_lang==='en'?`Last ${n}`:_lang==='nl'?`Laatste ${n}`:`${n} derniers`);
     const bg = active ? '#2d5a8a' : '#fff';
     const col = active ? '#fff' : '#2d5a8a';
     const bord = active ? '#2d5a8a' : 'var(--border)';
@@ -4187,7 +4187,7 @@ function renderClassement(){
   if(_classFormN){
     html += `<div style="font-size:.78em;color:var(--muted);margin-bottom:10px">${_lang==='en'
       ? `Form: each team's last ${_classFormN} matches (not the last ${_classFormN} matchdays — these may differ if matches were rescheduled).`
-      : `Forme : les ${_classFormN} derniers matchs de chaque équipe (pas les ${_classFormN} dernières journées, qui peuvent différer en cas de match reporté).`}</div>`;
+      : _lang==='nl'?`Vorm: de laatste ${_classFormN} wedstrijden van elke ploeg (niet de laatste ${_classFormN} speeldagen — kan afwijken bij uitgestelde wedstrijden).`:`Forme : les ${_classFormN} derniers matchs de chaque équipe (pas les ${_classFormN} dernières journées, qui peuvent différer en cas de match reporté).`}</div>`;
   }
 
   if(rows.length === 0){
@@ -4729,7 +4729,7 @@ function renderModeleAdversaire(){
   </select>`;
   const venueBar = ['all','home','away'].map(v=>{
     const active = _maVenue===v;
-    const lbl = v==='all' ? (_lang==='en'?'All':_lang==='nl'?'Alle':'Tous') : v==='home' ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile') : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Buitenshuis':'✈️ Extérieur');
+    const lbl = v==='all' ? (_lang==='en'?'All':_lang==='nl'?'Alle':'Tous') : v==='home' ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile') : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Uit':'✈️ Extérieur');
     return `<button onclick="setMaVenue('${v}')" style="padding:4px 12px;border:1.5px solid ${active?'var(--accent)':'var(--border)'};border-radius:16px;background:${active?'var(--accent)':'#fff'};color:${active?'#fff':'var(--accent)'};font-size:.76em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
   }).join('');
 
@@ -4839,7 +4839,7 @@ function renderModeleAdversaire(){
       : (_lang==='en' ? 'Both teams belong to the same group here, so with no single team selected, "offensive"/"defensive" is split by venue: home = offensive, away = defensive.' : 'Les deux équipes appartiennent au même groupe ici ; sans équipe précise sélectionnée, "offensif"/"défensif" est distingué par lieu du match : domicile = offensif, extérieur = défensif.')}</div>`;
 
     const offTitleSym = _maTeam ? (_lang==='en'?'Offensive model':_lang==='nl'?'Offensief model':'Modèle offensif') : (_lang==='en'?'Offensive model (home)':_lang==='nl'?'Offensief model (thuis)':'Modèle offensif (domicile)');
-    const defTitleSym = _maTeam ? (_lang==='en'?'Defensive model':_lang==='nl'?'Defensief model':'Modèle défensif') : (_lang==='en'?'Defensive model (away)':_lang==='nl'?'Defensief model (buitenshuis)':'Modèle défensif (extérieur)');
+    const defTitleSym = _maTeam ? (_lang==='en'?'Defensive model':_lang==='nl'?'Defensief model':'Modèle défensif') : (_lang==='en'?'Defensive model (away)':_lang==='nl'?'Defensief model (uit)':'Modèle défensif (extérieur)');
     html += `<div style="display:flex;gap:24px;flex-wrap:wrap;margin-bottom:20px">
       <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">⚽ ${offTitleSym}</h3>${_maBarsHtml(offGoalsSym, _maDim, 'off')}</div>
       <div style="flex:1;min-width:280px"><h3 style="margin:0 0 8px;font-size:.95em">🛡 ${defTitleSym}</h3>${_maBarsHtml(defGoalsSym, _maDim, 'def')}</div>
@@ -5059,7 +5059,7 @@ function renderPaPoints() {
     });
 
 
-  var filterBtns = (_lang==='en'?[['pa','⛳ Set piece only'],['pen','🥅 Penalty only'],['all','Set piece + Penalty']]:[['pa','⛳ PA seulement'],['pen','🥅 Penalty seulement'],['all','PA + Penalty']]).map(function(f){
+  var filterBtns = (_lang==='en'?[['pa','⛳ Set piece only'],['pen','🥅 Penalty only'],['all','Set piece + Penalty']]:_lang==='nl'?[['pa','⛳ Stilstaande fase enkel'],['pen','🥅 Strafschop enkel'],['all','Stilstaande fase + Strafschop']]:[['pa','⛳ PA seulement'],['pen','🥅 Penalty seulement'],['all','PA + Penalty']]).map(function(f){
     var active = _paPointsFilter===f[0];
     return '<button onclick="_paPointsFilter=\''+f[0]+'\';renderPaPoints()" style="padding:6px 14px;border-radius:6px;border:1.5px solid '+(active?'var(--accent)':'var(--border)')+';background:'+(active?'var(--accent)':'transparent')+';color:'+(active?'#fff':'var(--text)')+';font-size:.82em;font-weight:700;cursor:pointer">'+f[1]+'</button>';
   }).join('');
@@ -6386,40 +6386,168 @@ function setRadarChartType(t){
   renderRadar(_radarTeam);
 }
 
-function exportRadarPNG(){
-  const el = document.getElementById('radar-export-container');
-  if(!el){ alert('Graphique introuvable'); return; }
-  const chartType = _radarChartType || 'barres';
-  const key = _radarKey || 'analyse';
-  const team = _radarTeam || 'toutes-equipes';
-  const ts = new Date().toISOString().slice(0,10);
-  const filename = ('VDJ_' + chartType + '_' + key + (team?'_'+team:'') + '_' + ts + '.png')
-    .replace(/[^a-zA-Z0-9_\-\.]/g, '-').replace(/-+/g,'-');
-  function doCapture(){
-    const btn = el.querySelector('button[onclick="exportRadarPNG()"]');
-    if(btn) btn.style.visibility='hidden';
-    html2canvas(el, {
-      scale: 2,
-      backgroundColor: '#ffffff',
-      useCORS: true,
-      allowTaint: true,
-      logging: false
-    }).then(canvas => {
-      if(btn) btn.style.visibility='';
-      const link = document.createElement('a');
-      link.download = filename;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
-    }).catch(()=>{ if(btn) btn.style.visibility=''; });
+function openExportModal(){
+  if(document.getElementById('vdj-export-modal')) return;
+  var svgS=document.querySelector('#radar-scored-svg svg');
+  var svgC=document.querySelector('#radar-conceded-svg svg');
+  if(!svgS&&!svgC){ alert(_lang==='en'?'No chart to export.':_lang==='nl'?'Geen grafiek om te exporteren.':'Aucun graphique à exporter.'); return; }
+  var L={
+    title:{fr:'Exporter le graphique',en:'Export Chart',nl:'Grafiek exporteren'},
+    graph:{fr:'Graphique',en:'Chart',nl:'Grafiek'},
+    scored:{fr:'Buts marqués',en:'Goals Scored',nl:'Doelpunten gescoord'},
+    conceded:{fr:'Buts encaissés',en:'Goals Conceded',nl:'Doelpunten gecasseerd'},
+    both:{fr:'Les deux côte à côte',en:'Both side by side',nl:'Beide naast elkaar'},
+    bg:{fr:'Fond',en:'Background',nl:'Achtergrond'},
+    white:{fr:'Blanc',en:'White',nl:'Wit'},
+    transp:{fr:'Transparent (PNG alpha)',en:'Transparent (PNG with alpha)',nl:'Transparant (PNG met alpha)'},
+    custom:{fr:'Couleur personnalisée',en:'Custom color',nl:'Aangepaste kleur'},
+    fmt:{fr:'Format & résolution',en:'Format & resolution',nl:'Formaat & resolutie'},
+    cancel:{fr:'Annuler',en:'Cancel',nl:'Annuleren'},
+    dl:{fr:'⬇ Télécharger',en:'⬇ Download',nl:'⬇ Downloaden'},
+    note:{fr:'Export SVG vectoriel pur (qualité TV infinie). PNG 2×/4× pour intégration directe.',
+          en:'Pure vector SVG export (infinite TV quality). PNG 2×/4× for direct integration.',
+          nl:'Puur vector SVG-export (oneindige TV-kwaliteit). PNG 2×/4× voor directe integratie.'}
+  };
+  var t=function(k){ return L[k][_lang]||L[k].fr; };
+
+  var overlay=document.createElement('div');
+  overlay.id='vdj-export-modal';
+  overlay.style.cssText='position:fixed;inset:0;background:rgba(10,15,30,.72);z-index:9999;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(4px)';
+  overlay.addEventListener('click',function(e){ if(e.target===overlay) closeExportModal(); });
+
+  function radioRow(name,val,lbl,chk){
+    return '<label style="display:flex;align-items:center;gap:8px;cursor:pointer;padding:8px 14px;border:1.5px solid #dde;border-radius:8px;font-size:.82em;font-weight:600">'
+      +'<input type="radio" name="'+name+'" value="'+val+'" '+(chk?'checked':'')+' style="accent-color:var(--accent);width:14px;height:14px"> '+lbl+'</label>';
   }
-  if(typeof html2canvas !== 'undefined'){
-    doCapture();
-  } else {
-    const s = document.createElement('script');
-    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
-    s.onload = doCapture;
-    document.head.appendChild(s);
+
+  var hasBoth = svgS && svgC;
+  overlay.innerHTML =
+    '<div style="background:#f8f9fb;border-radius:16px;box-shadow:0 12px 50px rgba(0,0,0,.45);padding:30px 34px;min-width:460px;max-width:580px;font-family:inherit">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:22px">'
+    +'<span style="font-size:1.12em;font-weight:800;color:#1a2340">📷 '+t('title')+'</span>'
+    +'<button onclick="closeExportModal()" style="background:none;border:none;font-size:1.3em;cursor:pointer;color:#aaa;padding:0 4px">✕</button>'
+    +'</div>'
+    +(hasBoth
+      ? '<div style="margin-bottom:20px"><div style="font-size:.68em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">'+t('graph')+'</div>'
+        +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+        +radioRow('expSide','both','⚡ '+t('both'),true)
+        +radioRow('expSide','scored','🔵 '+t('scored'),false)
+        +radioRow('expSide','conceded','🔴 '+t('conceded'),false)
+        +'</div></div>'
+      : '')
+    +'<div style="margin-bottom:20px"><div style="font-size:.68em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">'+t('bg')+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">'
+    +radioRow('expBg','white','⬜ '+t('white'),true)
+    +radioRow('expBg','transparent','🔲 '+t('transp'),false)
+    +radioRow('expBg','custom','🎨 '+t('custom'),false)
+    +'<input type="color" id="expCustomColor" value="#0d1b4b" style="width:34px;height:34px;border:2px solid #dde;border-radius:8px;cursor:pointer;padding:2px" onchange="document.querySelector(\'input[name=expBg][value=custom]\').checked=true">'
+    +'</div></div>'
+    +'<div style="margin-bottom:26px"><div style="font-size:.68em;font-weight:700;color:#8896aa;text-transform:uppercase;letter-spacing:.07em;margin-bottom:9px">'+t('fmt')+'</div>'
+    +'<div style="display:flex;gap:8px;flex-wrap:wrap">'
+    +radioRow('expFmt','png2','PNG HD — 2×',true)
+    +radioRow('expFmt','png4','PNG Ultra — 4×',false)
+    +radioRow('expFmt','svg','SVG vectoriel',false)
+    +'</div>'
+    +'<div style="margin-top:10px;font-size:.72em;color:#8896aa;line-height:1.5">💡 '+t('note')+'</div>'
+    +'</div>'
+    +'<div style="display:flex;gap:10px;justify-content:flex-end;border-top:1px solid #e8eaf0;padding-top:20px">'
+    +'<button onclick="closeExportModal()" style="padding:9px 22px;border:1.5px solid #ccc;border-radius:9px;background:#fff;cursor:pointer;font-size:.88em;font-weight:600;color:#445">'+t('cancel')+'</button>'
+    +'<button onclick="doExportRadar()" style="padding:9px 24px;border:none;border-radius:9px;background:var(--accent);color:#fff;cursor:pointer;font-size:.88em;font-weight:700">'+t('dl')+'</button>'
+    +'</div></div>';
+
+  document.body.appendChild(overlay);
+}
+
+function closeExportModal(){
+  var m=document.getElementById('vdj-export-modal');
+  if(m) m.remove();
+}
+
+function doExportRadar(){
+  var side=(document.querySelector('input[name="expSide"]:checked')||{}).value||'both';
+  var bg=(document.querySelector('input[name="expBg"]:checked')||{}).value||'white';
+  var fmt=(document.querySelector('input[name="expFmt"]:checked')||{}).value||'png2';
+  var customColor=(document.getElementById('expCustomColor')||{}).value||'#0d1b4b';
+  var bgColor=bg==='white'?'#ffffff':bg==='custom'?customColor:null;
+
+  var els=[];
+  if(side==='scored'||side==='both'){ var e=document.querySelector('#radar-scored-svg svg'); if(e) els.push(e); }
+  if(side==='conceded'||side==='both'){ var e2=document.querySelector('#radar-conceded-svg svg'); if(e2) els.push(e2); }
+  if(!els.length){ alert('Aucun graphique disponible.'); return; }
+
+  // Résoudre les CSS variables pour export standalone
+  var cs=getComputedStyle(document.documentElement);
+  var cssVars={
+    'var(--accent)':cs.getPropertyValue('--accent').trim()||'#2255ff',
+    'var(--border)':cs.getPropertyValue('--border').trim()||'#dde3ec',
+    'var(--muted)':cs.getPropertyValue('--muted').trim()||'#8896aa',
+    'var(--text)':cs.getPropertyValue('--text').trim()||'#222233',
+    'var(--card)':cs.getPropertyValue('--card').trim()||'#ffffff',
+    'var(--red)':cs.getPropertyValue('--red').trim()||'#dd2222'
+  };
+
+  function resolveCss(inner){
+    Object.keys(cssVars).forEach(function(k){ inner=inner.split(k).join(cssVars[k]); });
+    return inner;
   }
+
+  var GAP=32, PAD=16;
+  var resolved=els.map(function(el){
+    var vbStr=el.getAttribute('viewBox')||'0 0 460 350';
+    var vb=vbStr.split(/[\s,]+/).map(Number);
+    return {vb:vb, w:vb[2], h:vb[3], inner:resolveCss(el.innerHTML)};
+  });
+
+  var totalW=PAD, maxH=0;
+  resolved.forEach(function(p,i){ if(i>0)totalW+=GAP; totalW+=p.w; maxH=Math.max(maxH,p.h); });
+  totalW+=PAD;
+  var totalH=maxH+PAD*2;
+
+  var body='';
+  if(bgColor) body+='<rect width="'+totalW+'" height="'+totalH+'" fill="'+bgColor+'" rx="8"/>';
+  var cx=PAD;
+  resolved.forEach(function(p,i){
+    var cy=PAD+(maxH-p.h)/2;
+    body+='<g transform="translate('+cx.toFixed(1)+','+cy.toFixed(1)+')">'
+      +'<svg viewBox="'+p.vb.join(' ')+'" width="'+p.w+'" height="'+p.h+'" xmlns="http://www.w3.org/2000/svg">'+p.inner+'</svg>'
+      +'</g>';
+    cx+=p.w+(i<resolved.length-1?GAP:0);
+  });
+
+  var svgDoc='<?xml version="1.0" encoding="UTF-8"?>\n'
+    +'<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"'
+    +' viewBox="0 0 '+totalW+' '+totalH+'" width="'+totalW+'" height="'+totalH+'">'+body+'</svg>';
+
+  var ts=new Date().toISOString().slice(0,10);
+  var base=('VDJ_'+(_radarChartType||'chart')+'_'+(_radarKey||'analyse')+((_radarTeam)?'_'+_radarTeam:'')).replace(/[^a-zA-Z0-9_\-]/g,'-').replace(/-+/g,'-');
+
+  function dlBlob(blob,name){
+    var a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download=name;
+    a.click(); setTimeout(function(){ URL.revokeObjectURL(a.href); },2000);
+  }
+
+  if(fmt==='svg'){
+    dlBlob(new Blob([svgDoc],{type:'image/svg+xml'}), base+'_'+ts+'.svg');
+    closeExportModal(); return;
+  }
+
+  var scale=fmt==='png4'?4:2;
+  var pW=totalW*scale, pH=totalH*scale;
+  var svgScaled=svgDoc.replace('width="'+totalW+'" height="'+totalH+'"','width="'+pW+'" height="'+pH+'"');
+  var blob=new Blob([svgScaled],{type:'image/svg+xml'});
+  var url=URL.createObjectURL(blob);
+  var img=new Image();
+  img.onload=function(){
+    var cv=document.createElement('canvas'); cv.width=pW; cv.height=pH;
+    var ctx=cv.getContext('2d');
+    if(!bgColor) ctx.clearRect(0,0,pW,pH);
+    ctx.drawImage(img,0,0);
+    URL.revokeObjectURL(url);
+    cv.toBlob(function(b){ dlBlob(b,base+'_'+ts+(scale===4?'_4x':'_2x')+'.png'); },'image/png');
+  };
+  img.onerror=function(){ URL.revokeObjectURL(url); alert('Erreur conversion PNG.'); };
+  img.src=url;
+  closeExportModal();
 }
 function renderRadar(team){
   if(!_radarCt) return;
@@ -6551,7 +6679,7 @@ function renderRadar(team){
       <line x1="0" y1="0" x2="22" y2="0" stroke="${baseCol}" stroke-width="2.5"/>
       <text x="27" y="3.5" font-size="10" fill="#334" font-weight="600">🏠 ${_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile'}</text>
       <line x1="0" y1="16" x2="22" y2="16" stroke="${baseCol}" stroke-width="2" stroke-dasharray="5,4"/>
-      <text x="27" y="19.5" font-size="10" fill="#334" font-weight="600">✈️ ${_lang==='en'?'Away':_lang==='nl'?'Buitenshuis':'Extérieur'}</text>
+      <text x="27" y="19.5" font-size="10" fill="#334" font-weight="600">✈️ ${_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur'}</text>
     </g>`;
     return `<svg viewBox="0 0 460 370" width="460" height="370" style="display:block;overflow:hidden">${rs}</svg>`;
   }
@@ -7427,7 +7555,7 @@ function renderArbitres(){
       html += '<thead><tr style="color:var(--muted);text-align:left;font-size:.78em;text-transform:uppercase;letter-spacing:.04em">'
         +'<th style="padding:4px 8px 4px 0">'+(_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe')+'</th>'
         +'<th style="padding:4px 8px;text-align:center" colspan="4">🏠 '+(_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile')+'</th>'
-        +'<th style="padding:4px 8px;text-align:center;border-left:1px solid var(--border)" colspan="4">✈️ '+(_lang==='en'?'Away':_lang==='nl'?'Buitenshuis':'Extérieur')+'</th>'
+        +'<th style="padding:4px 8px;text-align:center;border-left:1px solid var(--border)" colspan="4">✈️ '+(_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur')+'</th>'
         +'</tr><tr style="color:var(--muted);text-align:center;font-size:.72em;text-transform:uppercase">'
         +'<th></th>'
         +'<th style="padding:2px 6px">MJ</th><th style="padding:2px 6px">V-N-D</th><th style="padding:2px 6px">Pts</th><th style="padding:2px 6px">Pts/M</th>'
@@ -7470,7 +7598,7 @@ function renderArbitres(){
         +'<th style="padding:4px 8px">'+(_lang==='en'?'Date':_lang==='nl'?'Datum':'Date')+'</th>'
         +'<th style="padding:4px 8px">'+(_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile')+'</th>'
         +'<th style="padding:4px 8px;text-align:center">'+(_lang==='en'?'Score':_lang==='nl'?'Score':'Score')+'</th>'
-        +'<th style="padding:4px 8px">'+(_lang==='en'?'Away':_lang==='nl'?'Buitenshuis':'Extérieur')+'</th>'
+        +'<th style="padding:4px 8px">'+(_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur')+'</th>'
         +'<th style="padding:4px 8px">'+(_lang==='en'?'Referee':_lang==='nl'?'Scheidsrechter':'Arbitre')+'</th>'
         +'<th style="padding:4px 8px;text-align:center">Pts 🏠</th>'
         +'<th style="padding:4px 8px;text-align:center">Pts ✈️</th>'
@@ -7655,13 +7783,13 @@ function renderAnalysis(key, opts={}){
   _analysisGoalFilterSnapshot = _combinedGoalFilter || null;
   const ct = buildCrossTab(key, {...opts, goalFilter: _combinedGoalFilter, venueFilter: _venueFilter});
   const table = ct.table;
-  const label = opts.filter==='pa' ? 'Phases arrêtées — Origines' : (VDJ_LABELS[key]||key);
+  const label = opts.filter==='pa' ? (_lang==='en'?'Set Piece — Origins':_lang==='nl'?'Stilstaande fasen — Oorsprongen':'Phases arrêtées — Origines') : (VDJ_LABELS[key]||key);
 
   const resetBtn = _sortCol!==null
     ? `<button onclick="analysisSortReset()" style="margin-left:12px;padding:3px 10px;border:1px solid var(--border);border-radius:5px;background:#fff;color:var(--accent);font-size:.8em;cursor:pointer;font-family:inherit">✕ Effacer le tri</button>`
     : '';
 
-  const vfLabels = {all:(_lang==='en'?'All Data':_lang==='nl'?'Alle data':'Toutes les données'), home:(_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile'), away:(_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Buitenshuis':'✈️ Extérieur')};
+  const vfLabels = {all:(_lang==='en'?'All Data':_lang==='nl'?'Alle data':'Toutes les données'), home:(_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile'), away:(_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Uit':'✈️ Extérieur')};
   const venueBar = ['all','home','away'].map(v => {
     const active = _venueFilter===v;
     const bg = active ? 'var(--accent)' : '#fff';
@@ -7673,7 +7801,7 @@ function renderAnalysis(key, opts={}){
   const _lastNOptions = [5,10,15,20,25];
   const lastNBar = _isJourneeAnalysis ? (['all',..._lastNOptions].map(v => {
     const active = v==='all' ? !_analysisLastN : _analysisLastN===v;
-    const lbl = v==='all' ? (_lang==='en'?'All matchdays':_lang==='nl'?'Alle speeldagen':'Toutes les journées') : (_lang==='en'?`Last ${v}`:`${v} dernières`);
+    const lbl = v==='all' ? (_lang==='en'?'All matchdays':_lang==='nl'?'Alle speeldagen':'Toutes les journées') : (_lang==='en'?`Last ${v}`:_lang==='nl'?`Laatste ${v}`:`${v} dernières`);
     const bg = active ? '#2d5a8a' : '#fff';
     const col = active ? '#fff' : '#2d5a8a';
     const bord = active ? '#2d5a8a' : 'var(--border)';
@@ -7970,7 +8098,7 @@ if(ct.teams.length===0){
       <select onchange="renderRadar(this.value)" style="padding:5px 12px;border:1px solid #ccd;border-radius:5px;font-size:.85em;cursor:pointer">${_teamOpts}</select></span>
       <span style="display:flex;gap:6px">${radarVenueBar}</span>
       <span style="display:flex;gap:5px">${[['barres',_lang==='en'?'📊 Bars':_lang==='nl'?'📊 Staven':'📊 Barres'],['radar',_lang==='en'?'🕸 Radar':_lang==='nl'?'🕸 Radar':'🕸 Radar'],['jauges',_lang==='en'?'🎯 Gauges':_lang==='nl'?'🎯 Meters':'🎯 Jauges'],['treemap',_lang==='en'?'🟦 Treemap':_lang==='nl'?'🟦 Treemap':'🟦 Treemap']].map(([t,l])=>`<button id="rcb-${t}" data-active="${_radarChartType===t}" onclick="setRadarChartType('${t}')" style="padding:4px 12px;border:1.5px solid ${_radarChartType===t?'var(--accent)':'var(--border)'};border-radius:16px;color:${_radarChartType===t?'#fff':'var(--accent)'};font-size:.78em;font-weight:600;cursor:pointer;font-family:inherit">${l}</button>`).join(' ')}</span>
-      <button onclick="exportRadarPNG()" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
+      <button onclick="openExportModal()" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
     </div>
     <div style="font-size:.72em;color:var(--muted);margin-bottom:14px">💡 ${_lang==='en'
       ? '"Compare" overlays two polygons per radar: solid line/filled marker = home, dashed line/hollow marker = away.'
@@ -8003,7 +8131,7 @@ function renderRecap(){
     return;
   }
 
-  let html = '<h1>Tableau récapitulatif — Toutes catégories</h1>';
+  let html = `<h1>${_lang==='en'?'Summary — All categories':_lang==='nl'?'Samenvatting — Alle categorieën':'Tableau récapitulatif — Toutes catégories'}</h1>`;
 
   categories.forEach(key=>{
     html += `<div class="section-title">${VDJ_LABELS[key]||key}</div>`;
@@ -8184,8 +8312,8 @@ function renderAssists(){
   });
   const sorted = Object.entries(assists).sort((a,b)=>b[1]-a[1]);
 
-  let html = '<h1>Passes décisives</h1>' + _lastNPillBar(_assistLastN, 'setAssistLastN');
-  if(sorted.length===0){ html+='<div class="no-data">Pas de données</div>'; }
+  let html = `<h1>${_lang==='en'?'Key Passes':_lang==='nl'?'Beslissende passes':'Passes décisives'}</h1>` + _lastNPillBar(_assistLastN, 'setAssistLastN');
+  if(sorted.length===0){ html+=`<div class="no-data">${_lang==='en'?'No data':_lang==='nl'?'Geen data':'Pas de données'}</div>`; }
   else {
     html += '<table class="tableau" style="width:auto;min-width:320px"><tr><th>#</th><th style="text-align:left">'+(_lang==='en'?'Key passer':_lang==='nl'?'Aangever':'Passeur')+'</th><th style="white-space:nowrap">Assists</th></tr>';
     sorted.forEach(([name,count],i)=>{
@@ -8366,7 +8494,7 @@ function showGoalDetailScorer(playerName, team, isAssist){
     if(isAssist) return g.assist===playerName && g.team===team && !g.noAssist;
     return g.buteur===playerName && g.team===team;
   });
-  const label = isAssist ? 'Passes décisives' : 'Buts';
+  const label = isAssist ? (_lang==='en'?'Key Passes':_lang==='nl'?'Beslissende passes':'Passes décisives') : (_lang==='en'?'Goals':_lang==='nl'?'Doelpunten':'Buts');
   document.getElementById('detail-title').textContent = `${playerName} (${team}) — ${label} (${goals.length})`;
   renderDetailGoals(goals, isAssist);
   document.getElementById('detail-panel').classList.add('open');
@@ -12292,7 +12420,7 @@ function renderRecherche(){
   const lieuOptsR  = mo(VDJ.lieu,       ORDER.lieu||[1,2,3],     _lang==='en'?'All locations':_lang==='nl'?'Alle locaties':'Tous les lieux');
   const minOptsR   = mo(VDJ.minutes,    ORDER.minutes,           _lang==='en'?'All periods':_lang==='nl'?'Alle periodes':'Toutes les périodes');
   const finOptsR   = mo(VDJ.finitions,  ORDER.finitions||[1,2,3,4,5,6], _lang==='en'?'All finishes':_lang==='nl'?'Alle afrondingen':'Toutes les finitions');
-  const venueOptsR = `<option value="">${_lang==='en'?'Home/Away':_lang==='nl'?'Thuis/Buitenshuis':'Domicile/Extérieur'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠 ${_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile'}</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️ ${_lang==='en'?'Away':_lang==='nl'?'Buitenshuis':'Extérieur'}</option>`;
+  const venueOptsR = `<option value="">${_lang==='en'?'Home/Away':_lang==='nl'?'Thuis/Uit':'Domicile/Extérieur'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠 ${_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile'}</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️ ${_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur'}</option>`;
 
   function sel(id, opts, cur, label){
     return `<select id="${id}" onchange="renderRecherche()" style="font-size:.8em;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--card)${cur?' font-weight:bold;border-color:var(--accent)':''}" title="${label}">
@@ -12479,7 +12607,7 @@ function renderRecherche(){
   }
 
   if(goals.length > MAX_DISPLAY){
-    pillsHtml += `<div style="font-size:.75em;color:var(--muted);text-align:center;padding:6px">${_lang==='en'?`Showing first ${MAX_DISPLAY} of ${goals.length} goals`:`Affichage des ${MAX_DISPLAY} premiers buts sur ${goals.length}`}</div>`;
+    pillsHtml += `<div style="font-size:.75em;color:var(--muted);text-align:center;padding:6px">${_lang==='en'?`Showing first ${MAX_DISPLAY} of ${goals.length} goals`:_lang==='nl'?`Eerste ${MAX_DISPLAY} van ${goals.length} doelpunten`:`Affichage des ${MAX_DISPLAY} premiers buts sur ${goals.length}`}</div>`;
   }
 
   // ── Presets bar ────────────────────────────────────────────────────
@@ -12916,7 +13044,7 @@ function _buildRechPanel(stateObj, activePresetsSet, allGoals, panelSuffix){
     <select id="${pfx}tac1" onchange="${updateFn}('tac1',this.value)" style="${ss}">${moS(VDJ.tactique1,ORDER.tactique1||[1,2,3,4,5,6],_lang==='en'?'All tactics':_lang==='nl'?'Alle tactieken':'Toutes les tactiques',fTac1)}</select>
     <select id="${pfx}ori1" onchange="${updateFn}('ori1',this.value)" style="${ss}">${moS(VDJ.origine1,ORDER.origine1,_lang==='en'?'All origins':_lang==='nl'?'Alle oorsprongen':'Toutes les origines',fOri1)}</select>
     <select id="${pfx}lieu" onchange="${updateFn}('lieu',this.value)" style="${ss}">${moS(VDJ.lieu,ORDER.lieu||[1,2,3],_lang==='en'?'All locations':_lang==='nl'?'Alle locaties':'Tous les lieux',fLieu)}</select>
-    <select id="${pfx}venue" onchange="${updateFn}('venue',this.value)" style="${ss}"><option value="">${_lang==='en'?'H/A':_lang==='nl'?'T/B':'Dom/Ext'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️</option></select>
+    <select id="${pfx}venue" onchange="${updateFn}('venue',this.value)" style="${ss}"><option value="">${_lang==='en'?'H/A':_lang==='nl'?'T/U':'Dom/Ext'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️</option></select>
     <button onclick="${resetFn}()" style="font-size:.72em;padding:3px 7px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕</button>
   </div>`;
 
@@ -13183,7 +13311,7 @@ function rechUpdateMatchPanel(){
   const isCscGoal = isCsc(g);
   const scorer = isCscGoal ? `CSC (${tf(g.team)})` : (g.buteur || '—');
   const scorerTeam = isCscGoal ? tf(g.opponent) : tf(g.team);
-  const venue = g.team===m.dom ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile') : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Buitenshuis':'✈️ Extérieur');
+  const venue = g.team===m.dom ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile') : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Uit':'✈️ Extérieur');
 
   panel.style.display = 'block';
   panel.innerHTML = `
@@ -13481,7 +13609,7 @@ function buildScorerCard(name, team, allGoals){
   const nExt = goals.filter(g=>g.team!==g.match.dom).length;
   const venueHtml = `
     <span onclick="spFilterByField('venue','dom','${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:#1a6e2e;color:#fff;padding:2px 9px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Buts à domicile">🏠 ${_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile'}<b style="opacity:.85">${nDom}</b></span>
-    <span onclick="spFilterByField('venue','ext','${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:#8b2020;color:#fff;padding:2px 9px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Buts à l'extérieur">✈️ ${_lang==='en'?'Away':_lang==='nl'?'Buitenshuis':'Extérieur'}<b style="opacity:.85">${nExt}</b></span>
+    <span onclick="spFilterByField('venue','ext','${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:#8b2020;color:#fff;padding:2px 9px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Buts à l'extérieur">✈️ ${_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur'}<b style="opacity:.85">${nExt}</b></span>
     <span onclick="spResetAll('${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:#4b607f;color:#fff;padding:2px 9px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Tout afficher">⇄ ${_lang==='en'?'All':_lang==='nl'?'Alles':'Tout'}</span>
   `;
 
@@ -15457,10 +15585,10 @@ function renderFicheMatch(){
     const verbFr1 = isConc ? 'Encaisse plutôt en' : 'Marque plutôt en';
     const verbEn1 = isConc ? 'Concedes more in the' : 'Scores more in the';
     const tendency = firstHalf > secondHalf
-      ? (_lang==='en'?`⏱ ${verbEn1} <strong>1st half</strong> (${firstHalf} goals)`:`⏱ ${verbFr1} <strong>1ère mi-temps</strong> (${firstHalf} buts)`)
+      ? (_lang==='en'?`⏱ ${verbEn1} <strong>1st half</strong> (${firstHalf} goals)`:_lang==='nl'?`⏱ ${verbEn1} <strong>1ste helft</strong> (${firstHalf} doelpunten)`:`⏱ ${verbFr1} <strong>1ère mi-temps</strong> (${firstHalf} buts)`)
       : secondHalf > firstHalf
-      ? (_lang==='en'?`⏱ ${verbEn1} <strong>2nd half</strong> (${secondHalf} goals)`:`⏱ ${verbFr1} <strong>2ème mi-temps</strong> (${secondHalf} buts)`)
-      : (_lang==='en'?`⏱ Balanced distribution between both halves`:`⏱ Répartition équilibrée entre les deux mi-temps`);
+      ? (_lang==='en'?`⏱ ${verbEn1} <strong>2nd half</strong> (${secondHalf} goals)`:_lang==='nl'?`⏱ ${verbEn1} <strong>2de helft</strong> (${secondHalf} doelpunten)`:`⏱ ${verbFr1} <strong>2ème mi-temps</strong> (${secondHalf} buts)`)
+      : (_lang==='en'?`⏱ Balanced distribution between both halves`:_lang==='nl'?`⏱ Evenwichtige verdeling over beide helften`:`⏱ Répartition équilibrée entre les deux mi-temps`);
 
     let bars = `<div style="display:flex;gap:4px;align-items:flex-end;height:60px;margin-bottom:4px">`;
     buckets.forEach((b,i)=>{
@@ -15781,7 +15909,7 @@ function renderFicheMatch(){
       <div style="font-size:2em">${flagE}</div>
       <div style="font-size:1.2em;font-weight:800;margin-top:4px">${_lang==='en'?(TEAM_NAME_EN[extTeam]||extTeam):extTeam}</div>
       <div style="font-size:.75em;opacity:.8;margin-top:2px">🧑‍💼 ${getCoach(extTeam)}</div>
-      <div style="font-size:.7em;opacity:.6;margin-top:1px">${_lang==='en'?'Away':_lang==='nl'?'Buitenshuis':'Extérieur'}</div>
+      <div style="font-size:.7em;opacity:.6;margin-top:1px">${_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur'}</div>
     </div>
   </div>
 
@@ -16166,7 +16294,7 @@ function spUpdateMatchPanel(){
   const isCscGoal = isCsc(g);
   const scorer = isCscGoal ? `CSC (${tf(g.team)})` : (g.buteur||'—');
   const scorerTeam = isCscGoal ? tf(g.opponent) : tf(g.team);
-  const venue = g.team===m.dom ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile') : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Buitenshuis':'✈️ Extérieur');
+  const venue = g.team===m.dom ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile') : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Uit':'✈️ Extérieur');
 
   panel.style.display='block';
   panel.innerHTML=`
