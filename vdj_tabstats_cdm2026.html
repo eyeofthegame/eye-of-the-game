@@ -930,6 +930,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <header class="topbar" id="site-banner">
   <img id="banner-fr" src="banner_fr.png" alt="Vision du Jeu" style="width:100%;height:auto;display:block">
   <img id="banner-en" src="banner_en.png" alt="Eye of the Game" style="width:100%;height:auto;display:none">
+  <img id="banner-nl" src="banner_en.png" alt="Eye of the Game" style="width:100%;height:auto;display:none">
 </header>
 
 <nav class="sidebar">
@@ -947,9 +948,11 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 </div>
 <div style="margin:8px 12px 4px;display:flex;gap:6px;align-items:center">
   <div id="lang-toggle" style="display:flex;border-radius:6px;overflow:hidden;border:1px solid rgba(255,255,255,.3);flex:1">
-    <button id="lang-btn-fr" onclick="if(_lang!=='fr')toggleLang()" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:rgba(255,255,255,.25);color:#fff;letter-spacing:.04em">🇫🇷 FR</button>
+    <button id="lang-btn-fr" onclick="setLang('fr')" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:rgba(255,255,255,.25);color:#fff;letter-spacing:.04em">🇫🇷 FR</button>
     <div style="width:1px;background:rgba(255,255,255,.25)"></div>
-    <button id="lang-btn-en" onclick="if(_lang!=='en')toggleLang()" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em">🇬🇧 EN</button>
+    <button id="lang-btn-en" onclick="setLang('en')" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em">🇬🇧 EN</button>
+    <div style="width:1px;background:rgba(255,255,255,.25)"></div>
+    <button id="lang-btn-nl" onclick="setLang('nl')" style="flex:1;padding:6px 0;font-size:.75em;font-weight:700;border:none;cursor:pointer;background:transparent;color:rgba(255,255,255,.4);letter-spacing:.04em">🇧🇪 NL</button>
   </div>
   <button id="dark-toggle" onclick="toggleDarkMode()" title="Mode sombre" style="padding:5px 9px;font-size:.88em;border:1px solid rgba(255,255,255,.3);border-radius:6px;background:transparent;color:rgba(255,255,255,.7);cursor:pointer;flex-shrink:0;line-height:1;transition:background .2s">🌙</button>
 </div>
@@ -6344,6 +6347,7 @@ const ORIGINE1_GROUPS = [
 ];
 const _ORIGINE1_GROUPS_FR = ['Plein jeu','Phase arrêtée','Penalty'];
 const _ORIGINE1_GROUPS_EN = ['Open Play','Set Piece','Penalty'];
+const _ORIGINE1_GROUPS_NL = ['Open spel','Stilstaande fase','Strafschop'];
 const ACTIONS_GROUPS = [
   {label:'Têtes',              color:'#4400cc', textColor:'#ffcc88', keys:[23,21,22]},
   {label:'Tirs',               color:'#444444', textColor:'#ffffcc', keys:[1,26,15,16,25,3,24,2,20,4,14]},
@@ -6353,6 +6357,7 @@ const ACTIONS_GROUPS = [
 ];
 const _ACTIONS_GROUPS_FR = ['Têtes','Tirs','Déviations / CSC','Phases arrêtées','Gestes'];
 const _ACTIONS_GROUPS_EN = ['Headers','Shots','Deflections / OG','Set Pieces','Skills'];
+const _ACTIONS_GROUPS_NL = ['Kopballen','Schoten','Deviaties / ED','Stilstaande fasen','Vaardigheden'];
 // ── Radar globals ──────────────────────────────────────────────────────
 let _radarCt = null, _radarKey = null;
 // 25/07/2026 — Christian : pouvoir comparer domicile/extérieur sur le
@@ -13512,7 +13517,7 @@ function buildScorerCard(name, team, allGoals){
   const actHtml  = spDistBar(VDJ.actions,  [1,2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,20,21,22,23,24,25,26], goals, 'actions', 'act');
 
   // ── 6. Assists donnés par ce joueur ──────────────────────────────────
-  const assistsDonnés = allGoals.filter(g=>g.assist===name && g.team===team && !g.noAssist && !isCsc(g));
+  const assistsDonnés = allGoals.filter(g=>g.assist===name && (team===null||g.team===team) && !g.noAssist && !isCsc(g));
   let assistsDonnésHtml='';
   if(assistsDonnés.length){
     const byReceveur={};
@@ -13559,13 +13564,28 @@ function buildScorerCard(name, team, allGoals){
     ? `<span style="display:inline-flex;align-items:center;font-size:.76em;background:#f0f4ff;border:1px solid #c8d8f0;border-radius:4px;padding:2px 8px;color:#224;font-weight:600">${_clubLogo}${_pInfo.club}</span>`
     : '';
 
+  // Multi-club selector
+  const _allScoredClubs = [...new Set(allGoals.filter(g=>g.buteur===name&&!isCsc(g)).map(g=>g.team))];
+  const _sn = name.replace(/'/g,"\\'");
+  const _clubSelectorHtml = _allScoredClubs.length > 1
+    ? `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center">` +
+      `<button onclick="event.stopPropagation();spSelect('${_sn}',null,event)" style="padding:2px 9px;border-radius:12px;border:1.5px solid var(--accent);font-size:.74em;font-weight:700;cursor:pointer;background:${!team?'var(--accent)':'transparent'};color:${!team?'#fff':'var(--accent)'};transition:all .1s">${_lang==='en'?'All':'Tous'}</button>` +
+      _allScoredClubs.map(c=>{
+        const ct=c.replace(/'/g,"\\'");
+        const isActive=team===c;
+        const cn=allGoals.filter(g=>g.buteur===name&&g.team===c&&!isCsc(g)).length;
+        return `<button onclick="event.stopPropagation();spSelect('${_sn}','${ct}',event)" style="padding:2px 9px;border-radius:12px;border:1.5px solid var(--accent);font-size:.74em;font-weight:700;cursor:pointer;background:${isActive?'var(--accent)':'transparent'};color:${isActive?'#fff':'var(--accent)'};transition:all .1s">${tf(c)}&thinsp;<b>${cn}</b></button>`;
+      }).join('') +
+      `</div>`
+    : `<span style="font-size:.82em;color:var(--muted)">${tf(_allScoredClubs[0]||team||'')}</span>`;
+
   return `
     <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:.9em;flex-wrap:nowrap">
       <div style="font-size:2em;line-height:1;padding-top:1px;flex-shrink:0">${_flag}</div>
       <div style="flex:1;min-width:0">
         <div style="display:flex;align-items:baseline;gap:6px;flex-wrap:wrap">
           <h3 style="margin:0;color:var(--accent);font-size:1.15em;font-weight:800">${name}</h3>
-          <span style="font-size:.82em;color:var(--muted)">${team ? tf(team) : (goals.map(g=>g.team).filter((v,i,a)=>a.indexOf(v)===i).map(t=>tf(t)).join(', '))}</span>
+          ${_clubSelectorHtml}
           <span style="margin-left:auto;display:flex;gap:10px;align-items:baseline;flex-shrink:0">
             <span style="font-size:1.1em;font-weight:bold;color:var(--red)">${total} ${_lang==='en'?('goal'+(total>1?'s':'')):'but'+(total>1?'s':'')}</span>
             ${totalAssistsDonnés?`<span style="font-size:.9em;font-weight:bold;color:#0066cc">${totalAssistsDonnés} assist${totalAssistsDonnés>1?'s':''}</span>`:''}
@@ -16207,9 +16227,17 @@ const _VDJ_LABELS_EN = {
   tactique3:"Nature of Goal", paType:"Set Piece Type",
   finitions:"Outcome", minutes:"Minutes (15')", minutes10:"Minutes (10')", mitemps:"Half"
 };
+const _VDJ_LABELS_NL = {
+  tactique1:"Speelstijl", origine1:"Doeloorsprong", origine2:"Spelrichting",
+  origine3:"Zone (diepte)", lieu:"Schietlocatie", actions:"Actie",
+  tactique2:"Hoofdbeschrijving", tactique2b:"Secundaire beschrijving",
+  tactique3:"Aard van het doelpunt", paType:"Type stilstaande fase",
+  finitions:"Afronding", minutes:"Minuten (15')", minutes10:"Minuten (10')", mitemps:"Helft"
+};
 
 const _GS_TYPE_LABELS_FR = {1:'Récup.',2:'Déclenchement',3:'Assist',4:'Chance',5:'Tir 👟',6:'Course 🏃',7:'Relais 🔄',8:'Réception 🤲',9:'Arrêt déf. 🛡',10:'But ⚽'};
 const _GS_TYPE_LABELS_EN = {1:'Recovery',2:'Trigger',3:'Assist',4:'Chance',5:'Shot 👟',6:'Run 🏃',7:'Relay 🔄',8:'Reception 🤲',9:'Def. Block 🛡',10:'Goal ⚽'};
+const _GS_TYPE_LABELS_NL = {1:'Recuperatie',2:'Triggering',3:'Assist',4:'Kans',5:'Schot 👟',6:'Loop 🏃',7:'Relais 🔄',8:'Receptie 🤲',9:'Verdedigend blok 🛡',10:'Doelpunt ⚽'};
 
 const _LANG_EN = {
   tactique1:{1:"Positional Dominant Play",2:"Fast Dominant Play",3:"Fast Reconversion",4:"Rapid Transition",5:"Set Piece",6:"Penalty"},
@@ -16222,6 +16250,18 @@ const _LANG_EN = {
   actions:{1:"Regular Shot",2:"One-on-One",3:"Pinpoint Finish",4:"Layoff Shot",5:"Backheel",6:"Chip Shot",7:"Curled Shot",8:"Deflected Shot",9:"Follow-up Shot",10:"Backheel ⚡ Madjer",11:"Volley",12:"Half-Volley",13:"Inside Foot Shot",14:"Diving Header",15:"Power Shot",16:"Free Kick",17:"Teammate Deflection",18:"Opponent Deflection",19:"Own Goal",20:"Header — 1st zone",21:"Header — Central",22:"Header — 2nd zone",23:"Header",24:"Long Shot",25:"Penalty Kick",26:"Low Shot",51:"Half-Space"},
   tactique2:{1:"-",2:"GK Clearance",3:"GK Error",4:"Opponent Error",5:"Defender Slip",6:"Blocked Defense",7:"2-Touch Combo",8:"Favorable Direct Finish",9:"Right-footer cutting in",10:"Right-footer cutting out",11:"Left-footer cutting in",12:"Left-footer cutting out",13:"Right on left",14:"Right on right",15:"Right central",16:"Left on left",17:"Left on right",18:"Left central",19:"Second Chance",20:"Extended Set Piece",21:"Right Off Target",22:"Left Off Target",23:"Layoff Pass",24:"Flick-on",25:"Long Shot",26:"3rd Chance+",27:"One-Two",28:"Relay/Support",29:"Deflected Under Wall",30:"Out-to-In Sequence",31:"Worked Combination",32:"Gift Ball",33:"Through Ball",34:"High Press",35:"Solo — Individual",36:"Multiple Rebounds",37:"No Opposition",38:"Headed Flick-on",39:"Central Flick-on",40:"Long-range Origin",41:"Infiltration",42:"Right Instep",43:"Left Instep",44:"Right Outer Foot",45:"Left Outer Foot",46:"Headed Layoff",47:"Oriented Control",48:"Poor Ball Clearance",49:"Mid-range Shot",50:"Collective Combination",51:"Optimal Zone"},
   mitemps:{1:"1st Half",2:"2nd Half"}
+};
+const _LANG_NL = {
+  tactique1:{1:"Positiespel dominant",2:"Snel spel dominant",3:"Snelle herneming",4:"Snelle omschakeling",5:"Stilstaande fase",6:"Penalty"},
+  origine3:{1:"-",2:"Laatste 16m",3:"Aanvallend derde",4:"Middenderde",5:"Verdedigend derde"},
+  origine2:{1:"-",2:"Rechts",3:"Centraal",4:"Links"},
+  origine1:{1:"Balverlies tegenstander",2:"Voorzet",3:"Directe vrije trap",4:"Indirecte vrije trap",5:"Hoekschop",6:"Pas",7:"Strafschop",8:"Individuele actie",9:"Schot",10:"Inworp"},
+  tactique3:{0:"-",1:"Intentioneel",2:"Gunstige omstandigheid",3:"Beslissing scheidsrechter",4:"Uitgelokte fout"},
+  lieu:{1:"Doelgebied (6m)",2:"Strafschopgebied",3:"Buiten het strafschopgebied"},
+  finitions:{1:"Doelpunt",2:"Gescoord doelpunt",3:"Redding doelman",4:"Verdedigend blok",5:"Schot op de paal",6:"Naast",7:"Penalty gemist",8:"Fout",9:"Andere kans"},
+  actions:{1:"Normaal schot",2:"Één-op-één",3:"Precieze afronding",4:"Aflegger schot",5:"Hakbal",6:"Lobschot",7:"Gekruld schot",8:"Afgeweken schot",9:"Rebound",10:"Hakbal ⚡ Madjer",11:"Volley",12:"Half-volley",13:"Binnenkant voet",14:"Duikende kopbal",15:"Powershot",16:"Vrije trap",17:"Ploeggenoot deflectie",18:"Tegenstander deflectie",19:"Eigen doelpunt",20:"Kopbal — 1e zone",21:"Kopbal — Centraal",22:"Kopbal — 2e zone",23:"Kopbal",24:"Schot van afstand",25:"Strafschop",26:"Laag schot",51:"Half-ruimte"},
+  tactique2:{1:"-",2:"Uitschop doelman",3:"Fout doelman",4:"Fout tegenstander",5:"Verspeelde bal verdediger",6:"Geblokkeerde verdediging",7:"Combinatie 2 aanrakingen",8:"Gunstige directe afronding",9:"Rechtsbenige naar links uitwijkend",10:"Rechtsbenige naar rechts uitwijkend",11:"Linksbenige naar links uitwijkend",12:"Linksbenige naar rechts uitwijkend",13:"Rechts op links",14:"Rechts op rechts",15:"Rechts centraal",16:"Links op links",17:"Links op rechts",18:"Links centraal",19:"Tweede kans",20:"Verlengde stilstaande fase",21:"Rechts naast",22:"Links naast",23:"Aflegger",24:"Verlengde bal",25:"Schot van afstand",26:"3e kans+",27:"Een-twee",28:"Steunspel/Relais",29:"Afgeweken onder muur",30:"Buiten-naar-binnen sequentie",31:"Uitgespeelde combinatie",32:"Cadeaubal",33:"Steekbal",34:"Hoog druk",35:"Solo — Individueel",36:"Meerdere rebounds",37:"Geen tegenstand",38:"Kopbal doorgeven",39:"Centraal doorgeven",40:"Origine van afstand",41:"Infiltratie",42:"Rechter wreef",43:"Linker wreef",44:"Rechter buitenkant voet",45:"Linker buitenkant voet",46:"Hoofdbal aflegger",47:"Georiënteerde controle",48:"Slechte balverwijdering",49:"Schot middel afstand",50:"Collectieve combinatie",51:"Optimale zone"},
+  mitemps:{1:"1ste helft",2:"2de helft"}
 };
 
 const _VDJ_FR = {};
@@ -16295,6 +16335,65 @@ const _SIDEBAR_EN = {
   "nav-papoints":"📊 Set Piece Value in Points",
   "nav-jeupoints":"📊 Style Value in Points",
   "nav-adn":"🧬 Playing DNA"
+};
+const _SIDEBAR_NL = {
+  "subtitle":"Wereldbeker 2026",
+  "sb-h-overview":"🏠 Overzicht",
+  "sb-h-howtheymark":"⚽ Hoe zij scoren",
+  "sb-h-origin":"🔍 Doeloorsprong",
+  "sb-h-players":"👤 Spelers",
+  "sb-h-time":"⏱ Tijd & Ruimte",
+  "sb-h-pa":"🎯 Stilstaande fasen",
+  "sb-h-context":"📊 Wedstrijdcontext",
+  "sb-h-compare":"🆚 Vergelijking",
+  "sb-h-journalists":"🎙️ Journalisten",
+  "sb-sync-label":"Sync bestand",
+  "sb-btn-link":"JSON koppelen…",
+  "sb-btn-unlink":"Ontkoppelen",
+  "nav-home":"Dashboard",
+  "nav-results":"📅 Resultaten",
+  "nav-classement":"🏆 Klassement",
+  "nav-tempsdejeu":"⏱️ Speeltijd",
+  "nav-evolution":"📈 Evolutie",
+  "nav-modeleadv":"🆚 Model vs Tegenstander",
+  "nav-style":"Speelstijl",
+  "nav-nature":"Aard van het doelpunt",
+  "nav-actions":"Schietactie",
+  "nav-finitions":"Afronding",
+  "nav-tete":"🥷 Kopballen",
+  "nav-origine1":"Algemeen",
+  "nav-origine2":"Spelrichting",
+  "nav-origine3":"Zone",
+  "nav-shotmap":"🗺 Evenementenkaart",
+  "nav-scorerprofile":"⚡ Doelschutterprofiel",
+  "nav-topscorers":"Topschutters",
+  "nav-assists":"Beslissende passes",
+  "nav-topbuts":"🏆 Top Doelpunten",
+  "nav-mitemps":"1ste / 2de helft",
+  "nav-minutes":"Minuten (15')",
+  "nav-minutes10":"Minuten (10')",
+  "nav-lieu":"Schietlocatie",
+  "nav-presszones":"🟠 Recuperatiezones",
+  "nav-triggerzones":"🟣 Triggerzones",
+  "nav-pa":"Oorsprong stilstaande fasen",
+  "nav-setpieces":"🗺 Schémas stilstaande fasen",
+  "nav-penalties":"🎯 Penaltykaart",
+  "nav-gpn":"GPN — Wie leidt",
+  "nav-overunder":"Over / Under",
+  "nav-entraineurs":"👔 Trainers",
+  "nav-arbitres":"🟨 Scheidsrechters",
+  "nav-comparateur":"🆚 Teamvergelijking",
+  "nav-sankey":"🌊 Opbouwstroom",
+  "nav-evolutionphase":"📉 Fase-evolutie",
+  "nav-rapport":"📄 PDF Rapport",
+  "nav-ficheMatch":"🎙️ Wedstrijdverslag",
+  "nav-journee":"📆 Samenvatting speeldag",
+  "nav-lesnoms":"🔢 Raster speeldag",
+  "nav-recherche":"🔬 Aangepast zoeken",
+  "nav-preview":"🎯 Preview tegenstander",
+  "nav-papoints":"📊 Waarde stilstaande fasen",
+  "nav-jeupoints":"📊 Waarde spelstijlen",
+  "nav-adn":"🧬 Spel-DNA"
 };
 const _SIDEBAR_FR = {
   "subtitle":"Coupe du Monde 2026",
@@ -16382,55 +16481,58 @@ function toggleDarkMode(){
   const btn = document.getElementById('dark-toggle');
   if(btn) btn.textContent = isDark ? '☀️' : '🌙';
 }
-function toggleLang(){
-  _lang = _lang==='fr' ? 'en' : 'fr';
+function setLang(lang){
+  if(_lang === lang) return;
+  _lang = lang;
   var isEN = _lang==='en';
+  var isNL = _lang==='nl';
   // Banner switch
-  var bfr=document.getElementById('banner-fr'), ben=document.getElementById('banner-en');
-  if(bfr) bfr.style.display = isEN?'none':'block';
+  var bfr=document.getElementById('banner-fr'), ben=document.getElementById('banner-en'), bnl=document.getElementById('banner-nl');
+  if(bfr) bfr.style.display = (!isEN && !isNL)?'block':'none';
   if(ben) ben.style.display = isEN?'block':'none';
+  if(bnl) bnl.style.display = isNL?'block':'none';
   // Sidebar
-  _applySidebar(isEN ? _SIDEBAR_EN : _SIDEBAR_FR);
+  var sidebar = isEN ? _SIDEBAR_EN : isNL ? _SIDEBAR_NL : _SIDEBAR_FR;
+  _applySidebar(sidebar);
   // VDJ_LABELS
-  var lbl = isEN ? _VDJ_LABELS_EN : _VDJ_LABELS_FR;
+  var lbl = isEN ? _VDJ_LABELS_EN : isNL ? _VDJ_LABELS_NL : _VDJ_LABELS_FR;
   Object.keys(lbl).forEach(function(k){ if(typeof VDJ_LABELS!=='undefined') VDJ_LABELS[k]=lbl[k]; });
   // GS_TYPE_LABELS
-  var gs = isEN ? _GS_TYPE_LABELS_EN : _GS_TYPE_LABELS_FR;
+  var gs = isEN ? _GS_TYPE_LABELS_EN : isNL ? _GS_TYPE_LABELS_NL : _GS_TYPE_LABELS_FR;
   Object.keys(gs).forEach(function(k){ if(typeof GS_TYPE_LABELS!=='undefined') GS_TYPE_LABELS[k]=gs[k]; });
   // ACTIONS_GROUPS
-  var agLabels = isEN ? _ACTIONS_GROUPS_EN : _ACTIONS_GROUPS_FR;
+  var agLabels = isEN ? _ACTIONS_GROUPS_EN : isNL ? _ACTIONS_GROUPS_NL : _ACTIONS_GROUPS_FR;
   if(typeof ACTIONS_GROUPS!=='undefined') ACTIONS_GROUPS.forEach(function(grp,i){ if(agLabels[i]) grp.label=agLabels[i]; });
-  var ogLabels = isEN ? _ORIGINE1_GROUPS_EN : _ORIGINE1_GROUPS_FR;
+  var ogLabels = isEN ? _ORIGINE1_GROUPS_EN : isNL ? _ORIGINE1_GROUPS_NL : _ORIGINE1_GROUPS_FR;
   if(typeof ORIGINE1_GROUPS!=='undefined') ORIGINE1_GROUPS.forEach(function(grp,i){ if(ogLabels[i]) grp.label=ogLabels[i]; });
   // VDJ[cat][id].nom
-  Object.keys(_LANG_EN).forEach(function(cat){
+  var _langCats = Object.keys(_LANG_EN);
+  _langCats.forEach(function(cat){
     if(!VDJ[cat]) return;
-    var trans = isEN ? _LANG_EN[cat] : _VDJ_FR[cat];
+    var trans = isEN ? _LANG_EN[cat] : isNL ? (_LANG_NL[cat]||_VDJ_FR[cat]) : _VDJ_FR[cat];
     if(!trans) return;
     Object.keys(trans).forEach(function(id){
       if(VDJ[cat][id]) VDJ[cat][id].nom = trans[id];
     });
   });
-  // Button
-
-  var btnFr = document.getElementById('lang-btn-fr');
-  var btnEn = document.getElementById('lang-btn-en');
-  if(btnFr && btnEn){
-    if(isEN){
-      btnEn.style.background='rgba(255,255,255,.25)'; btnEn.style.color='#fff';
-      btnFr.style.background='transparent'; btnFr.style.color='rgba(255,255,255,.4)';
-    } else {
-      btnFr.style.background='rgba(255,255,255,.25)'; btnFr.style.color='#fff';
-      btnEn.style.background='transparent'; btnEn.style.color='rgba(255,255,255,.4)';
+  // Buttons
+  var btns = {fr:'lang-btn-fr', en:'lang-btn-en', nl:'lang-btn-nl'};
+  Object.keys(btns).forEach(function(l){
+    var btn = document.getElementById(btns[l]);
+    if(btn){
+      if(l === _lang){
+        btn.style.background='rgba(255,255,255,.25)'; btn.style.color='#fff';
+      } else {
+        btn.style.background='transparent'; btn.style.color='rgba(255,255,255,.4)';
+      }
     }
-  }
+  });
   // Re-render current view
   try {
     if(typeof currentView !== 'undefined'){
       if(currentView==='home') renderHome();
       else if(currentView==='results') renderResults();
       else if(currentView==='evolution') renderEvolution();
-
       else if(currentView==='gpn') renderGPN();
       else if(currentView==='overunder') renderOverUnder();
       else if(currentView==='comparateur') renderComparateur();
@@ -16451,8 +16553,9 @@ function toggleLang(){
       else if(currentView==='rapport') renderRapport();
       else if(typeof _currentAnalysisKey!=='undefined' && _currentAnalysisKey) showAnalysis(_currentAnalysisKey);
     }
-  } catch(e){ console.warn('toggleLang re-render:', e); }
+  } catch(e){ console.warn('setLang re-render:', e); }
 }
+function toggleLang(){ setLang(_lang==='fr'?'en':_lang==='en'?'nl':'fr'); }
 
 function _tlShowTip(el){
   const id = el.getAttribute('data-tipid');
