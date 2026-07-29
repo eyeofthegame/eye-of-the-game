@@ -996,6 +996,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <a href="#" onclick="showAnalysis('lieu')" data-key="lieu" data-i18n="nav-lieu">Lieu du tir</a>
 <a href="#" onclick="showView('presszones')" id="nav-presszones" data-i18n="nav-presszones">🟠 Zones de récupération</a>
 <a href="#" onclick="showView('triggerzones')" id="nav-triggerzones" data-i18n="nav-triggerzones">🟣 Zones de déclenchement</a>
+<a href="#" onclick="showView('couloirs')" id="nav-couloirs" data-i18n="nav-couloirs">🔵 Couloirs</a>
 
 <h3 id="sb-h-pa">🎯 Phases arrêtées</h3>
 <a href="#" onclick="showAnalysis('origine1',{filter:'pa'})" data-key="pa" data-i18n="nav-pa">Origines PA</a>
@@ -1046,6 +1047,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <div id="view-shotmap" style="display:none"></div>
 <div id="view-presszones" style="display:none"></div>
 <div id="view-triggerzones" style="display:none"></div>
+<div id="view-couloirs" style="display:none"></div>
 <div id="view-tete" style="display:none"></div>
 <div id="view-evolution" style="display:none"></div>
 <div id="view-scorerprofile" style="display:none"></div>
@@ -5986,6 +5988,7 @@ function showView(name){
   else if(name==='shotmap') _safeRender(renderShotMap);
   else if(name==='presszones') _safeRender(renderPressZones);
   else if(name==='triggerzones') _safeRender(renderTriggerZones);
+  else if(name==='couloirs') _safeRender(renderCouloirs);
   else if(name==='tete') _safeRender(renderTete);
   else if(name==='topscorers') _safeRender(renderTopScorers);
   else if(name==='assists') _safeRender(renderAssists);
@@ -6472,7 +6475,7 @@ function openExportModal(){
 function openPitchExport(viewId, nameBase){
   if(document.getElementById('vdj-export-modal')) return;
   var allSvgs=[...document.querySelectorAll('#'+viewId+' svg')];
-  var svgEl=document.getElementById('pz-main-svg')||document.getElementById('tz-main-svg')||allSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null);
+  var svgEl=document.getElementById('pz-main-svg')||document.getElementById('tz-main-svg')||document.getElementById('cor-main-svg')||allSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null);
   if(!svgEl){ alert(_lang==='en'?'No chart to export.':_lang==='nl'?'Geen grafiek om te exporteren.':'Aucun graphique à exporter.'); return; }
   var L={
     title:{fr:'Exporter le graphique',en:'Export Chart',nl:'Grafiek exporteren'},
@@ -10676,6 +10679,10 @@ let tzTeam = '', tzTacFilter = new Set(), tzDir = 'scored', tzMsbFilter = false,
 function toggleTzMsb(){ tzMsbFilter = !tzMsbFilter; renderTriggerZones(); }
 function setTzCoachPeriod(i){ tzCoachPeriod = (tzCoachPeriod===i ? null : i); renderTriggerZones(); }
 let _tzCellsCache = [];
+
+// ── COULOIRS ──
+let corTeam = '', corDir = 'scored', corCoachPeriod = null;
+function setCorCoachPeriod(i){ corCoachPeriod=(corCoachPeriod===i?null:i); renderCouloirs(); }
 function showTriggerCellDetail(ci){
   const cell = _tzCellsCache[ci];
   if(!cell) return;
@@ -11030,6 +11037,243 @@ function renderTriggerZones(){
   </div>`;
 
   document.getElementById('view-triggerzones').innerHTML = html;
+}
+// ── COULOIRS ──────────────────────────────────────────────────────────
+function renderCouloirs(){
+  loadData();
+  const allGoals = getAllGoals();
+  const teams = getTeams().sort();
+
+  const teamOpts = `<option value="">${_lang==='en'?'All teams':_lang==='nl'?'Alle ploegen':'Toutes les équipes'}</option>`
+    + teams.map(t=>`<option value="${t}"${corTeam===t?' selected':''}>${tf(t)}</option>`).join('');
+
+  const dirPills = corTeam ? `
+    <span style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.82em">
+      <button onclick="corDir='scored';renderCouloirs()" style="padding:4px 12px;border:none;cursor:pointer;font-weight:600;background:${corDir!=='conceded'?'#0277bd':'#eee'};color:${corDir!=='conceded'?'#fff':'#444'}">${_lang==='en'?'⚽ Scored':_lang==='nl'?'⚽ Gescoord':'⚽ Marqués'}</button>
+      <button onclick="corDir='conceded';renderCouloirs()" style="padding:4px 12px;border:none;cursor:pointer;font-weight:600;background:${corDir==='conceded'?'#0277bd':'#eee'};color:${corDir==='conceded'?'#fff':'#444'}">${_lang==='en'?'🥅 Conceded':_lang==='nl'?'🥅 Gecasseerd':'🥅 Encaissés'}</button>
+    </span>` : '';
+
+  // Only goals with at least one encoded step having x/y coordinates
+  let goals = allGoals.filter(g => (g.goalSteps||[]).some(s=>s.x!=null&&s.y!=null));
+  if(corTeam) goals = goals.filter(g => corDir==='conceded' ? g.opponent===corTeam : g.team===corTeam);
+  if(ACTIVE_COMP==='pl2526' && corTeam && corCoachPeriod!=null){
+    const _periods = _entraineursByClubPL2526[corTeam] || [];
+    const _entry = _periods[corCoachPeriod];
+    if(_entry){
+      const _dStart = _entry.dateDebut ? _dateKeyPL2526(_entry.dateDebut) : -Infinity;
+      const _dEnd = _entry.dateFin ? _dateKeyPL2526(_entry.dateFin) : Infinity;
+      goals = goals.filter(g=>{
+        const gd = g.match && g.match.date;
+        if(!gd) return false;
+        const dk = _dateKeyPL2526(gd);
+        return dk>=_dStart && dk<=_dEnd;
+      });
+    }
+  }
+  const totalGoals = goals.length;
+
+  // ── 5 corridors (based on step.x = lateral position, 0=top/Nord, 1=bottom/Sud) ──
+  const CORRIDORS = [
+    {id:'CG', xMin:0,   xMax:0.2, fr:'Couloir gauche',  en:'Left flank',       nl:'Linker zijlijn',   col:'#0288d1'},
+    {id:'HG', xMin:0.2, xMax:0.4, fr:'Half-space G.',   en:'Left half-space',  nl:'Links halfspace',  col:'#7b1fa2'},
+    {id:'CT', xMin:0.4, xMax:0.6, fr:'Zone centrale',   en:'Central zone',     nl:'Centrale zone',    col:'#2e7d32'},
+    {id:'HD', xMin:0.6, xMax:0.8, fr:'Half-space D.',   en:'Right half-space', nl:'Rechts halfspace', col:'#f57c00'},
+    {id:'CD', xMin:0.8, xMax:1.0, fr:'Couloir droit',   en:'Right flank',      nl:'Rechter zijlijn',  col:'#c62828'},
+  ];
+
+  // Collect all steps + count goals per corridor (1 goal = 1 passage, even with multiple steps in same corridor)
+  const allSteps = [];
+  CORRIDORS.forEach(c=>{ c.count=0; });
+  goals.forEach(g=>{
+    const steps = (g.goalSteps||[]).filter(s=>s.x!=null&&s.y!=null);
+    const touched = new Set();
+    steps.forEach(s=>{
+      const c = CORRIDORS.find(c=>s.x>=c.xMin&&s.x<c.xMax);
+      if(c){ touched.add(c.id); allSteps.push({x:s.x, y:s.y, t:s.type, col:c.col}); }
+    });
+    touched.forEach(id=>{ const c=CORRIDORS.find(c=>c.id===id); if(c) c.count++; });
+  });
+  const maxCount = Math.max(1, ...CORRIDORS.map(c=>c.count));
+
+  // ── SVG pitch (800×480 horizontal) ──
+  const TW=800, TH=480, M=26;
+  const PW=TW-M*2, PH=TH-M*2;
+  const sx=PW/105, sy=PH/68;
+  const _p=(v)=>v.toFixed(1);
+  const pcy=M+PH/2;
+  const paL=16.5*sx, paH_=40.32*sy, paY_=M+(PH-paH_)/2;
+  const saL=5.5*sx,  saH_=18.32*sy, saY_=M+(PH-saH_)/2;
+  const gL=2.44*sx,  gH_=7.32*sy,   gY_=M+(PH-gH_)/2;
+  const ccR2=(9.15*Math.min(sx,sy)).toFixed(1);
+  const arcR=9.15*sy, arcFromX=M+paL;
+  const arcDy2=Math.sqrt(Math.max(0,arcR*arcR-(arcFromX-(M+11*sx))*(arcFromX-(M+11*sx))));
+  const arcY1=_p(pcy-arcDy2), arcY2=_p(pcy+arcDy2);
+  const arcRs=_p(arcR);
+
+  // Corridor bands (horizontal strips)
+  const bandH = PH / 5;
+  let corridorSvg = '';
+  CORRIDORS.forEach((c, idx)=>{
+    const by1 = M + idx * bandH;
+    const bcy = by1 + bandH / 2;
+    const alpha = c.count===0 ? 0.04 : 0.08 + 0.44*(c.count/maxCount);
+    const pct = totalGoals>0 ? Math.round(c.count/totalGoals*100) : 0;
+    const lbl = _lang==='en'?c.en:_lang==='nl'?c.nl:c.fr;
+
+    // Band background
+    corridorSvg += `<rect x="${M}" y="${_p(by1)}" width="${PW}" height="${_p(bandH)}" fill="${c.col}" fill-opacity="${alpha.toFixed(2)}" pointer-events="none"/>`;
+    // Colored bar on left edge
+    corridorSvg += `<rect x="${M}" y="${_p(by1)}" width="5" height="${_p(bandH)}" fill="${c.col}" fill-opacity="0.75" pointer-events="none"/>`;
+    // Corridor label (left side of band)
+    corridorSvg += `<text x="${_p(M+12)}" y="${_p(bcy+4)}" font-size="9.5" font-weight="700" fill="${c.col}" fill-opacity="0.80" font-family="system-ui,sans-serif" pointer-events="none">${lbl}</text>`;
+    // Count + % (center)
+    if(c.count>0){
+      corridorSvg += `<text x="${_p(M+PW/2)}" y="${_p(bcy-4)}" text-anchor="middle" font-size="22" font-weight="800" fill="${c.col}" fill-opacity="0.88" font-family="system-ui,sans-serif" pointer-events="none">${c.count}</text>`;
+      corridorSvg += `<text x="${_p(M+PW/2)}" y="${_p(bcy+13)}" text-anchor="middle" font-size="10.5" font-weight="600" fill="${c.col}" fill-opacity="0.70" font-family="system-ui,sans-serif" pointer-events="none">${pct}%</text>`;
+    }
+  });
+
+  // Separator lines between corridors
+  for(let i=1; i<5; i++){
+    const ly = _p(M + i * bandH);
+    corridorSvg += `<line x1="${M}" y1="${ly}" x2="${_p(M+PW)}" y2="${ly}" stroke="#555" stroke-width="1" stroke-dasharray="5,4" opacity="0.30" pointer-events="none"/>`;
+  }
+
+  const pitchLines = `
+    <rect x="0" y="0" width="${TW}" height="${TH}" fill="#c8cdd4" rx="8"/>
+    <rect x="0" y="0" width="${TW/2}" height="${TH}" fill="#bfc4cc" rx="8"/>
+    ${corridorSvg}
+    <rect x="${M}" y="${M}" width="${PW}" height="${PH}" fill="none" stroke="#4b607f" stroke-width="1.8"/>
+    <line x1="${_p(M+PW/2)}" y1="${M}" x2="${_p(M+PW/2)}" y2="${_p(M+PH)}" stroke="#4b607f" stroke-width="1.5"/>
+    <circle cx="${_p(M+PW/2)}" cy="${_p(pcy)}" r="${ccR2}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <circle cx="${_p(M+PW/2)}" cy="${_p(pcy)}" r="2.5" fill="#4b607f"/>
+    <rect x="${M}" y="${_p(paY_)}" width="${_p(paL)}" height="${_p(paH_)}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <rect x="${M}" y="${_p(saY_)}" width="${_p(saL)}" height="${_p(saH_)}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <rect x="${_p(M-gL)}" y="${_p(gY_)}" width="${_p(gL)}" height="${_p(gH_)}" fill="rgba(255,255,255,.1)" stroke="#4b607f" stroke-width="1.5"/>
+    <circle cx="${_p(M+11*sx)}" cy="${_p(pcy)}" r="2.5" fill="#4b607f"/>
+    <path d="M ${_p(arcFromX)},${arcY1} A ${arcRs},${arcRs} 0 0,1 ${_p(arcFromX)},${arcY2}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <rect x="${_p(M+PW-paL)}" y="${_p(paY_)}" width="${_p(paL)}" height="${_p(paH_)}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <rect x="${_p(M+PW-saL)}" y="${_p(saY_)}" width="${_p(saL)}" height="${_p(saH_)}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <rect x="${_p(M+PW)}" y="${_p(gY_)}" width="${_p(gL)}" height="${_p(gH_)}" fill="rgba(255,255,255,.1)" stroke="#4b607f" stroke-width="1.5"/>
+    <circle cx="${_p(M+PW-11*sx)}" cy="${_p(pcy)}" r="2.5" fill="#4b607f"/>
+    <path d="M ${_p(M+PW-paL)},${arcY1} A ${arcRs},${arcRs} 0 0,0 ${_p(M+PW-paL)},${arcY2}" fill="none" stroke="#4b607f" stroke-width="1.5"/>
+    <path d="M ${M},${_p(M+7)} A 7,7 0 0,1 ${_p(M+7)},${M}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
+    <path d="M ${_p(M+PW-7)},${M} A 7,7 0 0,0 ${_p(M+PW)},${_p(M+7)}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
+    <path d="M ${M},${_p(M+PH-7)} A 7,7 0 0,0 ${_p(M+7)},${_p(M+PH)}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
+    <path d="M ${_p(M+PW-7)},${_p(M+PH)} A 7,7 0 0,1 ${_p(M+PW)},${_p(M+PH-7)}" fill="none" stroke="#4b607f" stroke-width="1.2"/>
+    <text x="${TW/2}" y="${TH-6}" text-anchor="middle" fill="rgba(74,96,127,.6)" font-size="9" font-family="sans-serif" letter-spacing="1">${_lang==='en'?'← DEFENSIVE ZONE · ATTACK DIRECTION →':_lang==='nl'?'← DEFENSIEVE ZONE · AANVALSRICHTING →':'← ZONE DÉFENSIVE · DIRECTION DE L\'ATTAQUE →'}</text>`;
+
+  // Step dots (aggregated per 4% cell, colored by corridor)
+  const CELL = 0.04;
+  const stepCells = {};
+  allSteps.forEach(s=>{
+    const ci = Math.floor(s.x/CELL);
+    const cj = Math.floor(s.y/CELL);
+    const key = ci+'_'+cj;
+    if(!stepCells[key]) stepCells[key]={count:0, cx:(ci+0.5)*CELL, cy:(cj+0.5)*CELL, col:s.col};
+    stepCells[key].count++;
+  });
+  const maxStepCount = Math.max(1,...Object.values(stepCells).map(c=>c.count));
+
+  let pitchSvg = `<svg id="cor-main-svg" viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="max-width:100%;display:block;border-radius:8px">
+    ${pitchLines}`;
+
+  Object.values(stepCells).sort((a,b)=>a.count-b.count).forEach(sc=>{
+    const r = (2.5 + 5.5*(sc.count/maxStepCount)).toFixed(1);
+    const bx = M + (1-sc.cy)*PW;
+    const by = M + sc.cx*PH;
+    const alpha = (0.22 + 0.60*(sc.count/maxStepCount)).toFixed(2);
+    pitchSvg += `<circle cx="${_p(bx)}" cy="${_p(by)}" r="${r}" fill="${sc.col}" fill-opacity="${alpha}" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>`;
+  });
+
+  pitchSvg += '</svg>';
+
+  // ── Corridor table ──
+  const sideN = _lang==='en'?'Goals':_lang==='nl'?'Doelp.':'Buts';
+  let corrTableHtml = `<div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">📊 ${_lang==='en'?'By corridor':_lang==='nl'?'Per zijlijn':'Par couloir'}</div>
+<table class="tableau" style="width:100%;font-size:.81em;margin-bottom:10px">
+  <thead><tr>
+    <th style="text-align:left">${_lang==='en'?'Corridor':_lang==='nl'?'Zijlijn':'Couloir'}</th>
+    <th>${sideN}</th><th>%</th>
+  </tr></thead><tbody>`;
+  CORRIDORS.forEach(c=>{
+    const pct = totalGoals>0 ? Math.round(c.count/totalGoals*100) : 0;
+    const lbl = _lang==='en'?c.en:_lang==='nl'?c.nl:c.fr;
+    corrTableHtml += `<tr>
+      <td style="font-weight:700;color:${c.col};white-space:nowrap">
+        <span style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${c.col};margin-right:5px;vertical-align:middle"></span>${lbl}</td>
+      <td style="text-align:center;font-weight:700">${c.count||'—'}</td>
+      <td style="text-align:center;color:var(--muted)">${c.count>0?pct+'%':'—'}</td>
+    </tr>`;
+  });
+  corrTableHtml += `</tbody><tfoot><tr style="border-top:2px solid var(--border)">
+    <td style="color:var(--muted);font-size:.9em">Total</td>
+    <td style="font-weight:800;text-align:center">${totalGoals}</td><td></td>
+  </tr></tfoot></table>
+  <div style="font-size:.71em;color:var(--muted);margin-bottom:14px;line-height:1.4">💡 ${_lang==='en'?'1 goal = 1 pass per corridor (regardless of number of touches).':'1 but = 1 passage par couloir (peu importe le nombre de touches dans ce couloir).'}</div>`;
+
+  // ── Team ranking (scored + conceded) ──
+  const allPathGoals = allGoals.filter(g=>(g.goalSteps||[]).some(s=>s.x!=null&&s.y!=null));
+  const byTeam = {};
+  allPathGoals.forEach(g=>{
+    if(g.team){ if(!byTeam[g.team]) byTeam[g.team]={s:0,c:0}; byTeam[g.team].s++; }
+    if(g.opponent){ if(!byTeam[g.opponent]) byTeam[g.opponent]={s:0,c:0}; byTeam[g.opponent].c++; }
+  });
+  const teamRanking = Object.entries(byTeam).sort((a,b)=>b[1].s-a[1].s||a[1].c-b[1].c);
+  let totS=0, totC=0;
+  let rankHtml = `<div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🏆 ${_lang==='en'?'By team':_lang==='nl'?'Per ploeg':'Par équipe'}</div>
+<table class="tableau" style="width:100%;font-size:.82em">
+  <thead><tr><th>#</th><th style="text-align:left">${_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe'}</th><th>⚽</th><th>🥅</th></tr></thead><tbody>`;
+  teamRanking.forEach(([team, v], i)=>{
+    totS+=v.s; totC+=v.c;
+    const safeT = team.replace(/'/g,"\\'");
+    const actS = team===corTeam&&corDir!=='conceded';
+    const actC = team===corTeam&&corDir==='conceded';
+    const rowStyle = team===corTeam?'background:var(--accent);color:#fff;':'';
+    rankHtml += `<tr style="${rowStyle}cursor:pointer" onclick="corTeam=(corTeam==='${safeT}'?'':('${safeT}'));renderCouloirs()">
+      <td>${i+1}</td><td style="white-space:nowrap">${tf(team)}</td>
+      <td style="font-weight:700;text-align:center;color:${actS?'#fff':'#0277bd'};cursor:pointer;text-decoration:underline;text-underline-offset:3px"
+          onclick="event.stopPropagation();corTeam='${safeT}';corDir='scored';renderCouloirs()">${v.s}</td>
+      <td style="font-weight:700;text-align:center;color:${actC?'#fff':'#c62828'};cursor:pointer;text-decoration:underline;text-underline-offset:3px"
+          onclick="event.stopPropagation();corTeam='${safeT}';corDir='conceded';renderCouloirs()">${v.c}</td>
+    </tr>`;
+  });
+  rankHtml += `</tbody><tfoot><tr style="border-top:2px solid var(--border)">
+    <td colspan="2" style="color:var(--muted);font-size:.9em">Total</td>
+    <td style="font-weight:800;text-align:center">${totS}</td>
+    <td style="font-weight:800;text-align:center">${totC}</td>
+  </tr></tfoot></table>`;
+  if(corTeam) rankHtml += `<button onclick="corTeam='';renderCouloirs()" style="margin-top:8px;font-size:.75em;padding:3px 8px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb;width:100%">✕ ${_lang==='en'?'All teams':_lang==='nl'?'Alle ploegen':'Toutes les équipes'}</button>`;
+
+  const noData = goals.length===0
+    ? `<div class="no-data" style="margin:20px 0">${_lang==='en'?'No goals with encoded path for this selection.<br><small>Encode the goal steps in the encoding page.':_lang==='nl'?'Geen doelpunten met gecodeerd pad voor deze selectie.<br><small>Codeer de doelpuntstappen in de codeerpagina.':'Aucun but avec chemin encodé pour cette sélection.<br><small>Encode le schéma du but dans la page d\'encodage.'}</div>`
+    : '';
+
+  const dirNote = (corTeam&&corDir==='conceded')
+    ? `<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">${_lang==='en'?'Conceded goals: showing the path of goals scored against this team.':'Buts encaissés : chemin des buts marqués contre cette équipe.'}</div>`
+    : '';
+
+  const html = `<h1>🔵 Couloirs</h1>
+  <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
+    <select onchange="corTeam=this.value;corCoachPeriod=null;renderCouloirs()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
+    ${dirPills}
+    <span style="font-size:.8em;color:var(--muted)">${totalGoals} ${_lang==='en'?'goal'+(totalGoals>1?'s':'')+' with encoded path':'but'+(totalGoals>1?'s':'')+' avec chemin encodé'}</span>
+    <button onclick="openPitchExport('view-couloirs','couloirs')" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 Export PNG</button>
+  </div>
+  ${_teamCoachBlockHtml(corTeam, corCoachPeriod, 'setCorCoachPeriod')}
+  ${dirNote}
+  <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
+    <div style="flex:1 1 auto;min-width:0">
+      ${noData}
+      ${pitchSvg}
+    </div>
+    <div style="flex:0 0 200px;max-width:240px;padding-right:14px">
+      ${corrTableHtml}
+      ${rankHtml}
+    </div>
+  </div>`;
+
+  document.getElementById('view-couloirs').innerHTML = html;
 }
 // ── ÉVOLUTION MATCH PAR MATCH ──────────────────────────────────────────
 let evolTeam = '', evolDir = 'both', evolTacFilter = new Set();
@@ -16767,6 +17011,7 @@ const _SIDEBAR_EN = {
   "nav-lieu":"Shot Location",
   "nav-presszones":"🟠 Recovery Zones",
   "nav-triggerzones":"🟣 Trigger Zones",
+  "nav-couloirs":"🔵 Corridors",
   "nav-pa":"Set Piece Origins",
   "nav-setpieces":"🗺 Set Piece Diagrams",
   "nav-penalties":"🎯 Penalty Map",
@@ -16826,6 +17071,7 @@ const _SIDEBAR_NL = {
   "nav-lieu":"Schietlocatie",
   "nav-presszones":"🟠 Recuperatiezones",
   "nav-triggerzones":"🟣 Triggerzones",
+  "nav-couloirs":"🔵 Zijlijnen",
   "nav-pa":"Oorsprong stilstaande fasen",
   "nav-setpieces":"🗺 Schema's stilstaande fasen",
   "nav-penalties":"🎯 Penaltykaart",
@@ -16886,6 +17132,7 @@ const _SIDEBAR_FR = {
   "nav-lieu":"Lieu du tir",
   "nav-presszones":"🟠 Zones de récupération",
   "nav-triggerzones":"🟣 Zones de déclenchement",
+  "nav-couloirs":"🔵 Couloirs",
   "nav-pa":"Origines PA",
   "nav-setpieces":"🗺 Schémas PA",
   "nav-penalties":"🎯 Carte des penalties",
@@ -16993,6 +17240,7 @@ function setLang(lang){
       else if(currentView==='shotmap') renderShotMap();
       else if(currentView==='presszones') renderPressZones();
       else if(currentView==='triggerzones') renderTriggerZones();
+      else if(currentView==='couloirs') renderCouloirs();
       else if(currentView==='setpieces') renderSetpieces();
       else if(currentView==='penalties') renderPenalties();
       else if(currentView==='papoints') renderPaPoints();
