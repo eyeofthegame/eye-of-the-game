@@ -6474,8 +6474,15 @@ function openExportModal(){
 
 function openPitchExport(viewId, nameBase){
   if(document.getElementById('vdj-export-modal')) return;
-  var allSvgs=[...document.querySelectorAll('#'+viewId+' svg')];
-  var svgEl=document.getElementById('pz-main-svg')||document.getElementById('tz-main-svg')||document.getElementById('cor-main-svg')||allSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null);
+  // Sélection robuste : on cherche le grand SVG du terrain (h > 100px),
+  // en ignorant les petits SVG décoratifs (flèches, icônes).
+  var _allSvgs=[...document.querySelectorAll('#'+viewId+' svg')];
+  var _bigSvgs=_allSvgs.filter(function(e){ var vb=e.viewBox.baseVal; return vb&&vb.height>100; });
+  var svgEl=document.getElementById('pz-main-svg')||document.getElementById('tz-main-svg')
+    ||document.getElementById('cor-main-svg')
+    ||(_bigSvgs.length===1?_bigSvgs[0]
+      :_bigSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null))
+    ||_allSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null);
   if(!svgEl){ alert(_lang==='en'?'No chart to export.':_lang==='nl'?'Geen grafiek om te exporteren.':'Aucun graphique à exporter.'); return; }
   var L={
     title:{fr:'Exporter le graphique',en:'Export Chart',nl:'Grafiek exporteren'},
