@@ -997,6 +997,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <a href="#" onclick="showView('presszones')" id="nav-presszones" data-i18n="nav-presszones">🟠 Zones de récupération</a>
 <a href="#" onclick="showView('triggerzones')" id="nav-triggerzones" data-i18n="nav-triggerzones">🟣 Zones de déclenchement</a>
 <a href="#" onclick="showView('couloirs')" id="nav-couloirs" data-i18n="nav-couloirs">🔵 Couloirs</a>
+<a href="#" onclick="showView('cheminpref')" id="nav-cheminpref" data-i18n="nav-cheminpref">🗺 Chemin type</a>
 
 <h3 id="sb-h-pa">🎯 Phases arrêtées</h3>
 <a href="#" onclick="showAnalysis('origine1',{filter:'pa'})" data-key="pa" data-i18n="nav-pa">Origines PA</a>
@@ -1048,6 +1049,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 <div id="view-presszones" style="display:none"></div>
 <div id="view-triggerzones" style="display:none"></div>
 <div id="view-couloirs" style="display:none"></div>
+<div id="view-cheminpref" style="display:none"></div>
 <div id="view-tete" style="display:none"></div>
 <div id="view-evolution" style="display:none"></div>
 <div id="view-scorerprofile" style="display:none"></div>
@@ -5989,6 +5991,7 @@ function showView(name){
   else if(name==='presszones') _safeRender(renderPressZones);
   else if(name==='triggerzones') _safeRender(renderTriggerZones);
   else if(name==='couloirs') _safeRender(renderCouloirs);
+  else if(name==='cheminpref') _safeRender(renderCheminPref);
   else if(name==='tete') _safeRender(renderTete);
   else if(name==='topscorers') _safeRender(renderTopScorers);
   else if(name==='assists') _safeRender(renderAssists);
@@ -6479,7 +6482,7 @@ function openPitchExport(viewId, nameBase){
   var _allSvgs=[...document.querySelectorAll('#'+viewId+' svg')];
   var _bigSvgs=_allSvgs.filter(function(e){ var vb=e.viewBox.baseVal; return vb&&vb.height>100; });
   var svgEl=document.getElementById('pz-main-svg')||document.getElementById('tz-main-svg')
-    ||document.getElementById('cor-main-svg')
+    ||document.getElementById('cor-main-svg')||document.getElementById('cp-main-svg')
     ||(_bigSvgs.length===1?_bigSvgs[0]
       :_bigSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null))
     ||_allSvgs.reduce(function(b,e){return(!b||e.viewBox.baseVal.height>b.viewBox.baseVal.height)?e:b;},null);
@@ -10690,6 +10693,10 @@ let _tzCellsCache = [];
 // ── COULOIRS ──
 let corTeam = '', corDir = 'scored', corCoachPeriod = null;
 function setCorCoachPeriod(i){ corCoachPeriod=(corCoachPeriod===i?null:i); renderCouloirs(); }
+
+// ── CHEMIN PRÉFÉRENTIEL ──
+let chTeam='', chDir='scored', chCoachPeriod=null;
+function setChCoachPeriod(i){ chCoachPeriod=(chCoachPeriod===i?null:i); renderCheminPref(); }
 function showTriggerCellDetail(ci){
   const cell = _tzCellsCache[ci];
   if(!cell) return;
@@ -11281,6 +11288,272 @@ function renderCouloirs(){
   </div>`;
 
   document.getElementById('view-couloirs').innerHTML = html;
+}
+// ── CHEMIN PRÉFÉRENTIEL ─────────────────────────────────────────────────────
+function renderCheminPref(){
+  loadData();
+  const allGoals = getAllGoals();
+  const teams = getTeams().sort();
+
+  const tac1Colors = {1:'#4b607f',2:'#7a9ab5',3:'#f3701e',4:'#c45a10'};
+  const GS_COLS = {1:'#e67e00',2:'#007755',3:'#003399',4:'#cc8800',5:'#cc0000',6:'#880099',7:'#009999',8:'#00838f',9:'#4a148c',10:'#cc0000'};
+  const GS_LBFR = {1:'Récup.',2:'Déclench.',3:'Assist',4:'Chance',5:'Tir',6:'Course',7:'Relais',8:'Réception',9:'Arrêt déf.',10:'But'};
+  const GS_LBEN = {1:'Recovery',2:'Trigger',3:'Assist',4:'Chance',5:'Shot',6:'Run',7:'Relay',8:'Reception',9:'Def.Block',10:'Goal'};
+  const GS_LBNL = {1:'Recuperatie',2:'Triggering',3:'Assist',4:'Kans',5:'Schot',6:'Loop',7:'Relais',8:'Receptie',9:'Blok',10:'Doelpunt'};
+  const gsLbl = function(t){ return (_lang==='en'?GS_LBEN[t]:_lang==='nl'?GS_LBNL[t]:GS_LBFR[t])||'?'; };
+
+  const teamOpts = '<option value="">'
+    +(_lang==='en'?'All teams':_lang==='nl'?'Alle ploegen':'Toutes les équipes')
+    +'</option>'
+    + teams.map(function(t){
+        return '<option value="'+t+'"'+(chTeam===t?' selected':'')+'>'+tf(t)+'</option>';
+      }).join('');
+
+  const dirPills = chTeam ? (
+    '<span style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.82em">'
+    +'<button onclick="chDir=\'scored\';renderCheminPref()" style="padding:4px 12px;border:none;cursor:pointer;font-weight:600;background:'+(chDir!=='conceded'?'\'#2e7d32\'':'\'#eee\'')
+    +';color:'+(chDir!=='conceded'?'\'#fff\'':'\'#444\'')+'">'+(_lang==='en'?'⚽ Scored':_lang==='nl'?'⚽ Gescoord':'⚽ Marqués')+'</button>'
+    +'<button onclick="chDir=\'conceded\';renderCheminPref()" style="padding:4px 12px;border:none;cursor:pointer;font-weight:600;background:'+(chDir==='conceded'?'\'#2e7d32\'':'\'#eee\'')
+    +';color:'+(chDir==='conceded'?'\'#fff\'':'\'#444\'')+'">'+(_lang==='en'?'🥅 Conceded':_lang==='nl'?'🥅 Gecasseerd':'🥅 Encaissés')+'</button>'
+    +'</span>'
+  ) : '';
+
+  // Jeu ouvert (exclure PA=5, penalty=6) + goalSteps encodés
+  var goals = allGoals.filter(function(g){
+    return g.tactique1!==5 && g.tactique1!==6
+      && (g.goalSteps||[]).some(function(s){return s.x!=null&&s.y!=null;});
+  });
+  if(chTeam) goals = goals.filter(function(g){
+    return chDir==='conceded' ? g.opponent===chTeam : g.team===chTeam;
+  });
+  if(ACTIVE_COMP==='pl2526' && chTeam && chCoachPeriod!=null){
+    var _periods = (_entraineursByClubPL2526||{})[chTeam] || [];
+    var _entry = _periods[chCoachPeriod];
+    if(_entry){
+      var _dS2 = _entry.dateDebut ? _dateKeyPL2526(_entry.dateDebut) : -Infinity;
+      var _dE2 = _entry.dateFin   ? _dateKeyPL2526(_entry.dateFin)   : Infinity;
+      goals = goals.filter(function(g){
+        var gd=g.match&&g.match.date; if(!gd) return false;
+        var dk=_dateKeyPL2526(gd); return dk>=_dS2&&dk<=_dE2;
+      });
+    }
+  }
+  var N = goals.length;
+
+  // ── Collect step type statistics ──
+  var STD = {};
+  goals.forEach(function(g, gi){
+    var steps = (g.goalSteps||[]).filter(function(s){return s.x!=null&&s.y!=null;});
+    var nS = steps.length;
+    if(!nS) return;
+    steps.forEach(function(s, idx){
+      if(!STD[s.type]) STD[s.type]={xs:[],ys:[],ridxs:[],gids:[]};
+      STD[s.type].xs.push(s.x);
+      STD[s.type].ys.push(s.y);
+      STD[s.type].ridxs.push(nS>1 ? idx/(nS-1) : 0.5);
+      if(STD[s.type].gids.indexOf(gi)<0) STD[s.type].gids.push(gi);
+    });
+  });
+
+  // Compute centroids + sigma
+  Object.keys(STD).forEach(function(type){
+    var d=STD[type], n=d.xs.length;
+    d.mX=d.xs.reduce(function(a,b){return a+b;},0)/n;
+    d.mY=d.ys.reduce(function(a,b){return a+b;},0)/n;
+    d.mRidx=d.ridxs.reduce(function(a,b){return a+b;},0)/n;
+    var vX=d.xs.reduce(function(a,b){return a+(b-d.mX)*(b-d.mX);},0)/n;
+    var vY=d.ys.reduce(function(a,b){return a+(b-d.mY)*(b-d.mY);},0)/n;
+    d.sigma=Math.sqrt((vX+vY)/2);
+    d.goalCount=d.gids.length;
+    d.pct=d.goalCount/Math.max(1,N);
+  });
+
+  // Mean path: step types in >= 15% of goals, sorted by temporal position
+  var THRESH=0.15;
+  var meanPath = Object.keys(STD)
+    .filter(function(t){return STD[t].pct>=THRESH;})
+    .sort(function(a,b){return STD[a].mRidx-STD[b].mRidx;})
+    .map(function(t){return {type:+t, d:STD[t]};});
+
+  // ── SVG pitch (800x480) ──
+  var TW=800,TH=480,M=26;
+  var PW=TW-M*2, PH=TH-M*2;
+  var sx=PW/105, sy=PH/68;
+  function _p(v){return v.toFixed(1);}
+  var pcy=M+PH/2;
+  var paL=16.5*sx, paH_=40.32*sy, paY_=M+(PH-paH_)/2;
+  var saL=5.5*sx, saH_=18.32*sy, saY_=M+(PH-saH_)/2;
+  var gL=2.44*sx, gH_=7.32*sy, gY_=M+(PH-gH_)/2;
+  var ccR2=(9.15*Math.min(sx,sy)).toFixed(1);
+  var arcR=9.15*sy, arcFromX=M+paL;
+  var arcDy2=Math.sqrt(Math.max(0,arcR*arcR-(arcFromX-(M+11*sx))*(arcFromX-(M+11*sx))));
+  var arcY1=_p(pcy-arcDy2), arcY2=_p(pcy+arcDy2), arcRs=_p(arcR);
+
+  var pitchBase = ''
+    +'<rect x="0" y="0" width="'+TW+'" height="'+TH+'" fill="#c8cdd4" rx="8"/>'
+    +'<rect x="0" y="0" width="'+(TW/2)+'" height="'+TH+'" fill="#bfc4cc" rx="8"/>'
+    +'<rect x="'+M+'" y="'+M+'" width="'+PW+'" height="'+PH+'" fill="none" stroke="#4b607f" stroke-width="1.8"/>'
+    +'<line x1="'+_p(M+PW/2)+'" y1="'+M+'" x2="'+_p(M+PW/2)+'" y2="'+_p(M+PH)+'" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<circle cx="'+_p(M+PW/2)+'" cy="'+_p(pcy)+'" r="'+ccR2+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<circle cx="'+_p(M+PW/2)+'" cy="'+_p(pcy)+'" r="2.5" fill="#4b607f"/>'
+    +'<rect x="'+M+'" y="'+_p(paY_)+'" width="'+_p(paL)+'" height="'+_p(paH_)+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<rect x="'+M+'" y="'+_p(saY_)+'" width="'+_p(saL)+'" height="'+_p(saH_)+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<rect x="'+_p(M-gL)+'" y="'+_p(gY_)+'" width="'+_p(gL)+'" height="'+_p(gH_)+'" fill="rgba(255,255,255,.1)" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<circle cx="'+_p(M+11*sx)+'" cy="'+_p(pcy)+'" r="2.5" fill="#4b607f"/>'
+    +'<path d="M '+_p(arcFromX)+','+arcY1+' A '+arcRs+','+arcRs+' 0 0,1 '+_p(arcFromX)+','+arcY2+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<rect x="'+_p(M+PW-paL)+'" y="'+_p(paY_)+'" width="'+_p(paL)+'" height="'+_p(paH_)+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<rect x="'+_p(M+PW-saL)+'" y="'+_p(saY_)+'" width="'+_p(saL)+'" height="'+_p(saH_)+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<rect x="'+_p(M+PW)+'" y="'+_p(gY_)+'" width="'+_p(gL)+'" height="'+_p(gH_)+'" fill="rgba(255,255,255,.1)" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<circle cx="'+_p(M+PW-11*sx)+'" cy="'+_p(pcy)+'" r="2.5" fill="#4b607f"/>'
+    +'<path d="M '+_p(M+PW-paL)+','+arcY1+' A '+arcRs+','+arcRs+' 0 0,0 '+_p(M+PW-paL)+','+arcY2+'" fill="none" stroke="#4b607f" stroke-width="1.5"/>'
+    +'<path d="M '+M+','+_p(M+7)+' A 7,7 0 0,1 '+_p(M+7)+','+M+'" fill="none" stroke="#4b607f" stroke-width="1.2"/>'
+    +'<path d="M '+_p(M+PW-7)+','+M+' A 7,7 0 0,0 '+_p(M+PW)+','+_p(M+7)+'" fill="none" stroke="#4b607f" stroke-width="1.2"/>'
+    +'<path d="M '+M+','+_p(M+PH-7)+' A 7,7 0 0,0 '+_p(M+7)+','+_p(M+PH)+'" fill="none" stroke="#4b607f" stroke-width="1.2"/>'
+    +'<path d="M '+_p(M+PW-7)+','+_p(M+PH)+' A 7,7 0 0,1 '+_p(M+PW)+','+_p(M+PH-7)+'" fill="none" stroke="#4b607f" stroke-width="1.2"/>'
+    +'<text x="'+(TW/2)+'" y="'+(TH-6)+'" text-anchor="middle" fill="rgba(74,96,127,.6)" font-size="9" font-family="sans-serif">← ZONE DÉFENSIVE · DIRECTION DE LATTAQUE →</text>';
+
+  // ── Individual goal paths (low opacity) ──
+  var pathSvg = '';
+  goals.forEach(function(g){
+    var steps=(g.goalSteps||[]).filter(function(s){return s.x!=null&&s.y!=null;});
+    if(steps.length<2) return;
+    var col=tac1Colors[g.tactique1]||'#546e7a';
+    var pts=steps.map(function(s){return _p(M+(1-s.y)*PW)+','+_p(M+s.x*PH);}).join(' ');
+    pathSvg+='<polyline points="'+pts+'" fill="none" stroke="'+col+'" stroke-width="1.5" opacity="0.09" stroke-linecap="round" stroke-linejoin="round"/>';
+    steps.forEach(function(s){
+      pathSvg+='<circle cx="'+_p(M+(1-s.y)*PW)+'" cy="'+_p(M+s.x*PH)+'" r="2.2" fill="'+col+'" opacity="0.14"/>';
+    });
+  });
+
+  // ── Mean path (bold foreground) ──
+  var meanSvg = '';
+  if(meanPath.length>=2 && N>=3){
+    meanSvg+='<defs>'
+      +'<marker id="mpArrow" markerWidth="9" markerHeight="7" refX="8" refY="3.5" orient="auto">'
+      +'<polygon points="0,0.5 9,3.5 0,6.5" fill="rgba(20,20,50,0.88)"/>'
+      +'</marker></defs>';
+    for(var i=0;i<meanPath.length-1;i++){
+      var a=meanPath[i].d, b=meanPath[i+1].d;
+      var ax=M+(1-a.mY)*PW, ay=M+a.mX*PH;
+      var bx2=M+(1-b.mY)*PW, by2=M+b.mX*PH;
+      var conf=Math.max(0,1-(a.sigma+b.sigma)/2);
+      var sw=(2.5+4.5*conf).toFixed(1);
+      var dx=bx2-ax, dy2=by2-ay, dist=Math.sqrt(dx*dx+dy2*dy2)||1;
+      var shrink=Math.min(18,dist*0.18);
+      var ex=bx2-dx/dist*shrink, ey=by2-dy2/dist*shrink;
+      meanSvg+='<line x1="'+_p(ax)+'" y1="'+_p(ay)+'" x2="'+_p(ex)+'" y2="'+_p(ey)+'"'
+        +' stroke="rgba(20,20,50,0.80)" stroke-width="'+sw+'" marker-end="url(#mpArrow)" stroke-linecap="round"/>';
+    }
+    meanPath.forEach(function(mp,idx){
+      var d=mp.d;
+      var bx3=M+(1-d.mY)*PW, by3=M+d.mX*PH;
+      var col=GS_COLS[mp.type]||'#888';
+      var rel=d.sigma<0.12?1:d.sigma<0.22?0.65:0.35;
+      var r=9+8*rel;
+      var pct=Math.round(d.pct*100);
+      var lbl=gsLbl(mp.type);
+      meanSvg+='<circle cx="'+_p(bx3)+'" cy="'+_p(by3)+'" r="'+(r+3).toFixed(1)+'" fill="rgba(255,255,255,0.55)"/>';
+      meanSvg+='<circle cx="'+_p(bx3)+'" cy="'+_p(by3)+'" r="'+r.toFixed(1)+'" fill="'+col+'" stroke="white" stroke-width="2.2" opacity="'+(0.75+0.25*rel).toFixed(2)+'"/>';
+      meanSvg+='<text x="'+_p(bx3)+'" y="'+_p(by3+4.5)+'" text-anchor="middle" font-size="10" font-weight="800" fill="white" font-family="system-ui,sans-serif" pointer-events="none">'+(idx+1)+'</text>';
+      meanSvg+='<text x="'+_p(bx3)+'" y="'+_p(by3-r-7)+'" text-anchor="middle" font-size="8.5" font-weight="700" fill="'+col+'" font-family="system-ui,sans-serif" opacity="0.95" pointer-events="none">'+lbl+'</text>';
+      meanSvg+='<text x="'+_p(bx3)+'" y="'+_p(by3+r+11)+'" text-anchor="middle" font-size="8" fill="'+col+'" font-family="system-ui,sans-serif" opacity="0.80" pointer-events="none">'+pct+'%</text>';
+    });
+  }
+
+  var pitchSvg='<svg id="cp-main-svg" viewBox="0 0 '+TW+' '+TH+'" width="'+TW+'" height="'+TH+'" style="max-width:100%;display:block;border-radius:8px">'
+    +pitchBase+pathSvg+meanSvg+'</svg>';
+
+  // ── Stats panel ──
+  var tableHtml='';
+  if(meanPath.length>0 && N>=3){
+    function sigLbl(s){return s<0.12?(_lang==='en'?'● Tight':'● Serré'):s<0.22?(_lang==='en'?'◑ Mod.':'◑ Mod.'):(_lang==='en'?'○ Spread':'○ Dispersé');}
+    function sigCol(s){return s<0.12?'#2e7d32':s<0.22?'#f57c00':'#c62828';}
+    tableHtml='<div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:7px">🗺 '+(_lang==='en'?'Mean path steps':'Étapes du chemin type')+'</div>'
+      +'<table class="tableau" style="width:100%;font-size:.80em;margin-bottom:14px">'
+      +'<thead><tr><th>#</th><th style="text-align:left">'+(_lang==='en'?'Step':'Étape')+'</th><th>'+(_lang==='en'?'Goals':'Buts')+'</th><th>%</th><th>Cluster</th></tr></thead><tbody>';
+    meanPath.forEach(function(mp,idx){
+      var d=mp.d, col=GS_COLS[mp.type]||'#888', lbl=gsLbl(mp.type);
+      var pct=Math.round(d.pct*100), sc=sigCol(d.sigma);
+      tableHtml+='<tr>'
+        +'<td style="font-weight:800;color:'+col+';text-align:center">'+(idx+1)+'</td>'
+        +'<td style="font-weight:700;color:'+col+'">'+lbl+'</td>'
+        +'<td style="text-align:center;font-weight:700">'+d.goalCount+'</td>'
+        +'<td style="text-align:center;color:var(--muted)">'+pct+'%</td>'
+        +'<td style="font-size:.82em;color:'+sc+';white-space:nowrap">'+sigLbl(d.sigma)+'</td>'
+        +'</tr>';
+    });
+    tableHtml+='</tbody>'
+      +'<tfoot><tr style="border-top:2px solid var(--border)">'
+      +'<td colspan="2" style="color:var(--muted);font-size:.9em">Total</td>'
+      +'<td style="font-weight:800;text-align:center">'+N+'</td><td colspan="2"></td>'
+      +'</tr></tfoot></table>'
+      +'<div style="font-size:.71em;color:var(--muted);margin-bottom:14px;line-height:1.5">'
+      +'💡 '+(_lang==='en'?'Cluster = how tightly step positions are grouped. ● Tight = reliable pattern.':'Cluster = concentration des positions. ● Serré = pattern fiable.')
+      +'</div>';
+  }
+
+  // Team ranking
+  var allOpenGoals=allGoals.filter(function(g){
+    return g.tactique1!==5&&g.tactique1!==6&&(g.goalSteps||[]).some(function(s){return s.x!=null&&s.y!=null;});
+  });
+  var byTeam={};
+  allOpenGoals.forEach(function(g){
+    if(g.team){if(!byTeam[g.team])byTeam[g.team]={s:0,c:0};byTeam[g.team].s++;}
+    if(g.opponent){if(!byTeam[g.opponent])byTeam[g.opponent]={s:0,c:0};byTeam[g.opponent].c++;}
+  });
+  var teamRanking=Object.entries(byTeam).sort(function(a,b){return b[1].s-a[1].s||a[1].c-b[1].c;});
+  var totS=0,totC=0;
+  var rankHtml='<div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🏆 '+(_lang==='en'?'By team':'Par équipe')+'</div>'
+    +'<table class="tableau" style="width:100%;font-size:.82em">'
+    +'<thead><tr><th>#</th><th style="text-align:left">'+(_lang==='en'?'Team':'Équipe')+'</th><th>⚽</th><th>🥅</th></tr></thead><tbody>';
+  teamRanking.forEach(function(entry,i){
+    var team=entry[0], v=entry[1];
+    totS+=v.s;totC+=v.c;
+    var safeT=team.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    var actS=team===chTeam&&chDir!=='conceded';
+    var actC=team===chTeam&&chDir==='conceded';
+    var rs=team===chTeam?'background:var(--accent);color:#fff;':'';
+    rankHtml+='<tr style="'+rs+'cursor:pointer" onclick="chTeam=(chTeam===\''+safeT+'\'?\'\':(\''+safeT+'\'));renderCheminPref()">'
+      +'<td>'+(i+1)+'</td>'
+      +'<td style="white-space:nowrap">'+tf(team)+'</td>'
+      +'<td style="font-weight:700;text-align:center;color:'+(actS?'#fff':'#2e7d32')+';cursor:pointer;text-decoration:underline;text-underline-offset:3px"'
+      +' onclick="event.stopPropagation();chTeam=\''+safeT+'\';chDir=\'scored\';renderCheminPref()">'+v.s+'</td>'
+      +'<td style="font-weight:700;text-align:center;color:'+(actC?'#fff':'#c62828')+';cursor:pointer;text-decoration:underline;text-underline-offset:3px"'
+      +' onclick="event.stopPropagation();chTeam=\''+safeT+'\';chDir=\'conceded\';renderCheminPref()">'+v.c+'</td>'
+      +'</tr>';
+  });
+  rankHtml+='</tbody><tfoot><tr style="border-top:2px solid var(--border)">'
+    +'<td colspan="2" style="color:var(--muted);font-size:.9em">Total</td>'
+    +'<td style="font-weight:800;text-align:center">'+totS+'</td>'
+    +'<td style="font-weight:800;text-align:center">'+totC+'</td>'
+    +'</tr></tfoot></table>';
+  if(chTeam) rankHtml+='<button onclick="chTeam=\'\';renderCheminPref()" style="margin-top:8px;font-size:.75em;padding:3px 8px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb;width:100%">✕ '+(_lang==='en'?'All teams':'Toutes les équipes')+'</button>';
+
+  var noData='';
+  if(N===0) noData='<div class="no-data" style="margin:20px 0">'+(_lang==='en'?'No open-play goals with encoded path for this selection.':'Aucun but en jeu ouvert avec chemin encodé pour cette sélection.')+'</div>';
+  else if(N<3) noData='<div style="font-size:.8em;color:#f57c00;margin-bottom:10px">⚠️ '+N+' '+(_lang==='en'?'goals — too few for a reliable mean path (min. 3).':'buts — trop peu pour un chemin type fiable (min. 3).')+'</div>';
+
+  var dirNote=(chTeam&&chDir==='conceded')
+    ?'<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">'+(_lang==='en'?'Conceded goals: showing the path of goals scored against this team.':'Buts encaissés : chemin des buts marqués contre cette équipe.')+'</div>'
+    :'';
+
+  var h1title=_lang==='en'?'Preferred Path':_lang==='nl'?'Voorkeurspad':'Chemin type';
+  var goalLabel=N+' '+(_lang==='en'?'goal'+(N>1?'s':'')+' (open play)':'but'+(N>1?'s':'')+' (jeu ouvert)');
+  var html='<h1>🗺 '+h1title+'</h1>'
+    +'<div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">'
+    +'<select onchange="chTeam=this.value;chCoachPeriod=null;renderCheminPref()" style="font-size:.82em;padding:3px 8px;border-radius:4px">'+teamOpts+'</select>'
+    +dirPills
+    +'<span style="font-size:.8em;color:var(--muted)">'+goalLabel+'</span>'
+    +'<button onclick="openPitchExport(\'view-cheminpref\',\'chemin-type\')" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit">📷 Export PNG</button>'
+    +'</div>'
+    +_teamCoachBlockHtml(chTeam,chCoachPeriod,'setChCoachPeriod')
+    +dirNote
+    +'<div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">'
+    +'<div style="flex:1 1 auto;min-width:0">'+noData+pitchSvg+'</div>'
+    +'<div style="flex:0 0 200px;max-width:240px;padding-right:14px">'+tableHtml+rankHtml+'</div>'
+    +'</div>';
+
+  document.getElementById('view-cheminpref').innerHTML=html;
 }
 // ── ÉVOLUTION MATCH PAR MATCH ──────────────────────────────────────────
 let evolTeam = '', evolDir = 'both', evolTacFilter = new Set();
@@ -17019,6 +17292,7 @@ const _SIDEBAR_EN = {
   "nav-presszones":"🟠 Recovery Zones",
   "nav-triggerzones":"🟣 Trigger Zones",
   "nav-couloirs":"🔵 Corridors",
+  "nav-cheminpref":"🗺 Preferred Path",
   "nav-pa":"Set Piece Origins",
   "nav-setpieces":"🗺 Set Piece Diagrams",
   "nav-penalties":"🎯 Penalty Map",
@@ -17079,6 +17353,7 @@ const _SIDEBAR_NL = {
   "nav-presszones":"🟠 Recuperatiezones",
   "nav-triggerzones":"🟣 Triggerzones",
   "nav-couloirs":"🔵 Zijlijnen",
+  "nav-cheminpref":"🗺 Voorkeurspad",
   "nav-pa":"Oorsprong stilstaande fasen",
   "nav-setpieces":"🗺 Schema's stilstaande fasen",
   "nav-penalties":"🎯 Penaltykaart",
@@ -17140,6 +17415,7 @@ const _SIDEBAR_FR = {
   "nav-presszones":"🟠 Zones de récupération",
   "nav-triggerzones":"🟣 Zones de déclenchement",
   "nav-couloirs":"🔵 Couloirs",
+  "nav-cheminpref":"🗺 Chemin type",
   "nav-pa":"Origines PA",
   "nav-setpieces":"🗺 Schémas PA",
   "nav-penalties":"🎯 Carte des penalties",
@@ -17248,6 +17524,7 @@ function setLang(lang){
       else if(currentView==='presszones') renderPressZones();
       else if(currentView==='triggerzones') renderTriggerZones();
       else if(currentView==='couloirs') renderCouloirs();
+      else if(currentView==='cheminpref') renderCheminPref();
       else if(currentView==='setpieces') renderSetpieces();
       else if(currentView==='penalties') renderPenalties();
       else if(currentView==='papoints') renderPaPoints();
