@@ -11184,20 +11184,37 @@ function renderCouloirs(){
     const ci = Math.floor(s.x/CELL);
     const cj = Math.floor(s.y/CELL);
     const key = ci+'_'+cj;
-    if(!stepCells[key]) stepCells[key]={count:0, cx:(ci+0.5)*CELL, cy:(cj+0.5)*CELL, col:s.col};
+    if(!stepCells[key]) stepCells[key]={count:0, cx:(ci+0.5)*CELL, cy:(cj+0.5)*CELL, colCor:s.col, types:{}};
     stepCells[key].count++;
+    stepCells[key].types[s.t]=(stepCells[key].types[s.t]||0)+1;
   });
+  // Color by dominant step type — much better contrast against all corridor backgrounds
+  const GS_DOT_COLS={1:'#bf360c',2:'#1b5e20',3:'#0d47a1',4:'#e65100',5:'#b71c1c',6:'#4a148c',7:'#006064',8:'#004d40',9:'#1a237e',10:'#880e4f'};
+  const GS_DOT_LBFR={1:'Récup.',2:'Déclench.',3:'Assist',4:'Chance',5:'Tir',6:'Course',7:'Relais',8:'Réception',9:'Arrêt déf.',10:'But'};
+  const GS_DOT_LBEN={1:'Recovery',2:'Trigger',3:'Assist',4:'Chance',5:'Shot',6:'Run',7:'Relay',8:'Reception',9:'Def.Block',10:'Goal'};
+  const GS_DOT_LBNL={1:'Recuperatie',2:'Triggering',3:'Assist',4:'Kans',5:'Schot',6:'Loop',7:'Relais',8:'Receptie',9:'Blok',10:'Doelpunt'};
+  Object.values(stepCells).forEach(sc=>{
+    const dom=+Object.entries(sc.types).sort((a,b)=>b[1]-a[1])[0][0];
+    sc.col=GS_DOT_COLS[dom]||sc.colCor; sc.type=dom;
+  });
+  // Build step type summary for legend
+  const stepTypeTotals={};
+  allSteps.forEach(s=>{ stepTypeTotals[s.t]=(stepTypeTotals[s.t]||0)+1; });
   const maxStepCount = Math.max(1,...Object.values(stepCells).map(c=>c.count));
 
   let pitchSvg = `<svg id="cor-main-svg" viewBox="0 0 ${TW} ${TH}" width="${TW}" height="${TH}" style="max-width:100%;display:block;border-radius:8px">
     ${pitchLines}`;
 
   Object.values(stepCells).sort((a,b)=>a.count-b.count).forEach(sc=>{
-    const r = (2.5 + 5.5*(sc.count/maxStepCount)).toFixed(1);
+    const t = sc.count/maxStepCount;
+    const r = (4.5 + 9.5*t).toFixed(1);
     const bx = M + (1-sc.cy)*PW;
     const by = M + sc.cx*PH;
-    const alpha = (0.22 + 0.60*(sc.count/maxStepCount)).toFixed(2);
-    pitchSvg += `<circle cx="${_p(bx)}" cy="${_p(by)}" r="${r}" fill="${sc.col}" fill-opacity="${alpha}" stroke="rgba(255,255,255,0.5)" stroke-width="0.8"/>`;
+    const alpha = (0.68 + 0.30*t).toFixed(2);
+    pitchSvg += `<circle cx="${_p(bx)}" cy="${_p(by)}" r="${r}" fill="${sc.col}" fill-opacity="${alpha}" stroke="white" stroke-width="2"/>`;
+    if(sc.count>1){
+      pitchSvg += `<text x="${_p(bx)}" y="${_p(by+3.5)}" text-anchor="middle" font-size="8" font-weight="800" fill="white" font-family="system-ui,sans-serif" pointer-events="none" opacity="0.95">${sc.count}</text>`;
+    }
   });
 
   pitchSvg += '</svg>';
@@ -11225,6 +11242,22 @@ function renderCouloirs(){
     <td style="font-weight:800;text-align:center">${totalGoals}</td><td></td>
   </tr></tfoot></table>
   <div style="font-size:.71em;color:var(--muted);margin-bottom:14px;line-height:1.4">💡 ${_lang==='en'?'1 goal = 1 pass per corridor (regardless of number of touches).':'1 but = 1 passage par couloir (peu importe le nombre de touches dans ce couloir).'}</div>`;
+
+  // Step type legend
+  const gsLblCor = (t) => (_lang==='en'?GS_DOT_LBEN[t]:_lang==='nl'?GS_DOT_LBNL[t]:GS_DOT_LBFR[t])||'?';
+  const stepTypePresentSorted = Object.entries(stepTypeTotals).sort((a,b)=>b[1]-a[1]).map(([t,n])=>({t:+t,n}));
+  let stLegend = `<div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🎯 ${_lang==='en'?'Step types (dot color)':'Types d\'étape (couleur des points)'}</div>`;
+  stLegend += '<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:14px">';
+  stepTypePresentSorted.forEach(({t,n})=>{
+    const col=GS_DOT_COLS[t]||'#888', lbl=gsLblCor(t);
+    stLegend += `<div style="display:flex;align-items:center;gap:6px;font-size:.78em">`
+      +`<span style="display:inline-block;width:11px;height:11px;border-radius:50%;background:${col};border:2px solid white;box-shadow:0 0 0 1px ${col};flex-shrink:0"></span>`
+      +`<span style="font-weight:700;color:${col}">${lbl}</span>`
+      +`<span style="margin-left:auto;color:var(--muted)">${n}</span>`
+      +'</div>';
+  });
+  stLegend += '</div>';
+  corrTableHtml += stLegend;
 
   // ── Team ranking (scored + conceded) ──
   const allPathGoals = allGoals.filter(g=>(g.goalSteps||[]).some(s=>s.x!=null&&s.y!=null));
