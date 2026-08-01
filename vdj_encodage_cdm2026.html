@@ -7642,6 +7642,12 @@ function applyVDJCascade(g, field, val){
     g.lieu      = 2;  // Lieu : Grand
     g.tactique2 = 14; // Descriptif principal : Droitier à droite (point de départ)
     g.tactique3 = 1;  // Nature du but : INT
+    // Auto-place But ⚽ at penalty spot if no steps yet
+    if(!g.goalSteps || g.goalSteps.length === 0){
+      g.goalSteps = [{x:0.5, y:parseFloat((11/105).toFixed(6)), curve:0, type:10}];
+      g.pitchX = 0.5; g.pitchY = 11/105;
+      _gsAutoPlaced = true;
+    }
   } else if(field === 'origine1' && val == 3 && g.tactique1 == 5){
     // Tactique = PA (Phase arrêtée) + Origine du but = CFD (Coup franc direct)
     g.origine3  = 3;  // Déclenchement : ZO
@@ -7650,18 +7656,64 @@ function applyVDJCascade(g, field, val){
     g.lieu      = 3;  // Lieu : Hors
     g.tactique2 = 42; // Descriptif principal : Droitier Cou de Pied (point de départ)
     g.tactique3 = 1;  // Nature du but : INT
+  } else if(field === 'origine1' && val == 5 && g.tactique1 == 5){
+    // Corner sélectionné — auto-place Récup au coin (position basée sur origine2)
+    const _cX = g.origine2 === 2 ? 1.0 : g.origine2 === 4 ? 0.0 : -1;
+    if(_cX >= 0 && (!g.goalSteps || g.goalSteps.length === 0)){
+      g.goalSteps = [{x:_cX, y:0, curve:0, type:1}];
+      g.pitchX = _cX; g.pitchY = 0;
+      _gsAutoPlaced = true;
+    }
+  } else if(field === 'origine2' && g.origine1 == 5 && g.tactique1 == 5){
+    // Côté du corner mis à jour — place ou déplace la pastille au coin
+    const _cX2 = val === 2 ? 1.0 : val === 4 ? 0.0 : -1;
+    if(_cX2 >= 0){
+      if(!g.goalSteps || g.goalSteps.length === 0){
+        g.goalSteps = [{x:_cX2, y:0, curve:0, type:1}];
+        g.pitchX = _cX2; g.pitchY = 0;
+        _gsAutoPlaced = true;
+      } else if(g.goalSteps.length === 1 && g.goalSteps[0].y < 0.04){
+        g.goalSteps[0].x = _cX2; g.pitchX = _cX2;
+        _gsAutoPlaced = true;
+      }
+    }
   }
+}
+
+// Flag set by applyVDJCascade when goalSteps were auto-placed
+let _gsAutoPlaced = false;
+
+// Rebuild the goalSteps section after auto-placement
+function gsRebuildSection(idx, isDirect){
+  const isDirStr = isDirect ? '1' : '0';
+  const slotEl = document.getElementById('gs-slot-' + idx + '-' + isDirStr);
+  if(!slotEl) return;
+  const wrapper = slotEl.closest('div[style*="background:#eef4ee"]');
+  if(!wrapper) return;
+  const md = isDirect ? getMatchData(_directMatchId) : getMatchData(currentMatchId);
+  if(!md || !md.goals[idx]) return;
+  const g = md.goals[idx];
+  const rightContent = isDirect ? buildDirectVDJPillsSection(idx, g) : buildVDJPillsSection(idx, g);
+  const rightId = isDirect ? 'direct-vdj-pills-' + idx : null;
+  const newHtml = buildGoalSchemaSection(idx, g, isDirect, rightContent, rightId);
+  const tmp = document.createElement('div');
+  tmp.innerHTML = newHtml;
+  wrapper.replaceWith(tmp.firstElementChild);
+  gsInitPitches();
+  gsInitStepEditors();
 }
 
 function directUpdateGoalPill(idx, field, val){
   const md = getMatchData(_directMatchId);
   if(!md || !md.goals[idx]) return;
   md.goals[idx][field] = val;
+  _gsAutoPlaced = false;
   applyVDJCascade(md.goals[idx], field, val);
   saveData();
   directRefreshSummary(idx);
   const container = document.getElementById('direct-vdj-pills-' + idx);
   if(container) container.innerHTML = buildDirectVDJPillsSection(idx, md.goals[idx]);
+  if(_gsAutoPlaced) gsRebuildSection(idx, true);
 }
 
 function directVdjPillHtml(idx, field, curVal, pills){
@@ -7881,12 +7933,14 @@ function buildVDJPillsSection(idx, g){
 function updateGoalPill(idx, field, val){
   const md = getMatchData(currentMatchId);
   md.goals[idx][field] = val;
+  _gsAutoPlaced = false;
   applyVDJCascade(md.goals[idx], field, val);
   saveData();
   const container = document.getElementById(`vdj-pills-${idx}`);
   if(container) container.innerHTML = buildVDJPillsSection(idx, md.goals[idx]);
   const sumContainer = document.getElementById(`vdj-sum-${idx}`);
   if(sumContainer) sumContainer.innerHTML = buildVDJSumBar(idx, md.goals[idx]);
+  if(_gsAutoPlaced) gsRebuildSection(idx, false);
 }
 
 // 19 juillet 2026 — "Copier but précédent" demandé par Christian pour

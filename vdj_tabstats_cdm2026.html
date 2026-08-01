@@ -14578,7 +14578,7 @@ function buildScorerCard(name, team, allGoals){
       ?`<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:.7em;cursor:pointer;flex-shrink:0">▶</button>`
       :'';
     const hasSteps=(g.goalSteps||[]).length>0;
-    return `<div class="sp-pill" data-gi="${gi}" onclick="spToggleGoal(this,${gi},'${_spPillsId}')"
+    return `<div class="sp-pill" data-gi="${gi}" data-ori="${g.origine1||''}" data-tac="${g.tactique1||''}" data-act="${g.actions||''}" data-venue="${g.team===g.match.dom?'dom':'ext'}" onclick="spToggleGoal(this,${gi},'${_spPillsId}')"
       onmouseenter="const s=this.children[1];s.style.whiteSpace='normal';s.style.overflow='visible';s.style.textOverflow='clip'"
       onmouseleave="const s=this.children[1];s.style.whiteSpace='nowrap';s.style.overflow='hidden';s.style.textOverflow='ellipsis'"
       style="display:flex;align-items:flex-start;gap:6px;padding:5px 8px;border-radius:6px;cursor:pointer;
@@ -17501,10 +17501,11 @@ function spUpdateMatchPanel(){
 function spFilterByField(dataAttr, val, pillsId){
   _spFilterMode='field';
   _spActiveGoals.clear();
-  // Collect matching goal indices
-  document.querySelectorAll('[id^="sp-goal-"]').forEach(g=>{
-    if(String(g.getAttribute('data-'+dataAttr))===String(val)){
-      _spActiveGoals.add(parseInt(g.getAttribute('data-gi')));
+  // Collect matching goal indices — read from pill data attrs (works even for goals with no pitch path)
+  const _pillContainer=document.getElementById(pillsId);
+  if(_pillContainer) _pillContainer.querySelectorAll('.sp-pill').forEach(p=>{
+    if(String(p.getAttribute('data-'+dataAttr))===String(val)){
+      _spActiveGoals.add(parseInt(p.getAttribute('data-gi')));
     }
   });
   // Reset pill visuals — hide non-matching, highlight matching
