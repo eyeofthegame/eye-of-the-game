@@ -14632,10 +14632,11 @@ function buildScorerCard(name, team, allGoals){
   // Team overlay: distribution of ALL goals scored by the player's team(s)
   const _playerTeams = [...new Set(_playerGoalsAll.map(g=>g.team))];
   const _teamGoalsForRadar = allGoals.filter(g=>_playerTeams.includes(g.team)&&!isCsc(g));
+  const _teamGoalsTotal    = allGoals.filter(g=>_playerTeams.includes(g.team)); // inclut CSC — même dénominateur que Tactique
   const _byTacTeam={};
   [1,2,3,4,5,6].forEach(k=>{_byTacTeam[k]=0;});
   _teamGoalsForRadar.forEach(g=>{if(g.tactique1&&_byTacTeam[g.tactique1]!==undefined)_byTacTeam[g.tactique1]++;});
-  const _totalTeam=_teamGoalsForRadar.length;
+  const _totalTeam=_teamGoalsTotal.length;
 
   // Scale: absolute counts, outer ring = team's peak category (rounded to nearest 5)
   const _maxCatTeam = Math.max(...[1,2,3,4,5,6].map(k=>_byTacTeam[k]||0), 1);
