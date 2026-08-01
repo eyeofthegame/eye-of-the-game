@@ -14532,45 +14532,87 @@ function buildScorerCard(name, team, allGoals){
 
 
 
-  // ── 2c. Radar Tactique SVG (byTac already computed above) ──────────────
-  const _radarSize = 162;
-  const _rCx = _radarSize/2, _rCy = _radarSize/2, _rR = _radarSize/2 - 26;
-  const _rN = 6;
-  const _rVals = [1,2,3,4,5,6].map(k => total>0 ? (byTac[k]||0)/total : 0);
-  const _rShortNL = ['Pos.','Snel','Aanv.','Omsch.','Fase','Straf.'];
-  const _rShortEN = ['Pos.','Fast','Conv.','Trans.','Set P.','Pen.'];
-  const _rShortFR = ['Plac.','Rap.','Rec.','Trans.','P.Ar.','Pen.'];
-  const _rLabels = _lang==='nl' ? _rShortNL : _lang==='en' ? _rShortEN : _rShortFR;
+  // ── 2c. Radar Tactique SVG ──────────────────────────────────────────────
+  // Team overlay: distribution of ALL goals scored by the player's team(s)
+  const _playerTeams = [...new Set(_playerGoalsAll.map(g=>g.team))];
+  const _teamGoalsForRadar = allGoals.filter(g=>_playerTeams.includes(g.team)&&!isCsc(g));
+  const _byTacTeam={};
+  [1,2,3,4,5,6].forEach(k=>{_byTacTeam[k]=0;});
+  _teamGoalsForRadar.forEach(g=>{if(g.tactique1&&_byTacTeam[g.tactique1]!==undefined)_byTacTeam[g.tactique1]++;});
+  const _totalTeam=_teamGoalsForRadar.length;
+  const _rValsTeam=[1,2,3,4,5,6].map(k=>_totalTeam>0?(_byTacTeam[k]||0)/_totalTeam:0);
+
+  const _radarSize=210;
+  const _rCx=_radarSize/2, _rCy=_radarSize/2, _rR=_radarSize/2-30;
+  const _rN=6;
+  const _rVals=[1,2,3,4,5,6].map(k=>total>0?(byTac[k]||0)/total:0);
+  const _rShortNL=['Pos.','Snel','Aanv.','Omsch.','Fase','Straf.'];
+  const _rShortEN=['Pos.','Fast','Conv.','Trans.','Set P.','Pen.'];
+  const _rShortFR=['Plac.','Rap.','Rec.','Trans.','P.Ar.','Pen.'];
+  const _rLabels=_lang==='nl'?_rShortNL:_lang==='en'?_rShortEN:_rShortFR;
+
+  // Grid rings
   let _radarGrid='';
-  [.33,.66,1].forEach(frac=>{
+  [.25,.5,.75,1].forEach((frac,fi)=>{
     const gPts=Array.from({length:_rN},(_,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `${(_rCx+_rR*frac*Math.cos(a)).toFixed(1)},${(_rCy+_rR*frac*Math.sin(a)).toFixed(1)}`;}).join(' ');
-    _radarGrid+=`<polygon points="${gPts}" fill="none" stroke="rgba(100,120,160,.15)" stroke-width=".6"/>`;
+    _radarGrid+=`<polygon points="${gPts}" fill="${fi===3?'rgba(100,120,160,.07)':'none'}" stroke="rgba(100,120,160,.22)" stroke-width="${fi===3?.8:.5}" stroke-dasharray="${fi===3?'':'2,3'}"/>`;
   });
-  const _radarSpokes=Array.from({length:_rN},(_,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `<line x1="${_rCx.toFixed(1)}" y1="${_rCy.toFixed(1)}" x2="${(_rCx+_rR*Math.cos(a)).toFixed(1)}" y2="${(_rCy+_rR*Math.sin(a)).toFixed(1)}" stroke="rgba(100,120,160,.2)" stroke-width=".7"/>`;}).join('');
+
+  // Spokes
+  const _radarSpokes=Array.from({length:_rN},(_,i)=>{
+    const a=Math.PI*2*i/_rN-Math.PI/2;
+    return `<line x1="${_rCx.toFixed(1)}" y1="${_rCy.toFixed(1)}" x2="${(_rCx+_rR*Math.cos(a)).toFixed(1)}" y2="${(_rCy+_rR*Math.sin(a)).toFixed(1)}" stroke="rgba(100,120,160,.28)" stroke-width=".9"/>`;
+  }).join('');
+
+  // Team polygon (dotted, grey-blue)
+  const _radarTeamPts=_rValsTeam.map((v,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `${(_rCx+_rR*v*Math.cos(a)).toFixed(1)},${(_rCy+_rR*v*Math.sin(a)).toFixed(1)}`;}).join(' ');
+
+  // Player polygon (solid, red)
   const _radarDataPts=_rVals.map((v,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `${(_rCx+_rR*v*Math.cos(a)).toFixed(1)},${(_rCy+_rR*v*Math.sin(a)).toFixed(1)}`;}).join(' ');
+
+  // Labels + dots
   let _radarLabels='';
   [1,2,3,4,5,6].forEach((k,i)=>{
     const a=Math.PI*2*i/_rN-Math.PI/2;
-    const lx=(_rCx+(_rR+15)*Math.cos(a)).toFixed(1), ly=(_rCy+(_rR+15)*Math.sin(a)).toFixed(1);
-    const col=VDJ.tactique1[k]?'#'+VDJ.tactique1[k].c1:'#888';
+    const lx=(_rCx+(_rR+18)*Math.cos(a)).toFixed(1);
+    const ly=(_rCy+(_rR+18)*Math.sin(a)).toFixed(1);
+    const col=VDJ.tactique1[k]?'#'+VDJ.tactique1[k].c1:'#666';
     const v=byTac[k]||0;
-    _radarLabels+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="6.5" fill="${col}" font-weight="600">${_rLabels[i]}</text>`;
+    const vt=_byTacTeam[k]||0;
+    // Label
+    _radarLabels+=`<text x="${lx}" y="${(parseFloat(ly)-3).toFixed(1)}" text-anchor="middle" dominant-baseline="middle" font-size="7.5" fill="${col}" font-weight="700">${_rLabels[i]}</text>`;
+    // Player count
     if(v>0){
       const px=(_rCx+_rR*_rVals[i]*Math.cos(a)).toFixed(1);
       const py=(_rCy+_rR*_rVals[i]*Math.sin(a)).toFixed(1);
-      _radarLabels+=`<circle cx="${px}" cy="${py}" r="3.5" fill="${col}"/>`;
-      _radarLabels+=`<text x="${px}" y="${(parseFloat(py)-7).toFixed(1)}" text-anchor="middle" font-size="7" fill="${col}" font-weight="bold">${v}</text>`;
+      _radarLabels+=`<circle cx="${px}" cy="${py}" r="4" fill="${col}" stroke="#fff" stroke-width="1"/>`;
+      _radarLabels+=`<text x="${px}" y="${(parseFloat(py)-8).toFixed(1)}" text-anchor="middle" font-size="7.5" fill="${col}" font-weight="800">${v}</text>`;
+    }
+    // Team dot (smaller, grey)
+    if(vt>0&&_totalTeam>0){
+      const tpx=(_rCx+_rR*_rValsTeam[i]*Math.cos(a)).toFixed(1);
+      const tpy=(_rCy+_rR*_rValsTeam[i]*Math.sin(a)).toFixed(1);
+      _radarLabels+=`<circle cx="${tpx}" cy="${tpy}" r="2.5" fill="rgba(80,100,140,.55)" stroke="#fff" stroke-width=".8"/>`;
     }
   });
-  const _radarHtml=`<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
-    <div style="font-size:.62em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${_lang==='nl'?'Stijl radar':_lang==='en'?'Style radar':'Radar tactique'}</div>
+
+  // Legend
+  const _radarLegend=`<div style="display:flex;gap:10px;align-items:center;justify-content:center;margin-top:5px;font-size:.62em;color:var(--muted)">
+    <span style="display:flex;align-items:center;gap:3px"><svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="#e5373c" stroke-width="2"/></svg>${_lang==='nl'?'Speler':_lang==='en'?'Player':'Joueur'}</span>
+    <span style="display:flex;align-items:center;gap:3px"><svg width="16" height="8"><line x1="0" y1="4" x2="16" y2="4" stroke="rgba(80,100,140,.7)" stroke-width="1.5" stroke-dasharray="3,2"/></svg>${_lang==='nl'?'Team':_lang==='en'?'Team':'Équipe'}</span>
+  </div>`;
+
+  const _radarHtml=`<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:18px">
+    <div style="font-size:.65em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-bottom:5px">${_lang==='nl'?'Stijl radar':_lang==='en'?'Style radar':'Radar tactique'}</div>
     <svg viewBox="0 0 ${_radarSize} ${_radarSize}" width="${_radarSize}" height="${_radarSize}" style="display:block;overflow:visible">
-      <polygon points="${_radarDataPts}" fill="rgba(229,55,60,.18)" stroke="#e5373c" stroke-width="1.5"/>
       ${_radarGrid}${_radarSpokes}
-      <circle cx="${_rCx}" cy="${_rCy}" r="2" fill="rgba(100,120,160,.3)"/>
+      <polygon points="${_radarTeamPts}" fill="rgba(80,100,140,.1)" stroke="rgba(80,100,140,.6)" stroke-width="1.5" stroke-dasharray="4,3"/>
+      <polygon points="${_radarDataPts}" fill="rgba(229,55,60,.22)" stroke="#e5373c" stroke-width="2"/>
+      <circle cx="${_rCx}" cy="${_rCy}" r="2.5" fill="rgba(100,120,160,.4)"/>
       ${_radarLabels}
     </svg>
-  </div>`;
+    ${_radarLegend}
+  </div>`
 
   // ── 2b. Venue (dom / ext) ───────────────────────────────────────────
   const nDom = goals.filter(g=>g.team===g.match.dom).length;
