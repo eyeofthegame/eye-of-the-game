@@ -14388,7 +14388,7 @@ function spRadarTip(id, label, col, vp, vt){
 function spRadarZoom(){
   const d = _spLastRadarData;
   if(!d) return;
-  const S=480, cx=S/2, cy=S/2, R=S/2-78;
+  const S=480, SH=560, cx=S/2, cy=S/2-10, R=S/2-78; // cy shifted up 10px, SH=560 for bottom labels
   const N=6;
   // Grid
   let grid='';
@@ -14407,7 +14407,7 @@ function spRadarZoom(){
   let labs='<defs><filter id="sp-rz-sh" x="-50%" y="-50%" width="200%" height="200%"><feDropShadow dx="0" dy="0" stdDeviation="3" flood-color="#fff" flood-opacity=".95"/></filter></defs>';
   d.colors.forEach((col,i)=>{
     const a=Math.PI*2*i/N-Math.PI/2;
-    const dist=R+56;
+    const dist=R+38;
     const lx=parseFloat((cx+dist*Math.cos(a)).toFixed(1));
     const ly=parseFloat((cy+dist*Math.sin(a)).toFixed(1));
     const vp=d.valsPlayer[i];
@@ -14448,7 +14448,7 @@ function spRadarZoom(){
     <button onclick="document.getElementById('sp-radar-modal').style.display='none'" style="position:absolute;top:12px;right:14px;background:transparent;border:none;font-size:1.3em;cursor:pointer;color:var(--muted,#999)">✕</button>
     <div style="font-size:.7em;font-weight:800;text-transform:uppercase;letter-spacing:.1em;color:var(--muted,#999);margin-bottom:4px">Radar tactique</div>
     <div style="font-size:.85em;font-weight:700;color:var(--accent,#c33);margin-bottom:12px">${d.name} · ${d.total} but${d.total>1?'s':''} / équipe ${d.totalTeam} buts</div>
-    <svg viewBox="0 0 ${S} ${S}" width="100%" style="display:block;overflow:visible;margin:0 auto;max-width:${S}px">
+    <svg viewBox="0 0 ${S} ${SH}" width="100%" style="display:block;overflow:visible;margin:0 auto;max-width:${S}px">
       ${grid}${spokes}
       <polygon points="${teamPts}" fill="rgba(80,100,140,.1)" stroke="rgba(80,100,140,.55)" stroke-width="2" stroke-dasharray="5,4"/>
       <polygon points="${playerPts}" fill="rgba(229,55,60,.2)" stroke="#e5373c" stroke-width="2.5"/>
