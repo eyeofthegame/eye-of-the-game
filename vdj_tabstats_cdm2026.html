@@ -14495,7 +14495,44 @@ function buildScorerCard(name, team, allGoals){
     </div>`;
   }).join('');
 
-  // ── 2c. Radar Tactique SVG ──────────────────────────────────────────────
+
+
+
+  const pitchSvg = `<div style="display:flex;gap:10px;align-items:flex-start">
+    <div style="flex-shrink:0">
+      <svg id="sp-pitch-svg" viewBox="0 0 ${TW_sp} ${TH_sp}" width="${TW_sp}" height="${TH_sp}" style="display:block;border-radius:6px">
+        ${_spPitchBase()}
+        ${allPathsSvg}
+      </svg>
+    </div>
+    <div style="width:230px;flex-shrink:0;display:flex;flex-direction:column;gap:4px">
+      <div style="display:flex;gap:5px">
+        <button onclick="spResetAll('${_spPillsId}')" style="padding:3px 10px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer;color:#333">${_lang==='en'?'✕ Show All':_lang==='nl'?'✕ Alles tonen':'✕ Tout afficher'}</button>
+        <button onclick="spHideAll('${_spPillsId}')" style="padding:3px 10px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer;color:#333">${_lang==='en'?'◻ Hide All':_lang==='nl'?'◻ Alles verbergen':'◻ Tout masquer'}</button>
+      </div>
+      <div id="${_spPillsId}" style="display:flex;flex-direction:column;gap:4px;max-height:${TH_sp - 30}px;overflow-y:auto">
+      ${pillsHtml}
+      </div>
+      <div id="sp-match-panel" style="display:none;margin-top:8px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
+    </div>
+  </div>`;
+
+  // ── 2. Tactique1 distribution ────────────────────────────────────────
+  const byTac = {};
+  [1,2,3,4,5,6].forEach(k=>{ byTac[k]=0; });
+  goals.forEach(g=>{ if(g.tactique1 && byTac[g.tactique1]!==undefined) byTac[g.tactique1]++; });
+  let tacHtml = '';
+  [1,2,3,4,5,6].forEach(k=>{
+    if(!VDJ.tactique1[k] || !byTac[k]) return;
+    const v = byTac[k];
+    const col = '#'+VDJ.tactique1[k].c1;
+    const tc = '#'+VDJ.tactique1[k].c2;
+    tacHtml += `<span onclick="spFilterByField('tac',${k},'${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:${col};color:${tc};padding:2px 7px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Filtrer les buts — clic pour isoler">${VDJ.tactique1[k].nom}<b style="opacity:.85">${v}</b></span>`;
+  });
+
+
+
+  // ── 2c. Radar Tactique SVG (byTac already computed above) ──────────────
   const _radarSize = 162;
   const _rCx = _radarSize/2, _rCy = _radarSize/2, _rR = _radarSize/2 - 26;
   const _rN = 6;
@@ -14525,7 +14562,7 @@ function buildScorerCard(name, team, allGoals){
       _radarLabels+=`<text x="${px}" y="${(parseFloat(py)-7).toFixed(1)}" text-anchor="middle" font-size="7" fill="${col}" font-weight="bold">${v}</text>`;
     }
   });
-  const _radarSvg=`<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:28px">
+  const _radarHtml=`<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center">
     <div style="font-size:.62em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${_lang==='nl'?'Stijl radar':_lang==='en'?'Style radar':'Radar tactique'}</div>
     <svg viewBox="0 0 ${_radarSize} ${_radarSize}" width="${_radarSize}" height="${_radarSize}" style="display:block;overflow:visible">
       <polygon points="${_radarDataPts}" fill="rgba(229,55,60,.18)" stroke="#e5373c" stroke-width="1.5"/>
@@ -14534,41 +14571,6 @@ function buildScorerCard(name, team, allGoals){
       ${_radarLabels}
     </svg>
   </div>`;
-
-  const pitchSvg = `<div style="display:flex;gap:10px;align-items:flex-start">
-    <div style="flex-shrink:0">
-      <svg id="sp-pitch-svg" viewBox="0 0 ${TW_sp} ${TH_sp}" width="${TW_sp}" height="${TH_sp}" style="display:block;border-radius:6px">
-        ${_spPitchBase()}
-        ${allPathsSvg}
-      </svg>
-    </div>
-    <div style="width:230px;flex-shrink:0;display:flex;flex-direction:column;gap:4px">
-      <div style="display:flex;gap:5px">
-        <button onclick="spResetAll('${_spPillsId}')" style="padding:3px 10px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer;color:#333">${_lang==='en'?'✕ Show All':_lang==='nl'?'✕ Alles tonen':'✕ Tout afficher'}</button>
-        <button onclick="spHideAll('${_spPillsId}')" style="padding:3px 10px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer;color:#333">${_lang==='en'?'◻ Hide All':_lang==='nl'?'◻ Alles verbergen':'◻ Tout masquer'}</button>
-      </div>
-      <div id="${_spPillsId}" style="display:flex;flex-direction:column;gap:4px;max-height:${TH_sp - 30}px;overflow-y:auto">
-      ${pillsHtml}
-      </div>
-      <div id="sp-match-panel" style="display:none;margin-top:8px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
-    </div>
-    ${_radarSvg}
-  </div>`;
-
-  // ── 2. Tactique1 distribution ────────────────────────────────────────
-  const byTac = {};
-  [1,2,3,4,5,6].forEach(k=>{ byTac[k]=0; });
-  goals.forEach(g=>{ if(g.tactique1 && byTac[g.tactique1]!==undefined) byTac[g.tactique1]++; });
-  let tacHtml = '';
-  [1,2,3,4,5,6].forEach(k=>{
-    if(!VDJ.tactique1[k] || !byTac[k]) return;
-    const v = byTac[k];
-    const col = '#'+VDJ.tactique1[k].c1;
-    const tc = '#'+VDJ.tactique1[k].c2;
-    tacHtml += `<span onclick="spFilterByField('tac',${k},'${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:${col};color:${tc};padding:2px 7px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Filtrer les buts — clic pour isoler">${VDJ.tactique1[k].nom}<b style="opacity:.85">${v}</b></span>`;
-  });
-
-
 
   // ── 2b. Venue (dom / ext) ───────────────────────────────────────────
   const nDom = goals.filter(g=>g.team===g.match.dom).length;
@@ -14744,9 +14746,12 @@ function buildScorerCard(name, team, allGoals){
       </div>
     </div>
 
-    <div style="margin-bottom:1em">
-      <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${_lang==='en'?'Goal Paths':_lang==='nl'?'Doelpuntpaden':'Chemins des buts'}</div>
-      ${pitchSvg}
+    <div style="margin-bottom:1em;display:flex;gap:14px;align-items:flex-start">
+      <div style="flex:1;min-width:0">
+        <div style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:2px">${_lang==='en'?'Goal Paths':_lang==='nl'?'Doelpuntpaden':'Chemins des buts'}</div>
+        ${pitchSvg}
+      </div>
+      ${_radarHtml}
     </div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8em;align-items:center">
       <span style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:4px">${_lang==='en'?'Venue':_lang==='nl'?'Locatie':'Lieu'}</span>
