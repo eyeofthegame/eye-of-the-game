@@ -3615,6 +3615,30 @@ function getAllGoals(){
   });
   return goals;
 }
+// ── Cross-competition goal loader for Profil Buteur ─────────────────────
+function getAllGoalsAllComps(){
+  const result = [];
+  Object.entries(COMPETITIONS).forEach(([compId, comp]) => {
+    let compData = {};
+    try {
+      const stored = localStorage.getItem(comp.storageKey);
+      if(stored) compData = JSON.parse(stored);
+    } catch(e) {}
+    const matches = comp.matches || [];
+    Object.keys(compData).forEach(matchId => {
+      const md = compData[matchId];
+      if(!md.goals || !md.validated) return;
+      const m = matches.find(x=>x.id==matchId);
+      if(!m) return;
+      md.goals.forEach(g => {
+        let opponent = g.opponent;
+        if(opponent===g.team) opponent=(g.team===m.dom)?m.ext:m.dom;
+        result.push({...g, opponent, matchId:parseInt(matchId), match:m, _comp:compId, _compLabel:comp.shortLabel||comp.label||compId});
+      });
+    });
+  });
+  return result;
+}
 
 // Get unique teams from scored/validated matches (+ live in-progress)
 function getTeams(){
@@ -13230,6 +13254,7 @@ function calcAge(dob){
 }
 
 let _spSelected = null; // {name, team}
+let _spCompFilter = null; // competition id filter for scorer profile
 
 
 // ═══════════════════════════════════════════════════════════════════════
@@ -14248,7 +14273,7 @@ function _rechApplyOpacity(){
 
 function renderScorerProfile(){
   loadData();
-  const allGoals = getAllGoals();
+  const allGoals = getAllGoalsAllComps();
 
   // Build aggregate scorer list — grouped by name, per-club breakdown
   const nameMap = {};
@@ -14330,11 +14355,18 @@ function spSelect(name, team, event){
   _spSelected = {name, team};
   renderScorerProfile();
 }
+function spSelectComp(compId){
+  _spCompFilter = compId;
+  renderScorerProfile();
+}
 
 function buildScorerCard(name, team, allGoals){
-  const goals = team
+  const _playerGoalsAll = team
     ? allGoals.filter(g=>g.buteur===name && g.team===team && !isCsc(g))
     : allGoals.filter(g=>g.buteur===name && !isCsc(g));
+  const goals = _spCompFilter
+    ? _playerGoalsAll.filter(g=>g._comp===_spCompFilter)
+    : _playerGoalsAll;
   if(!goals.length) return `<div class="no-data">${_lang==='en'?'No goals found':_lang==='nl'?'Geen doelpunten gevonden':'Aucun but trouvé'}</div>`;
 
   const total = goals.length;
@@ -14470,7 +14502,7 @@ function buildScorerCard(name, team, allGoals){
         ${allPathsSvg}
       </svg>
     </div>
-    <div style="flex:1;display:flex;flex-direction:column;gap:4px">
+    <div style="width:230px;flex-shrink:0;display:flex;flex-direction:column;gap:4px">
       <div style="display:flex;gap:5px">
         <button onclick="spResetAll('${_spPillsId}')" style="padding:3px 10px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer;color:#333">${_lang==='en'?'✕ Show All':_lang==='nl'?'✕ Alles tonen':'✕ Tout afficher'}</button>
         <button onclick="spHideAll('${_spPillsId}')" style="padding:3px 10px;font-size:.7em;border:1px solid #aaa;border-radius:4px;background:#f5f5f5;cursor:pointer;color:#333">${_lang==='en'?'◻ Hide All':_lang==='nl'?'◻ Alles verbergen':'◻ Tout masquer'}</button>
@@ -14480,6 +14512,7 @@ function buildScorerCard(name, team, allGoals){
       </div>
       <div id="sp-match-panel" style="display:none;margin-top:8px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
     </div>
+    ${_radarSvg}
   </div>`;
 
   // ── 2. Tactique1 distribution ────────────────────────────────────────
@@ -14494,6 +14527,46 @@ function buildScorerCard(name, team, allGoals){
     const tc = '#'+VDJ.tactique1[k].c2;
     tacHtml += `<span onclick="spFilterByField('tac',${k},'${_spPillsId}')" class="badge-3d" style="display:inline-flex;align-items:center;background:${col};color:${tc};padding:2px 7px;border-radius:3px;font-size:.73em;white-space:nowrap;margin:2px 3px 2px 0;gap:4px;cursor:pointer" title="Filtrer les buts — clic pour isoler">${VDJ.tactique1[k].nom}<b style="opacity:.85">${v}</b></span>`;
   });
+
+  // ── 2c. Radar Tactique SVG ──────────────────────────────────────────────
+  const _radarSize = 162;
+  const _rCx = _radarSize/2, _rCy = _radarSize/2, _rR = _radarSize/2 - 26;
+  const _rN = 6;
+  const _rVals = [1,2,3,4,5,6].map(k => total>0 ? (byTac[k]||0)/total : 0);
+  const _rShortNL = ['Pos.','Snel','Aanv.','Omsch.','Fase','Straf.'];
+  const _rShortEN = ['Pos.','Fast','Conv.','Trans.','Set P.','Pen.'];
+  const _rShortFR = ['Plac.','Rap.','Rec.','Trans.','P.Ar.','Pen.'];
+  const _rLabels = _lang==='nl' ? _rShortNL : _lang==='en' ? _rShortEN : _rShortFR;
+  let _radarGrid='';
+  [.33,.66,1].forEach(frac=>{
+    const gPts=Array.from({length:_rN},(_,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `${(_rCx+_rR*frac*Math.cos(a)).toFixed(1)},${(_rCy+_rR*frac*Math.sin(a)).toFixed(1)}`;}).join(' ');
+    _radarGrid+=`<polygon points="${gPts}" fill="none" stroke="rgba(100,120,160,.15)" stroke-width=".6"/>`;
+  });
+  const _radarSpokes=Array.from({length:_rN},(_,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `<line x1="${_rCx.toFixed(1)}" y1="${_rCy.toFixed(1)}" x2="${(_rCx+_rR*Math.cos(a)).toFixed(1)}" y2="${(_rCy+_rR*Math.sin(a)).toFixed(1)}" stroke="rgba(100,120,160,.2)" stroke-width=".7"/>`;}).join('');
+  const _radarDataPts=_rVals.map((v,i)=>{const a=Math.PI*2*i/_rN-Math.PI/2;return `${(_rCx+_rR*v*Math.cos(a)).toFixed(1)},${(_rCy+_rR*v*Math.sin(a)).toFixed(1)}`;}).join(' ');
+  let _radarLabels='';
+  [1,2,3,4,5,6].forEach((k,i)=>{
+    const a=Math.PI*2*i/_rN-Math.PI/2;
+    const lx=(_rCx+(_rR+15)*Math.cos(a)).toFixed(1), ly=(_rCy+(_rR+15)*Math.sin(a)).toFixed(1);
+    const col=VDJ.tactique1[k]?'#'+VDJ.tactique1[k].c1:'#888';
+    const v=byTac[k]||0;
+    _radarLabels+=`<text x="${lx}" y="${ly}" text-anchor="middle" dominant-baseline="middle" font-size="6.5" fill="${col}" font-weight="600">${_rLabels[i]}</text>`;
+    if(v>0){
+      const px=(_rCx+_rR*_rVals[i]*Math.cos(a)).toFixed(1);
+      const py=(_rCy+_rR*_rVals[i]*Math.sin(a)).toFixed(1);
+      _radarLabels+=`<circle cx="${px}" cy="${py}" r="3.5" fill="${col}"/>`;
+      _radarLabels+=`<text x="${px}" y="${(parseFloat(py)-7).toFixed(1)}" text-anchor="middle" font-size="7" fill="${col}" font-weight="bold">${v}</text>`;
+    }
+  });
+  const _radarSvg=`<div style="flex-shrink:0;display:flex;flex-direction:column;align-items:center;padding-top:28px">
+    <div style="font-size:.62em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">${_lang==='nl'?'Stijl radar':_lang==='en'?'Style radar':'Radar tactique'}</div>
+    <svg viewBox="0 0 ${_radarSize} ${_radarSize}" width="${_radarSize}" height="${_radarSize}" style="display:block;overflow:visible">
+      <polygon points="${_radarDataPts}" fill="rgba(229,55,60,.18)" stroke="#e5373c" stroke-width="1.5"/>
+      ${_radarGrid}${_radarSpokes}
+      <circle cx="${_rCx}" cy="${_rCy}" r="2" fill="rgba(100,120,160,.3)"/>
+      ${_radarLabels}
+    </svg>
+  </div>`;
 
   // ── 2b. Venue (dom / ext) ───────────────────────────────────────────
   const nDom = goals.filter(g=>g.team===g.match.dom).length;
@@ -14634,7 +14707,26 @@ function buildScorerCard(name, team, allGoals){
       `</div>`
     : `<span style="font-size:.82em;color:var(--muted)">${tf(_allScoredClubs[0]||team||'')}</span>`;
 
+  // ── Competition filter ───────────────────────────────────────────────────
+  const _playerComps = [...new Set(_playerGoalsAll.map(g=>g._comp).filter(Boolean))];
+  let _compFilterHtml = '';
+  if(_playerComps.length > 1){
+    const _sn3 = name.replace(/'/g,"\'");
+    _compFilterHtml = `<div style="display:flex;gap:4px;flex-wrap:wrap;align-items:center;margin-bottom:.65em;padding:5px 8px;background:var(--bg);border-radius:6px;border:1px solid var(--border)">
+      <span style="font-size:.64em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:3px">${_lang==='nl'?'Competitie':_lang==='en'?'Competition':'Compétition'}</span>
+      <button onclick="spSelectComp(null)" style="padding:1px 8px;border-radius:10px;border:1.5px solid var(--accent);font-size:.7em;font-weight:700;cursor:pointer;background:${!_spCompFilter?'var(--accent)':'transparent'};color:${!_spCompFilter?'#fff':'var(--accent)'}">${_lang==='nl'?'Alle':_lang==='en'?'All':'Tous'} (${_playerGoalsAll.length})</button>` +
+      _playerComps.map(compId=>{
+        const comp=COMPETITIONS[compId];
+        const n=_playerGoalsAll.filter(g=>g._comp===compId).length;
+        const isActive=_spCompFilter===compId;
+        const label=comp?(comp.shortLabel||comp.label||compId):compId;
+        return `<button onclick="spSelectComp('${compId}')" style="padding:1px 8px;border-radius:10px;border:1.5px solid var(--accent);font-size:.7em;font-weight:700;cursor:pointer;background:${isActive?'var(--accent)':'transparent'};color:${isActive?'#fff':'var(--accent)'}">${label} (${n})</button>`;
+      }).join('') +
+    `</div>`;
+  }
+
   return `
+    ${_compFilterHtml}
     <div style="display:flex;gap:8px;align-items:flex-start;margin-bottom:.9em;flex-wrap:nowrap">
       <div style="font-size:2em;line-height:1;padding-top:1px;flex-shrink:0">${_flag}</div>
       <div style="flex:1;min-width:0">
