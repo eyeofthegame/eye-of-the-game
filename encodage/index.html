@@ -2830,10 +2830,39 @@ function _vdjScheduleRetry(){
   }, delay);
 }
 
+// Garde-fou anti-ecrasement (02/08/2026) — l'envoi remplace TOUTE la base de
+// la competition. Un onglet ouvert sur une base incomplete ecrasait donc la
+// bonne (c'est ce qui est arrive a la PL 2025-26 le 2 aout). On compare
+// desormais ce qu'on s'apprete a envoyer avec ce qui est deja en ligne : si on
+// perdrait des matchs, on bloque et on previent au lieu d'ecraser.
 function _vdjPushToAPI(){
   var key = localStorage.getItem('vdj_write_key') || '';
   if(!key) return; // cle non configuree -> mode local uniquement
   _vdjSyncSetState('pending');
+  var local = Object.keys(data).length;
+  fetch(_VDJ_WORKER + '/api/data?competition=' + ACTIVE_COMP)
+    .then(function(r){ return r.ok ? r.json() : {}; })
+    .catch(function(){ return null; })      // hors ligne : on n'empeche pas la sauvegarde
+    .then(function(remote){
+      if(remote && Object.keys(remote).length > local){
+        var perdus = Object.keys(remote).length - local;
+        _vdjSyncSetState('error', 'envoi bloque : ' + perdus + ' match(s) seraient perdus');
+        if(!_vdjOverwriteWarned){
+          _vdjOverwriteWarned = true;
+          alert("Sauvegarde vers Cloudflare BLOQUEE.\n\n"
+            + "Cette page a " + local + " matchs en memoire, mais la base en ligne en contient "
+            + Object.keys(remote).length + ".\nEnvoyer maintenant supprimerait " + perdus + " match(s).\n\n"
+            + "Ferme cet onglet et rouvre Encodage : il rechargera la base complete.\n"
+            + "Ton encodage en cours reste enregistre dans ce navigateur.");
+        }
+        return;
+      }
+      _vdjSendToAPI(key);
+    });
+}
+var _vdjOverwriteWarned = false;
+
+function _vdjSendToAPI(key){
   fetch(_VDJ_WORKER + '/api/data?competition=' + ACTIVE_COMP, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'x-vdj-key': key},
