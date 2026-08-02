@@ -3501,6 +3501,44 @@ const GS_TYPES = {
  10:{label:'But ⚽',        color:'#cc0000', text:'#fff'},
 };
 
+// ── 2 août 2026 — intitulés proposés d'avance ─────────────────────────────
+// Christian pose d'abord toutes les pastilles, puis corrige les intitulés.
+// Règle : 1er point = Récup., le suivant = Déclenchement, le dernier = But.
+// Une étape porte auto:true tant que Christian ne l'a pas choisie lui-même ;
+// dès qu'il en choisit une, auto passe à false et elle n'est plus recalculée.
+// Les étapes déjà encodées avant cette date n'ont pas de champ auto : elles
+// sont donc traitées comme choisies, et rien n'est modifié rétroactivement.
+function gsAutoTypes(steps){
+  if(!steps || !steps.length) return;
+  const last    = steps.length - 1;
+  const choisi  = t => steps.some(s => !s.auto && s.type === t);
+  steps.forEach(s => { if(s.auto) s.type = 0; });
+
+  if(steps[last].auto && !choisi(10)) steps[last].type = 10;          // But
+  if(steps.length > 1 && steps[0].auto && !choisi(1)) steps[0].type = 1; // Récup.
+  if(!choisi(2)){                                                     // Déclenchement
+    const r = steps.findIndex(s => s.type === 1);
+    const i = (r >= 0 && r + 1 <= last) ? r + 1 : 0;
+    if(i <= last && steps[i].auto && !steps[i].type) steps[i].type = 2;
+  }
+}
+
+// Ancien fonctionnement (menu à chaque clic) réactivable si besoin.
+function gsMenuMode(){ return localStorage.getItem('vdj_gs_menu_mode') === '1'; }
+
+function _gsShowPopupAt(evt){
+  const popup = document.getElementById('gs-type-popup');
+  const cb = document.getElementById('gs-menu-mode');
+  if(cb) cb.checked = gsMenuMode();
+  const pw = 170, ph = 220;
+  let left = evt.clientX + 8, top = evt.clientY + 8;
+  if(left + pw > window.innerWidth)  left = evt.clientX - pw - 4;
+  if(top  + ph > window.innerHeight) top  = evt.clientY - ph - 4;
+  popup.style.left = left + 'px';
+  popup.style.top  = top  + 'px';
+  popup.style.display = 'block';
+}
+
 function buildGoalSchemaSection(idx, g, isDirect=false, rightContent='', rightId=null) {
   const steps = g.goalSteps || [];
   // Real pitch: 105m × 68m → portrait H/W = 105/68
@@ -3784,7 +3822,11 @@ function _gsEnsurePopup() {
   popup.innerHTML = '<div style="font-size:.72em;font-weight:600;color:#555;margin-bottom:6px;text-align:center">Choisir le type</div>'
     + '<div id="gs-type-btns" style="display:grid;grid-template-columns:1fr 1fr;gap:4px"></div>'
     + '<div style="margin-top:6px;text-align:center"><button onclick="gsHideMenu()" '
-    + 'style="font-size:.7em;padding:2px 10px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#f5f5f5">Annuler</button></div>';
+    + 'style="font-size:.7em;padding:2px 10px;border:1px solid #ccc;border-radius:4px;cursor:pointer;background:#f5f5f5">Annuler</button></div>'
+    + '<label style="display:flex;align-items:center;gap:5px;margin-top:7px;padding-top:6px;'
+    + 'border-top:1px solid #eee;font-size:.68em;color:#666;cursor:pointer">'
+    + '<input type="checkbox" id="gs-menu-mode" onchange="gsSetMenuMode(this.checked)">'
+    + 'Ouvrir ce menu à chaque pastille</label>';
   document.body.appendChild(popup);
 
   const btnsDiv = document.getElementById('gs-type-btns');
@@ -3817,39 +3859,64 @@ function gsHandleClick(evt, goalIdx, isDirect) {
   const xPct = Math.max(0, Math.min(1, (svgX - GS_M) / GS_W));
   const yPct = Math.max(0, Math.min(1, (svgY - GS_M) / GS_H));
 
-  _gsPending = { goalIdx, xPct, yPct, isDirect };
+  const md = getMatchData(isDirect ? _directMatchId : currentMatchId);
+  const g  = md && md.goals ? md.goals[goalIdx] : null;
+  if(!g) return;
+  if(!g.goalSteps) g.goalSteps = [];
+  const steps = g.goalSteps;
 
-  const popup = document.getElementById('gs-type-popup');
-  // Position near cursor, keep inside viewport
-  const pw = 170, ph = 200;
-  let left = evt.clientX + 8, top = evt.clientY + 8;
-  if (left + pw > window.innerWidth)  left = evt.clientX - pw - 4;
-  if (top  + ph > window.innerHeight) top  = evt.clientY - ph - 4;
-  popup.style.left = left + 'px';
-  popup.style.top  = top  + 'px';
-  popup.style.display = 'block';
+  // Clic sur une pastille déjà posée → menu, pour corriger son intitulé.
+  let hit = -1, best = 0.038;
+  steps.forEach((st, i) => {
+    const d = Math.hypot(st.x - xPct, st.y - yPct);
+    if(d < best){ best = d; hit = i; }
+  });
+  if(hit >= 0){
+    _gsPending = { goalIdx, isDirect, editIdx: hit };
+    _gsShowPopupAt(evt);
+    return;
+  }
+
+  // Ancien fonctionnement, si Christian l'a réactivé.
+  if(gsMenuMode()){
+    _gsPending = { goalIdx, xPct, yPct, isDirect };
+    _gsShowPopupAt(evt);
+    return;
+  }
+
+  // Nouveau : la pastille se pose tout de suite, avec son intitulé proposé.
+  steps.push({ x: xPct, y: yPct, curve: 0, type: 0, auto: true });
+  gsAutoTypes(steps);
+  syncGoalStepsToFields(md, goalIdx);
+  saveData();
+  if(isDirect) directRefresh(); else renderGoalForms(goalIdx);
 }
 
 function gsConfirmStep(type) {
   if (!_gsPending) return;
-  const { goalIdx, xPct, yPct, isDirect } = _gsPending;
+  const { goalIdx, xPct, yPct, isDirect, editIdx } = _gsPending;
   _gsPending = null;
   gsHideMenu();
-  if (isDirect) {
-    const md = getMatchData(_directMatchId);
-    if (!md?.goals[goalIdx]) return;
-    if (!md.goals[goalIdx].goalSteps) md.goals[goalIdx].goalSteps = [];
-    md.goals[goalIdx].goalSteps.push({x: xPct, y: yPct, curve: 0, type});
-    syncGoalStepsToFields(md, goalIdx);
-    saveData(); directRefresh();
+  const md = getMatchData(isDirect ? _directMatchId : currentMatchId);
+  if (!md?.goals[goalIdx]) return;
+  const g = md.goals[goalIdx];
+  if (!g.goalSteps) g.goalSteps = [];
+
+  if (editIdx != null && g.goalSteps[editIdx]) {
+    // Correction d'une pastille déjà posée : le choix de Christian est définitif.
+    g.goalSteps[editIdx].type = type;
+    g.goalSteps[editIdx].auto = false;
   } else {
-    const md = getMatchData(currentMatchId);
-    if (!md?.goals[goalIdx]) return;
-    if (!md.goals[goalIdx].goalSteps) md.goals[goalIdx].goalSteps = [];
-    md.goals[goalIdx].goalSteps.push({x: xPct, y: yPct, curve: 0, type});
-    syncGoalStepsToFields(md, goalIdx);
-    saveData(); renderGoalForms(goalIdx);
+    g.goalSteps.push({ x: xPct, y: yPct, curve: 0, type, auto: false });
   }
+  gsAutoTypes(g.goalSteps);
+  syncGoalStepsToFields(md, goalIdx);
+  saveData();
+  if (isDirect) directRefresh(); else renderGoalForms(goalIdx);
+}
+
+function gsSetMenuMode(on){
+  localStorage.setItem('vdj_gs_menu_mode', on ? '1' : '0');
 }
 
 function gsHideMenu() {
@@ -3900,15 +3967,30 @@ function clearPenPos(idx) {
 function syncGoalStepsToFields(md, idx) {
   const steps = md.goals[idx].goalSteps;
   if (!steps || steps.length === 0) return;
+  const g = md.goals[idx];
+  const parType = t => steps.find(s => s.type === t);
+
+  // Lieu du tir et origine de l'assist : logique d'origine conservée telle
+  // quelle (dernière et avant-dernière étape posées). Vérifié le 2 août 2026
+  // sur 937 buts déjà encodés — passer par le type aurait déplacé ces champs
+  // sur 287 d'entre eux, parce que l'étape But n'est pas toujours la dernière.
   const last = steps[steps.length-1];
-  md.goals[idx].pitchX = last.x;
-  md.goals[idx].pitchY = last.y;
-  md.goals[idx].lieu = pitchZoneFromCoords(last.x, last.y);
+  g.pitchX = last.x;
+  g.pitchY = last.y;
+  g.lieu = pitchZoneFromCoords(last.x, last.y);
   if (steps.length > 1) {
     const secondLast = steps[steps.length-2];
-    md.goals[idx].assistX = secondLast.x;
-    md.goals[idx].assistY = secondLast.y;
+    g.assistX = secondLast.x;
+    g.assistY = secondLast.y;
   }
+
+  // 2 août 2026 — nouveau : ces deux zones n'étaient pas alimentées par le
+  // schéma. Elles le sont maintenant quand l'étape correspondante existe,
+  // et ne sont jamais effacées si elle n'existe pas.
+  const recup = parType(1);
+  if (recup) { g.pressX = recup.x; g.pressY = recup.y; }
+  const decl = parType(2);
+  if (decl) { g.triggerX = decl.x; g.triggerY = decl.y; }
 }
 
 function goalStepType(goalIdx, si, type) {
@@ -4334,7 +4416,10 @@ function renderGoalForms(scrollToIdx){
 
       // Trajectoire directe vers le but : CF direct (type de PA) ou étape
       // marquée "Corner direct". Dans les deux cas, courbe verte auto-tracée.
-      const _directIdx = steps.findIndex(st=>st.action==='cdirect');
+      let _directIdx = steps.findIndex(st=>st.action==='cdirect');
+      // Corners déjà encodés avant l'ajout du bouton : une seule étape, marquée
+      // "But", sur un corner — ça ne peut être qu'un corner direct.
+      if(_directIdx<0 && parseInt(g.paType)===1 && steps.length===1 && steps[0].action==='but') _directIdx = 0;
       const _showDirect = (parseInt(g.paType)===3 && steps.length>0) || _directIdx>=0;
       if(_showDirect){
         const _origin = _directIdx>=0 ? steps[_directIdx] : steps[0];
@@ -4342,7 +4427,19 @@ function renderGoalForms(scrollToIdx){
         const bx=W/2, by=0; // goal center top
         const cfC = g.cfCurve||0;
         const dx=bx-ax,dy=by-ay,len=Math.sqrt(dx*dx+dy*dy)||1;
-        if(cfC===0){
+        if(_directIdx>=0){
+          // Corner direct : trajectoire RENTRANTE. On bombe la courbe vers
+          // l'intérieur de la surface (normale au segment corner→but orientée
+          // vers le bas) — géométrie symétrique, donc identique des deux côtés,
+          // contrairement aux décalages gauche/droite du coup franc direct.
+          const mag = (Math.abs(cfC)||1) * 55;
+          let nx=-dy/len, ny=dx/len;
+          if(ny<0){ nx=-nx; ny=-ny; }
+          const cpx=(ax+bx)/2+nx*mag, cpy=(ay+by)/2+ny*mag;
+          const t1=14/len, t2=1-8/len;
+          const q=(p0,p1,p2,t)=>p0*(1-t)*(1-t)+2*p1*t*(1-t)+p2*t*t;
+          pitchSVG += `<path d="M${q(ax,cpx,bx,t1).toFixed(1)},${q(ay,cpy,by,t1).toFixed(1)} Q${cpx.toFixed(1)},${cpy.toFixed(1)} ${q(ax,cpx,bx,t2).toFixed(1)},${q(ay,cpy,by,t2).toFixed(1)}" fill="none" stroke="#27ae60" stroke-width="2.5" marker-end="url(#arr${i})"/>`;
+        } else if(cfC===0){
           const ex=ax+dx/len*14,ey=ay+dy/len*14,fx=bx-dx/len*6,fy=by-dy/len*6;
           pitchSVG += `<line x1="${ex}" y1="${ey}" x2="${fx}" y2="${fy}" stroke="#27ae60" stroke-width="2.5" marker-end="url(#arr${i})" stroke-dasharray="none"/>`;
         } else {
@@ -4433,7 +4530,18 @@ function renderGoalForms(scrollToIdx){
 
       // CF direct curve controls
       let cfdControls = '';
-      if(_showDirect){
+      if(_directIdx>=0){
+        const inten = Math.abs(g.cfCurve)||1;
+        const iBtn=(v,active)=>`padding:3px 10px;border-radius:16px;font-size:.78em;cursor:pointer;border:2px solid ${active?'#27ae60':'#bbb'};background:${active?'#27ae60':'#fff'};color:${active?'#fff':'#555'}`;
+        cfdControls = `<div style="margin-top:8px;padding:6px 10px;background:#f0faf0;border-radius:6px;border:1px solid #27ae60">
+          <div style="font-size:.75em;font-weight:700;color:#1a5a1a;margin-bottom:4px">🎯 Corner direct — courbe rentrante</div>
+          <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+            <button onclick="updateGoal(${i},'cfCurve',1)" style="${iBtn(1,inten===1)}">Légère</button>
+            <button onclick="updateGoal(${i},'cfCurve',2)" style="${iBtn(2,inten===2)}">Normale</button>
+            <button onclick="updateGoal(${i},'cfCurve',3)" style="${iBtn(3,inten===3)}">Forte</button>
+          </div>
+        </div>`;
+      } else if(_showDirect){
         const cfC = g.cfCurve||0;
         const lbl = cfC<0?'⌒ Gauche':cfC>0?'⌣ Droite':'— Droit';
         const btnStyle=(v,active)=>`padding:3px 10px;border-radius:16px;font-size:.78em;cursor:pointer;border:2px solid ${active?'#27ae60':'#bbb'};background:${active?'#27ae60':'#fff'};color:${active?'#fff':'#555'}`;
@@ -4545,7 +4653,7 @@ function spSetAction(goalIdx, stepIdx, action){
   // gauche → le ballon rentre vers la droite, et inversement) ; Christian peut
   // ensuite corriger avec les boutons ⌒ / ⌣.
   if(action === 'cdirect' && !g.cfCurve){
-    g.cfCurve = step.x < 0.5 ? 1 : -1;
+    g.cfCurve = 1; // intensite par defaut ; le sens est calcule a l'affichage
   }
   saveData();
   renderGoalForms();

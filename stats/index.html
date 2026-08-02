@@ -5960,6 +5960,7 @@ function renderSetpieces(){
     {id:'tdev', label:_lang==='en'?'Defl.':_lang==='nl'?'Dev.':'Dév.',   color:'#888822'},
     {id:'tir',  label:_lang==='en'?'Shot':_lang==='nl'?'Schot':'Tir',    color:'#cc4400'},
     {id:'but',  label:'⚽ But', color:'#cc0000'},
+    {id:'cdirect', label:_lang==='en'?'🎯 Direct corner':_lang==='nl'?'🎯 Directe corner':'🎯 Corner direct', color:'#e67e00'},
     {id:'rep',  label:_lang==='en'?'Rebound':_lang==='nl'?'Rebound':'Reprise', color:'#005588'},
     {id:'arret',label:_lang==='en'?'🧤 Def. save':_lang==='nl'?'🧤 Verd. redding':'🧤 Arrêt déf.', color:'#b71c1c'},
   ];
@@ -6030,6 +6031,27 @@ function renderSetpieces(){
         svg += `<text x="${cx}" y="${cy+4}" text-anchor="middle" font-size="9" font-weight="700" fill="#fff" font-family="sans-serif" pointer-events="none">${si+1}</text>`;
       }
     });
+    // Corner direct : trajectoire rentrante tracee automatiquement. Concerne
+    // les buts encodes avec l'action "Corner direct", et aussi les corners plus
+    // anciens encodes en une seule etape marquee "But" (un corner a une seule
+    // etape qui EST le but ne peut etre qu'un corner direct).
+    let _cdIdx = steps.findIndex(st=>st.action==='cdirect');
+    if(_cdIdx<0 && parseInt(g.paType)===1 && steps.length===1 && steps[0].action==='but') _cdIdx = 0;
+    if(_cdIdx>=0){
+      const ax=steps[_cdIdx].x*W, ay=steps[_cdIdx].y*H;
+      const bx=W/2, by=0;
+      const dx=bx-ax, dy=by-ay, len=Math.sqrt(dx*dx+dy*dy)||1;
+      const mag=(Math.abs(g.cfCurve)||1)*26;
+      // Normale orientee vers l'interieur de la surface : courbe rentrante,
+      // symetrique quel que soit le cote du corner.
+      let nx=-dy/len, ny=dx/len;
+      if(ny<0){ nx=-nx; ny=-ny; }
+      const cpx=(ax+bx)/2+nx*mag, cpy=(ay+by)/2+ny*mag;
+      const t1=10/len, t2=1-6/len;
+      const q=(p0,p1,p2,t)=>p0*(1-t)*(1-t)+2*p1*t*(1-t)+p2*t*t;
+      svg += `<path d="M${q(ax,cpx,bx,t1).toFixed(1)},${q(ay,cpy,by,t1).toFixed(1)} Q${cpx.toFixed(1)},${cpy.toFixed(1)} ${q(ax,cpx,bx,t2).toFixed(1)},${q(ay,cpy,by,t2).toFixed(1)}" fill="none" stroke="#27ae60" stroke-width="2" marker-end="url(#spArr)"/>`;
+      svg += `<rect x="${W/2-27}" y="0" width="54" height="6" fill="rgba(39,174,96,.35)" stroke="#27ae60" stroke-width="1.5"/>`;
+    }
     // CF direct: draw curve from first step to goal center
     if(parseInt(g.paType)===3 && steps.length>0){
       const ax=steps[0].x*W, ay=steps[0].y*H;
@@ -6071,6 +6093,14 @@ function renderSetpieces(){
     const paBadge = paLabel ? `<span style="background:${PA_COLORS[paTypeInt]||'#555'};color:#fff;font-size:.72em;font-weight:800;padding:2px 8px;border-radius:6px;letter-spacing:.02em;white-space:nowrap">${paLabel.toUpperCase()}</span>` : '';
     const finishKey = spLastFinish(g);
     const finishBadge = (finishKey && finishKey !== 'inconnu') ? `<span style="display:inline-flex;align-items:center;gap:3px;font-size:.72em;background:#eef2f7;color:#334;padding:2px 8px;border-radius:8px;font-weight:700;white-space:nowrap">${SP_FINISH_ICONS[finishKey]||''} ${SP_FINISH_LABELS[finishKey]}</span>` : '';
+    // 02/08/2026 — Christian veut la date et la journee sur chaque fiche.
+    // jrGetKey/jrLabel gerent les deux cas : "Journee N" en championnat,
+    // nom de phase ("Quart de finale"...) en Coupe du monde.
+    const _spJrKey = jrGetKey(g.match);
+    const _spMeta = [
+      (g.match && g.match.date) ? g.match.date : '',
+      _spJrKey != null ? jrLabel(_spJrKey) : ''
+    ].filter(Boolean).join(' · ');
     return `<div style="background:#fff;border-radius:10px;overflow:hidden;box-shadow:0 2px 8px rgba(0,0,0,.12)">
       <div style="padding:8px 10px;background:#1a3a1a;color:#fff">
         <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:6px">
@@ -6078,6 +6108,7 @@ function renderSetpieces(){
           ${paBadge}
         </div>
         <div style="font-size:.75em;color:#8fb88f">${domLabel} – ${extLabel} · ${g.minute||'?'}'</div>
+        ${_spMeta ? `<div style="font-size:.72em;color:#6f9c6f">${_spMeta}</div>` : ''}
         ${assistLine}
       </div>
       ${svg}
