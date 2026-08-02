@@ -3507,8 +3507,13 @@ function _mergeNewSeedMatches(){
   if(!COMPETITIONS[ACTIVE_COMP] || !COMPETITIONS[ACTIVE_COMP].hasSeed) return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
   if(!seed) return;
+  // Fix 2026-08-02 : ne fusionner que les IDs présents dans la liste de fixtures
+  // pour éviter que des données d'une autre compétition contaminées dans le seed
+  // soient injectées dans les données actives.
+  const fixtureIds = new Set(ACTIVE_MATCHES.map(m => String(m.id)));
   let added = 0;
   Object.keys(seed).forEach(matchId=>{
+    if(!fixtureIds.has(matchId)) return;
     if(_isEmptySeedStub(data[matchId])){
       data[matchId] = seed[matchId];
       added++;
