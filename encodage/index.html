@@ -2779,15 +2779,93 @@ function saveData(){
 }
 
 // Push données vers Cloudflare KV (fire-and-forget — si offline, pas de blocage)
+// ── Synchronisation Cloudflare : etat visible + reessai automatique ──────
+// 02/08/2026 — avant, l'envoi echouait en silence (.catch vide) : Christian
+// pouvait encoder une soiree entiere en croyant que tout etait sauvegarde
+// alors que rien ne partait. Desormais chaque envoi affiche son resultat,
+// reessaie tout seul en cas d'echec, et la page previent si on la quitte
+// avec des donnees non synchronisees.
+var _vdjSyncState = 'idle';     // idle | pending | ok | error
+var _vdjSyncTimer = null;
+var _vdjSyncAttempt = 0;
+
+function _vdjSyncBadge(state, detail){
+  var el = document.getElementById('vdj-sync-badge');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'vdj-sync-badge';
+    el.style.cssText = 'position:fixed;right:14px;bottom:14px;z-index:9999;padding:7px 14px;'
+      + 'border-radius:18px;font-size:.8em;font-weight:700;font-family:inherit;'
+      + 'box-shadow:0 2px 10px rgba(0,0,0,.2);transition:opacity .25s;pointer-events:none';
+    document.body.appendChild(el);
+  }
+  var conf = {
+    pending: {t:'\u23F3 Sauvegarde\u2026',            bg:'#eef2f7', fg:'#334'},
+    ok:      {t:'\u2705 Sauvegard\u00E9 sur Cloudflare', bg:'#e8f7ec', fg:'#1a6a2a'},
+    error:   {t:'\u26A0\uFE0F NON sauvegard\u00E9 \u2014 nouvelle tentative\u2026', bg:'#fdecea', fg:'#b3261e'}
+  }[state];
+  if(!conf){ el.style.opacity = '0'; return; }
+  el.textContent = conf.t + (detail ? ' (' + detail + ')' : '');
+  el.style.background = conf.bg;
+  el.style.color = conf.fg;
+  el.style.border = '1.5px solid ' + conf.fg;
+  el.style.opacity = '1';
+  if(state === 'ok'){
+    clearTimeout(el._hide);
+    el._hide = setTimeout(function(){ el.style.opacity = '0'; }, 2200);
+  }
+}
+
+function _vdjSyncSetState(state, detail){
+  _vdjSyncState = state;
+  _vdjSyncBadge(state, detail);
+}
+
+function _vdjScheduleRetry(){
+  if(_vdjSyncTimer) return;                       // une seule tentative en attente
+  var delay = Math.min(60000, 4000 * Math.pow(2, _vdjSyncAttempt++));
+  _vdjSyncTimer = setTimeout(function(){
+    _vdjSyncTimer = null;
+    _vdjPushToAPI();
+  }, delay);
+}
+
 function _vdjPushToAPI(){
   var key = localStorage.getItem('vdj_write_key') || '';
-  if(!key) return; // clé non configurée → silencieux
+  if(!key) return; // cle non configuree -> mode local uniquement
+  _vdjSyncSetState('pending');
   fetch(_VDJ_WORKER + '/api/data?competition=' + ACTIVE_COMP, {
     method: 'POST',
     headers: {'Content-Type': 'application/json', 'x-vdj-key': key},
     body: JSON.stringify(data)
-  }).catch(function(){}); // erreur réseau ignorée
+  })
+  .then(function(r){
+    if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'cle refusee' : 'HTTP ' + r.status);
+    _vdjSyncAttempt = 0;
+    _vdjSyncSetState('ok');
+  })
+  .catch(function(e){
+    _vdjSyncSetState('error', (e && e.message) || 'reseau');
+    _vdjScheduleRetry();
+  });
 }
+
+// Retour du reseau : on retente tout de suite au lieu d'attendre le delai.
+window.addEventListener('online', function(){
+  if(_vdjSyncState === 'error'){
+    clearTimeout(_vdjSyncTimer); _vdjSyncTimer = null; _vdjSyncAttempt = 0;
+    _vdjPushToAPI();
+  }
+});
+
+// Filet de securite : ne pas quitter la page sur un envoi en echec.
+window.addEventListener('beforeunload', function(e){
+  if(_vdjSyncState === 'error'){
+    e.preventDefault();
+    e.returnValue = '';
+    return '';
+  }
+});
 
 // ── UI gestion clé d'écriture ────────────────────────────────────────────
 function _apiKeyInputChange(){
