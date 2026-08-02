@@ -4258,6 +4258,10 @@ function renderGoalForms(scrollToIdx){
         {id:'but',  label:'⚽ But',  color:'#cc0000'},
         {id:'rep',  label:'Reprise',  color:'#005588'},
         {id:'arret',label:'🧤 Arrêt défensif', color:'#b71c1c'},
+        // 02/08/2026 — Christian : un corner qui rentre directement. L'étape
+        // marquée ainsi devient le point de départ d'une trajectoire courbée
+        // tracée automatiquement jusqu'au but (même rendu que le CF direct).
+        {id:'cdirect',label:'🎯 Corner direct', color:'#e67e00'},
       ];
       // Build pitch SVG with clickable zones
       // Half-pitch attacking view: goal at bottom, corners at top
@@ -4328,9 +4332,13 @@ function renderGoalForms(scrollToIdx){
         pitchSVG += `<text x="${cx}" y="${cy+5}" text-anchor="middle" font-size="12" font-weight="700" fill="#fff" font-family="sans-serif" pointer-events="none">${si+1}</text>`;
       });
 
-      // CF direct: draw curve from first step to goal center
-      if(parseInt(g.paType)===3 && steps.length>0){
-        const ax=steps[0].x*W, ay=steps[0].y*H;
+      // Trajectoire directe vers le but : CF direct (type de PA) ou étape
+      // marquée "Corner direct". Dans les deux cas, courbe verte auto-tracée.
+      const _directIdx = steps.findIndex(st=>st.action==='cdirect');
+      const _showDirect = (parseInt(g.paType)===3 && steps.length>0) || _directIdx>=0;
+      if(_showDirect){
+        const _origin = _directIdx>=0 ? steps[_directIdx] : steps[0];
+        const ax=_origin.x*W, ay=_origin.y*H;
         const bx=W/2, by=0; // goal center top
         const cfC = g.cfCurve||0;
         const dx=bx-ax,dy=by-ay,len=Math.sqrt(dx*dx+dy*dy)||1;
@@ -4425,12 +4433,12 @@ function renderGoalForms(scrollToIdx){
 
       // CF direct curve controls
       let cfdControls = '';
-      if(parseInt(g.paType)===3 && steps.length>0){
+      if(_showDirect){
         const cfC = g.cfCurve||0;
         const lbl = cfC<0?'⌒ Gauche':cfC>0?'⌣ Droite':'— Droit';
         const btnStyle=(v,active)=>`padding:3px 10px;border-radius:16px;font-size:.78em;cursor:pointer;border:2px solid ${active?'#27ae60':'#bbb'};background:${active?'#27ae60':'#fff'};color:${active?'#fff':'#555'}`;
         cfdControls = `<div style="margin-top:8px;padding:6px 10px;background:#f0faf0;border-radius:6px;border:1px solid #27ae60">
-          <div style="font-size:.75em;font-weight:700;color:#1a5a1a;margin-bottom:4px">⚽ Trajectoire vers le but</div>
+          <div style="font-size:.75em;font-weight:700;color:#1a5a1a;margin-bottom:4px">${_directIdx>=0?'🎯 Corner direct — trajectoire vers le but':'⚽ Trajectoire vers le but'}</div>
           <div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center">
             <button onclick="updateGoal(${i},'cfCurve',-2)" style="${btnStyle(-2,cfC===-2)}">⌒⌒ Fort G</button>
             <button onclick="updateGoal(${i},'cfCurve',-1)" style="${btnStyle(-1,cfC===-1)}">⌒ Gauche</button>
@@ -4528,9 +4536,17 @@ function spClick(evt, goalIdx){
 
 function spSetAction(goalIdx, stepIdx, action){
   const md = getMatchData(currentMatchId);
-  const step = md.goals[goalIdx].setpieceSteps[stepIdx];
+  const g = md.goals[goalIdx];
+  const step = g.setpieceSteps[stepIdx];
   step.action = action;
   if(action !== 'but') step.finish = null; // la finition (tête/pied/corps) n'a de sens que sur l'étape "But"
+  // Corner direct : la trajectoire doit apparaître courbée dès le premier clic,
+  // sans réglage. On propose une rentrante selon le côté du terrain (corner à
+  // gauche → le ballon rentre vers la droite, et inversement) ; Christian peut
+  // ensuite corriger avec les boutons ⌒ / ⌣.
+  if(action === 'cdirect' && !g.cfCurve){
+    g.cfCurve = step.x < 0.5 ? 1 : -1;
+  }
   saveData();
   renderGoalForms();
 }
