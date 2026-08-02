@@ -3968,21 +3968,25 @@ function syncGoalStepsToFields(md, idx) {
   const steps = md.goals[idx].goalSteps;
   if (!steps || steps.length === 0) return;
   const g = md.goals[idx];
-  const parType = t => steps.find(s => s.type === t);
 
-  // Lieu du tir et origine de l'assist : logique d'origine conservée telle
-  // quelle (dernière et avant-dernière étape posées). Vérifié le 2 août 2026
-  // sur 937 buts déjà encodés — passer par le type aurait déplacé ces champs
-  // sur 287 d'entre eux, parce que l'étape But n'est pas toujours la dernière.
+  // 2 août 2026 — ces deux champs suivent désormais l'étiquette plutôt que la
+  // position. Christian a confirmé qu'une pastille ne peut pas suivre le But :
+  // vérification faite, l'étape But est bien la dernière sur 308/308 buts CDM
+  // et 628/629 buts PL (le seul écart, match 6135, est un But encodé deux fois).
+  // Pour l'assist en revanche, l'étape marquée Assist se trouve souvent 2 rangs
+  // avant la fin — le champ désignait alors la réception, pas la passe décisive.
+  // Repli sur l'ancienne logique quand l'étiquette est absente, pour ne rien
+  // déplacer sur les buts sans passe décisive (284 cas, laissés intacts).
+  const parType = t => steps.find(s => s.type === t);
   const last = steps[steps.length-1];
-  g.pitchX = last.x;
-  g.pitchY = last.y;
-  g.lieu = pitchZoneFromCoords(last.x, last.y);
-  if (steps.length > 1) {
-    const secondLast = steps[steps.length-2];
-    g.assistX = secondLast.x;
-    g.assistY = secondLast.y;
-  }
+
+  const but = parType(10) || last;
+  g.pitchX = but.x;
+  g.pitchY = but.y;
+  g.lieu = pitchZoneFromCoords(but.x, but.y);
+
+  const assist = parType(3) || (steps.length > 1 ? steps[steps.length-2] : null);
+  if (assist) { g.assistX = assist.x; g.assistY = assist.y; }
 
   // 2 août 2026 — nouveau : ces deux zones n'étaient pas alimentées par le
   // schéma. Elles le sont maintenant quand l'étape correspondante existe,
