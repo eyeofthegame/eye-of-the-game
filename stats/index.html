@@ -9038,15 +9038,18 @@ function showGoalDetailTete(subKey, zone, team){
     pj: g => g.tactique1 != 5 && g.tactique1 != 6,
     pa: g => g.tactique1 == 5,
   };
-  let goals = getAllGoals().filter(g => ZONES.includes(Number(g.actions)));
-  if(team) goals = goals.filter(g => g.team === team);
+  // Le panneau de detail doit refleter exactement les filtres de la page
+  // (marques/encaisses, domicile/exterieur, N derniers matchs).
+  let goals = _teteGoals();
+  if(team) goals = goals.filter(g => _teteSubject(g) === team);
   if(subKey && SUBSETS[subKey]) goals = goals.filter(SUBSETS[subKey]);
   if(zone != null) goals = goals.filter(g => Number(g.actions) === zone);
 
   const subLabel = subKey === 'pj' ? (_lang==='en'?'Open Play':_lang==='nl'?'Open spel':'Plein jeu') : subKey === 'pa' ? (_lang==='en'?'Set Piece':_lang==='nl'?'Stilstaande fase':'Phase arrêtée') : (_lang==='en'?'All':_lang==='nl'?'Alle':'Tous');
+  const sideTag = _teteSide==='against' ? ' ('+(_lang==='en'?'conceded':_lang==='nl'?'tegen':'encaissés')+')' : '';
   const zoneLabel = zone != null ? ` — ${ZONE_NAMES[zone]}` : '';
   const teamLabel = team ? `${team} — ` : '';
-  document.getElementById('detail-title').textContent = `${teamLabel}${_lang==='en'?'Header':_lang==='nl'?'Kopbal':'Tête'} ${subLabel}${zoneLabel} (${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':''):'but'+(goals.length>1?'s':'')})`;
+  document.getElementById('detail-title').textContent = `${teamLabel}${_lang==='en'?'Header':_lang==='nl'?'Kopbal':'Tête'} ${subLabel}${zoneLabel}${sideTag} (${goals.length} ${_lang==='en'?'goal'+(goals.length>1?'s':''):'but'+(goals.length>1?'s':'')})`;
   renderDetailGoals(goals);
   document.getElementById('detail-panel').classList.add('open');
 }
@@ -10491,9 +10494,9 @@ function renderTete(){
     {label:(_lang==='en'?'Set Piece':_lang==='nl'?'Stilstaande fase':'Phase arrêtée'),  key:'pa', filter: g => g.tactique1 == 5}
   ];
 
-  // Filter headed goals
-  let headedAll = allGoals.filter(g => ZONES.includes(Number(g.actions)));
-  if(teteTeam) headedAll = headedAll.filter(g => g.team === teteTeam);
+  // Filter headed goals — perspective (marques/encaisses), lieu, N derniers matchs
+  const headedAll = _teteGoals();
+  const against = _teteSide === 'against';
 
   // Build active subsets
   const activeSubs = SUBSETS.map(sub => {
@@ -10502,9 +10505,10 @@ function renderTete(){
     const byTeam = {};
     goals.forEach(g => {
       const z = Number(g.actions);
-      if(!byTeamZone[g.team]) byTeamZone[g.team] = {};
-      byTeamZone[g.team][z] = (byTeamZone[g.team][z]||0) + 1;
-      byTeam[g.team] = (byTeam[g.team]||0) + 1;
+      const t = _teteSubject(g);
+      if(!byTeamZone[t]) byTeamZone[t] = {};
+      byTeamZone[t][z] = (byTeamZone[t][z]||0) + 1;
+      byTeam[t] = (byTeam[t]||0) + 1;
     });
     const totalByZone = {};
     ZONES.forEach(z => { totalByZone[z] = goals.filter(g=>Number(g.actions)===z).length; });
@@ -10514,7 +10518,45 @@ function renderTete(){
   const teamOpts = `<option value="">${_lang==='en'?'All teams':_lang==='nl'?'Alle ploegen':'Toutes les équipes'}</option>` +
     teams.map(t=>`<option value="${t}"${teteTeam===t?' selected':''}>${t}</option>`).join('');
 
-  let html = `<h1>🥷 ${_lang==='en'?'Heading — Goals Scored':_lang==='nl'?'Kopbal — Doelpunten gescoord':'Jeu de tête — Buts marqués'}</h1>
+  const sideLabel = against
+    ? (_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés')
+    : (_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués');
+  const headLabel = _lang==='en'?'Heading':_lang==='nl'?'Kopbal':'Jeu de tête';
+
+  const sideBar = [
+    ['for',     _lang==='en'?'⚽ Scored':_lang==='nl'?'⚽ Gescoord':'⚽ Buts marqués'],
+    ['against', _lang==='en'?'🥅 Conceded':_lang==='nl'?'🥅 Tegen':'🥅 Buts encaissés']
+  ].map(([v,lbl])=>{
+    const a = _teteSide === v;
+    return `<button onclick="setTeteSide('${v}')" style="padding:4px 14px;border:1.5px solid ${a?'var(--accent)':'var(--border)'};border-radius:20px;background:${a?'var(--accent)':'#fff'};color:${a?'#fff':'var(--accent)'};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
+  }).join('');
+
+  const vLab = {
+    all:  _lang==='en'?'Overall':_lang==='nl'?'Algemeen':'Général',
+    home: _lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile',
+    away: _lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Uit':'✈️ Extérieur'
+  };
+  const venueBar = ['all','home','away'].map(v=>{
+    const a = _teteVenue === v;
+    return `<button onclick="setTeteVenue('${v}')" style="padding:4px 14px;border:1.5px solid ${a?'var(--accent)':'var(--border)'};border-radius:20px;background:${a?'var(--accent)':'#fff'};color:${a?'#fff':'var(--accent)'};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${vLab[v]}</button>`;
+  }).join('');
+
+  const formBar = [null,5,10,15].map(n=>{
+    const a = _teteFormN === n;
+    const lbl = n===null
+      ? (_lang==='en'?'All matches':_lang==='nl'?'Alle wedstrijden':'Tous les matchs')
+      : (_lang==='en'?`Last ${n}`:_lang==='nl'?`Laatste ${n}`:`${n} derniers`);
+    return `<button onclick="setTeteFormN(${n===null?'null':n})" style="padding:4px 14px;border:1.5px solid ${a?'#2d5a8a':'var(--border)'};border-radius:20px;background:${a?'#2d5a8a':'#fff'};color:${a?'#fff':'#2d5a8a'};font-size:.8em;font-weight:600;cursor:pointer;font-family:inherit">${lbl}</button>`;
+  }).join('');
+
+  let html = `<h1>🥷 ${headLabel} — ${sideLabel}</h1>
+  <div style="display:flex;gap:6px;align-items:center;margin:10px 0 8px;flex-wrap:wrap">${sideBar}</div>
+  <div style="display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap">${venueBar}</div>
+  <div style="display:flex;gap:6px;align-items:center;margin:0 0 8px;flex-wrap:wrap">${formBar}</div>
+  ${_teteFormN?`<div style="font-size:.78em;color:var(--muted);margin-bottom:10px">${_lang==='en'
+    ? `Last ${_teteFormN} matches played by each team (not the last ${_teteFormN} matchdays — these may differ if matches were rescheduled).`
+    : _lang==='nl'?`De laatste ${_teteFormN} gespeelde wedstrijden van elke ploeg (niet de laatste ${_teteFormN} speeldagen — kan afwijken bij uitgestelde wedstrijden).`
+    : `Les ${_teteFormN} derniers matchs joués par chaque équipe (pas les ${_teteFormN} dernières journées, qui peuvent différer en cas de match reporté).`}</div>`:''}
   <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:14px">
     <label style="font-weight:600;font-size:.85em">${_lang==='en'?'Team:':_lang==='nl'?'Ploeg:':'Équipe :'}</label>
     <select onchange="teteTeam=this.value;renderTete()" style="padding:4px 10px;border-radius:6px;border:1px solid #ccd;font-size:.88em">
@@ -10527,13 +10569,16 @@ function renderTete(){
   </div>`;
 
   if(!headedAll.length || !activeSubs.length){
-    html += `<div class="no-data">${_lang==='en'?'No headed goals encoded (field <b>Actions</b>: Header — 1st/Central/2nd zone).':_lang==='nl'?'Geen kopbaldoelpunten gecodeerd (veld <b>Acties</b>: Kopbal 1e/Centraal/2e zone).':'Aucun but de la tête encodé (champ <b>Actions</b> : Tête 1ère zone / Zone centrale / 2e zone).'}</div>`;
+    const filtresActifs = teteTeam || _teteVenue!=='all' || _teteFormN;
+    html += `<div class="no-data">${filtresActifs
+      ? (_lang==='en'?'No headed goal matches this selection.':_lang==='nl'?'Geen kopbaldoelpunt komt overeen met deze selectie.':'Aucun but de la tête ne correspond à cette sélection.')
+      : (_lang==='en'?'No headed goals encoded (field <b>Actions</b>: Header — 1st/Central/2nd zone).':_lang==='nl'?'Geen kopbaldoelpunten gecodeerd (veld <b>Acties</b>: Kopbal 1e/Centraal/2e zone).':'Aucun but de la tête encodé (champ <b>Actions</b> : Tête 1ère zone / Zone centrale / 2e zone).')}</div>`;
     document.getElementById('view-tete').innerHTML = html;
     return;
   }
 
   // Teams with at least one headed goal
-  const allTeams = [...new Set(headedAll.map(g=>g.team))].sort();
+  const allTeams = [...new Set(headedAll.map(g=>_teteSubject(g)))].sort();
   const teamTotal = {};
   allTeams.forEach(t => { teamTotal[t] = activeSubs.reduce((s,sub)=>s+(sub.byTeam[t]||0),0); });
   const grandTotal = headedAll.length;
@@ -10542,7 +10587,7 @@ function renderTete(){
   const maxV = Math.max(1, ...activeSubs.flatMap(s => allTeams.flatMap(t => ZONES.map(z => s.byTeamZone[t]?.[z]||0))));
 
   // ── Scored table ──────────────────────────────────────────────
-  html += `<div class="section-title">${_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'}</div>`;
+  html += `<div class="section-title">${sideLabel}</div>`;
   html += '<table class="tableau"><tr><td></td>';
 
   // Header row 1 — subset groups
@@ -10578,7 +10623,7 @@ function renderTete(){
       ZONES.forEach(z => {
         const v = sub.byTeamZone[t]?.[z]||0;
         html += v > 0
-          ? `<td class="cellule" style="background:${heatColorScored(v,maxV)};cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailTete('${sub.key}',${z},'${t.replace(/'/g,"\\'")}')">${v}</td>`
+          ? `<td class="cellule" style="background:${against?heatColorConceded(v,maxV):heatColorScored(v,maxV)};cursor:pointer;text-decoration:underline;text-decoration-color:var(--accent);text-decoration-thickness:2px;text-underline-offset:4px" onclick="showGoalDetailTete('${sub.key}',${z},'${t.replace(/'/g,"\\'")}')">${v}</td>`
           : '<td></td>';
       });
       const st = sub.byTeam[t]||0;
@@ -10602,7 +10647,7 @@ function renderTete(){
   html += `<td class="total">${grandTotal}</td></tr></table>`;
 
   // ── Summary stats ──────────────────────────────────────────────
-  const totalGoals = allGoals.length;
+  const totalGoals = _teteGoals(true).length;   // meme perimetre, tous types d'action
   const pctTete = totalGoals > 0 ? Math.round(headedAll.length/totalGoals*100) : 0;
   const pjCount = activeSubs.find(s=>s.key==='pj')?.total||0;
   const paCount = activeSubs.find(s=>s.key==='pa')?.total||0;
@@ -10612,7 +10657,7 @@ function renderTete(){
 
   html += `<div style="margin-top:20px;display:flex;gap:14px;flex-wrap:wrap">
     ${[
-      {label:_lang==='en'?'Headed Goals':_lang==='nl'?'Kopbaldoelpunten':'Buts de la tête', val:headedAll.length, sub:`${pctTete}% ${_lang==='en'?'of goals':_lang==='nl'?'van de doelpunten':'des buts'}`, col:'#004488'},
+      {label:(against?(_lang==='en'?'Headers Conceded':_lang==='nl'?'Kopballen tegen':'Têtes encaissées'):(_lang==='en'?'Headed Goals':_lang==='nl'?'Kopbaldoelpunten':'Buts de la tête')), val:headedAll.length, sub:`${pctTete}% ${against?(_lang==='en'?'of goals conceded':_lang==='nl'?'van de tegendoelpunten':'des buts encaissés'):(_lang==='en'?'of goals':_lang==='nl'?'van de doelpunten':'des buts')}`, col:against?'#883333':'#004488'},
       {label:(_lang==='en'?'Open Play':_lang==='nl'?'Open spel':'Plein jeu'), val:pjCount, sub:`${grandTotal>0?Math.round(pjCount/grandTotal*100):0}% ${_lang==='en'?'of headers':_lang==='nl'?'van de kopballen':'des têtes'}`, col:'#2255aa'},
       {label:(_lang==='en'?'Set Piece':_lang==='nl'?'Stilstaande fase':'Phase arrêtée'), val:paCount, sub:`${grandTotal>0?Math.round(paCount/grandTotal*100):0}% ${_lang==='en'?'of headers':_lang==='nl'?'van de kopballen':'des têtes'}`, col:'#884400'},
       {label:_lang==='en'?'1st Zone':_lang==='nl'?'1e zone':'1ère zone', val:zone1, sub:`${grandTotal>0?Math.round(zone1/grandTotal*100):0}%`, col:'#448888'},
@@ -10683,7 +10728,7 @@ function renderTete(){
     </div>`;
   }).join('');
 
-  html += `<div class="section-title" style="margin-top:22px">📍 ${_lang==='en'?'Goal positions':_lang==='nl'?'Doelpuntposities':'Positions des buts'} (${goalsWithPos.length}${goalsWithPos.length<headedAll.length?(_lang==='en'?' of ':_lang==='nl'?' van ':' sur ')+headedAll.length:''})</div>
+  html += `<div class="section-title" style="margin-top:22px">📍 ${against?(_lang==='en'?'Where they are conceded from':_lang==='nl'?'Vanwaar tegendoelpunten vallen':'D\'où ils sont encaissés'):(_lang==='en'?'Goal positions':_lang==='nl'?'Doelpuntposities':'Positions des buts')} (${goalsWithPos.length}${goalsWithPos.length<headedAll.length?(_lang==='en'?' of ':_lang==='nl'?' van ':' sur ')+headedAll.length:''})</div>
   <div style="position:relative;display:inline-block;width:100%;max-width:560px">
     <svg viewBox="0 0 ${PW} ${SHOW}" xmlns="http://www.w3.org/2000/svg" width="100%" style="border-radius:8px;display:block;overflow:visible">${pitchSVGL}${teteDots}</svg>
     <div id="tete-tip" style="display:none;position:absolute;background:rgba(0,0,0,.85);color:#fff;padding:6px 10px;border-radius:6px;font-size:.8em;pointer-events:none;max-width:400px;white-space:nowrap;z-index:99"></div>
@@ -10748,6 +10793,58 @@ function togglePzTac(k){
   renderPressZones();
 }
 let teteTeam = '';
+// 02/08/2026 — Christian veut, en plus des buts marques de la tete : les buts
+// ENCAISSES de la tete, le decoupage domicile/exterieur, et une fenetre sur les
+// 5/10/15 derniers matchs. On reprend exactement les conventions du Classement
+// (_classVenue / _classFormN) pour que les deux pages se lisent pareil.
+let _teteSide  = 'for';   // 'for' = buts marques | 'against' = buts encaisses
+let _teteVenue = 'all';   // 'all' | 'home' | 'away'
+let _teteFormN = null;    // null = tout | 5 | 10 | 15
+function setTeteSide(v){ _teteSide = v; renderTete(); }
+function setTeteVenue(v){ _teteVenue = v; renderTete(); }
+function setTeteFormN(n){ _teteFormN = n; renderTete(); }
+
+// L'equipe "sujet" d'un but : celle qui l'a marque, ou celle qui l'a encaisse
+// selon la perspective choisie. Tout le reste de la page (lignes du tableau,
+// filtre equipe, domicile/exterieur) se calcule par rapport a elle.
+function _teteSubject(g){ return _teteSide === 'against' ? g.opponent : g.team; }
+
+// Fenetre des N derniers matchs REELLEMENT joues par chaque equipe, tries par
+// date — pas les N dernieres journees, qui peuvent differer en cas de report
+// (meme choix que pour la forme au Classement).
+function _teteFormWindow(){
+  if(!_teteFormN) return null;
+  const win = {};
+  getTeams().forEach(team=>{
+    const played = MATCHES
+      .filter(m => m.dom === team || m.ext === team)
+      .filter(m => { const md = data[m.id]; return md && md.validated; })
+      .sort((a,b) => _dateKeyPL2526(a.date) - _dateKeyPL2526(b.date));
+    win[team] = new Set(played.slice(-_teteFormN).map(m => m.id));
+  });
+  return win;
+}
+
+// Buts filtres selon perspective / equipe / lieu / fenetre.
+// anyAction=true : meme perimetre mais tous les buts (pas seulement les tetes),
+// pour calculer le pourcentage de tetes sur une base comparable.
+function _teteGoals(anyAction){
+  const ZONES = [21, 22, 23];
+  const win = _teteFormWindow();
+  return getAllGoals().filter(g=>{
+    if(!anyAction && !ZONES.includes(Number(g.actions))) return false;
+    const subj = _teteSubject(g);
+    if(!subj) return false;
+    if(teteTeam && subj !== teteTeam) return false;
+    if(_teteVenue !== 'all'){
+      const isHome = g.match && g.match.dom === subj;
+      if(_teteVenue === 'home' && !isHome) return false;
+      if(_teteVenue === 'away' &&  isHome) return false;
+    }
+    if(win && !(win[subj] && win[subj].has(g.matchId))) return false;
+    return true;
+  });
+}
 let _teteSortCol = null, _teteSortDir = null;
 let _lieuSortDir = null;
 function teteSortBy(col){
