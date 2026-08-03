@@ -15103,9 +15103,6 @@ function buildScorerCard(name, team, allGoals){
     const col=_GOAL_COLORS[gi%_GOAL_COLORS.length];
     const matchStr=`${tf(g.match.dom)} – ${tf(g.match.ext)}`;
     const score=_runningScore(g,allGoals);
-    const videoBtn=g.lien
-      ?`<button onclick="event.stopPropagation();openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:3px;padding:1px 6px;font-size:.7em;cursor:pointer;flex-shrink:0">▶</button>`
-      :'';
     const hasSteps=(g.goalSteps||[]).length>0;
     return `<div class="sp-pill" data-gi="${gi}" data-ori="${g.origine1||''}" data-tac="${g.tactique1||''}" data-act="${g.actions||''}" data-venue="${g.team===g.match.dom?'dom':'ext'}" onclick="spToggleGoal(this,${gi},'${_spPillsId}')"
       onmouseenter="const s=this.children[1];s.style.whiteSpace='normal';s.style.overflow='visible';s.style.textOverflow='clip'"
@@ -15116,7 +15113,6 @@ function buildScorerCard(name, team, allGoals){
       <span style="flex:1;font-size:.73em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${matchStr}</span>
       <span style="font-size:.72em;font-weight:800;color:${col};white-space:nowrap">${score}</span>
       <span style="font-size:.7em;color:#888;white-space:nowrap">${g.minute}'</span>
-      ${videoBtn}
     </div>`;
   }).join('');
 
@@ -18040,6 +18036,7 @@ function spUpdateMatchPanel(){
         <span style="font-size:.82em;font-weight:700;color:var(--accent)">⏱ ${g.minute}'</span>
         <span style="font-size:.72em;color:var(--muted)">${venue}</span>
         <span style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Score':'Score'} : <b style="color:var(--red)">${sh}–${se}</b></span>
+        ${g.lien?`<button onclick="openVideoModal('${g.lien}')" style="background:#cc0000;color:#fff;border:none;border-radius:5px;padding:4px 12px;font-size:.78em;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ ${_lang==='en'?'Video':_lang==='nl'?'Video':'Vidéo'}</button>`:''}
       </div>
     </div>`;
 }
