@@ -15138,7 +15138,6 @@ function buildScorerCard(name, team, allGoals){
       <div id="${_spPillsId}" style="display:flex;flex-direction:column;gap:4px;max-height:${TH_sp - 30}px;overflow-y:auto">
       ${pillsHtml}
       </div>
-      <div id="sp-match-panel" style="display:none;margin-top:8px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
     </div>
   </div>`;
 
@@ -15471,6 +15470,7 @@ function buildScorerCard(name, team, allGoals){
       </div>
       ${_radarHtml}
     </div>
+    <div id="sp-match-panel" style="display:none;margin-bottom:.8em;padding:8px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
     <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:.8em;align-items:center">
       <span style="font-size:.72em;font-weight:bold;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-right:4px">${_lang==='en'?'Venue':_lang==='nl'?'Locatie':'Lieu'}</span>
       ${venueHtml}
@@ -18020,24 +18020,27 @@ function spUpdateMatchPanel(){
 
   panel.style.display='block';
   panel.innerHTML=`
-    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:6px;margin-bottom:8px">
-      <div style="display:flex;align-items:center;gap:8px;font-weight:700;font-size:.9em">
-        <span>${tf(m.dom)}</span>
-        <span style="font-size:1.35em;font-weight:900;color:var(--accent);min-width:36px;text-align:center">${fh}–${fe}</span>
-        <span>${tf(m.ext)}</span>
+    <div style="display:flex;align-items:center;gap:0;flex-wrap:wrap">
+      <div style="display:flex;flex-direction:column;padding-right:14px;margin-right:14px;border-right:1px solid var(--border);flex-shrink:0">
+        <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:.85em;white-space:nowrap">
+          <span>${tf(m.dom)}</span>
+          <span style="font-size:1.15em;font-weight:900;color:var(--accent);min-width:28px;text-align:center">${fh}–${fe}</span>
+          <span>${tf(m.ext)}</span>
+        </div>
+        <div style="font-size:.62em;color:var(--muted);white-space:nowrap;margin-top:2px">📅 ${m.date} · ${m.phase}${m.group?' · '+m.group:''}</div>
       </div>
-      <div style="font-size:.72em;color:var(--muted);text-align:right">
-        📅 ${m.date} · ${m.heure} &nbsp;|&nbsp; 🏟 ${m.stade}, ${m.ville}<br>
-        <span>${m.phase}${m.group?' · '+m.group:''}</span>
+      <div style="display:flex;flex-direction:column;padding-right:14px;margin-right:14px;border-right:1px solid var(--border);flex-shrink:0">
+        <div style="font-weight:800;font-size:.85em;white-space:nowrap">⚽ ${scorer}</div>
+        <div style="font-size:.62em;color:var(--muted);margin-top:2px">${scorerTeam}</div>
       </div>
-    </div>
-    <div style="border-top:1px solid var(--border);padding-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
-      <span style="font-weight:800;font-size:.88em">${scorer}</span>
-      <span style="font-size:.78em;color:var(--muted)">${scorerTeam}</span>
-      <span style="font-size:.73em;background:${tacCol};color:${_tc(tacCol)};border-radius:3px;padding:2px 7px;font-weight:700">${tac}</span>
-      <span style="font-size:.82em;font-weight:700;color:var(--accent)">⏱ ${g.minute}'</span>
-      <span style="font-size:.72em;color:var(--muted)">${venue}</span>
-      <span style="margin-left:auto;font-size:.75em;color:var(--muted)">Score à ce but : <b style="color:var(--red);font-size:1.1em">${sh}–${se}</b></span>
+      <div style="padding-right:14px;margin-right:14px;border-right:1px solid var(--border);flex-shrink:0">
+        <span style="display:inline-block;background:${tacCol};color:${_tc(tacCol)};border-radius:4px;padding:3px 10px;font-size:.72em;font-weight:700;white-space:nowrap">${tac}</span>
+      </div>
+      <div style="display:flex;align-items:center;gap:12px;margin-left:auto;flex-wrap:wrap;flex-shrink:0">
+        <span style="font-size:.82em;font-weight:700;color:var(--accent)">⏱ ${g.minute}'</span>
+        <span style="font-size:.72em;color:var(--muted)">${venue}</span>
+        <span style="font-size:.72em;color:var(--muted)">${_lang==='en'?'Score':'Score'} : <b style="color:var(--red)">${sh}–${se}</b></span>
+      </div>
     </div>`;
 }
 
