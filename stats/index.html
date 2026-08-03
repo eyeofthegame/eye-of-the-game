@@ -14820,11 +14820,12 @@ function renderScorerProfile(){
     }))
     .sort((a,b)=>b.total-a.total||a.name.localeCompare(b.name));
 
-  // Search filter
+  // Search filter (accent-insensitive)
   const searchVal = document.getElementById('sp-search')?.value||'';
+  const _norm = s => s.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
 
   const visible = searchVal.length>=1
-    ? scorerList.filter(s=>s.name.toLowerCase().includes(searchVal.toLowerCase())||s.clubs.some(c=>c.team.toLowerCase().includes(searchVal.toLowerCase())))
+    ? scorerList.filter(s=>_norm(s.name).includes(_norm(searchVal))||s.clubs.some(c=>_norm(c.team).includes(_norm(searchVal))))
     : scorerList;
 
   // Sidebar list HTML — one row per player with club badges for multi-club players
