@@ -14768,7 +14768,7 @@ function rechUpdateMatchPanel(){
       </div>
       <div style="font-size:.72em;color:var(--muted);text-align:right">
         📅 ${m.date} · ${m.heure} &nbsp;|&nbsp; 🏟 ${m.stade}, ${m.ville}<br>
-        <span style="font-size:.95em">${m.phase}${m.group?(' · '+m.group):''}</span>
+        <span style="font-size:.95em">${m.phase}${m.group && m.group!==m.phase?' · '+m.group:''}</span>
       </div>
     </div>
     <div style="border-top:1px solid var(--border);padding-top:7px;display:flex;align-items:center;gap:8px;flex-wrap:wrap">
@@ -18027,7 +18027,7 @@ function spUpdateMatchPanel(){
           <span style="font-size:1.15em;font-weight:900;color:var(--accent);min-width:28px;text-align:center">${fh}–${fe}</span>
           <span>${tf(m.ext)}</span>
         </div>
-        <div style="font-size:.62em;color:var(--muted);white-space:nowrap;margin-top:2px">📅 ${m.date} · ${m.phase}${m.group?' · '+m.group:''}</div>
+        <div style="font-size:.62em;color:var(--muted);white-space:nowrap;margin-top:2px">📅 ${m.date} · ${m.phase}${m.group && m.group!==m.phase?' · '+m.group:''}</div>
       </div>
       <div style="display:flex;flex-direction:column;padding-right:14px;margin-right:14px;border-right:1px solid var(--border);flex-shrink:0">
         <div style="font-weight:800;font-size:.85em;white-space:nowrap">⚽ ${scorer}</div>
