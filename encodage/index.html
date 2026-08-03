@@ -2905,7 +2905,38 @@ function _saveApiKey(){
   if(!k){ alert("Entre une clé avant d'enregistrer."); return; }
   localStorage.setItem('vdj_write_key', k);
   _refreshApiStatus();
-  toast('✅ Clé API enregistrée. Les sauvegardes seront synchronisées vers Cloudflare.');
+  // 02/08/2026 — on teste la cle tout de suite au lieu d'attendre la prochaine
+  // sauvegarde : sinon le badge rouge d'un echec precedent reste affiche et on
+  // ne sait pas si la nouvelle cle est bonne.
+  _vdjTestKey(k);
+}
+
+// Test isole : ecrit sur une cle KV bidon ("selftest"), jamais sur les donnees.
+function _vdjTestKey(k){
+  _vdjSyncSetState('pending');
+  fetch(_VDJ_WORKER + '/api/data?competition=selftest', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'x-vdj-key': k},
+    body: '{"test":1}'
+  })
+  .then(function(r){
+    if(r.status === 401 || r.status === 403){
+      _vdjSyncSetState('error', 'cle refusee');
+      alert("Cette clé est refusée par Cloudflare.\n\n"
+        + "Relance nouvelle_cle.command et colle la clé qu'il affiche.");
+      return;
+    }
+    if(!r.ok) throw new Error('HTTP ' + r.status);
+    // Cle valide : on annule les tentatives en attente et on repart proprement
+    clearTimeout(_vdjSyncTimer); _vdjSyncTimer = null; _vdjSyncAttempt = 0;
+    _vdjOverwriteWarned = false;
+    _vdjSyncSetState('ok');
+    toast('✅ Clé validée — la synchronisation Cloudflare fonctionne.');
+    _vdjPushToAPI();
+  })
+  .catch(function(e){
+    _vdjSyncSetState('error', (e && e.message) || 'reseau');
+  });
 }
 function _clearApiKey(){
   if(!confirm("Supprimer la clé ? L'encodage continuera en local uniquement.")) return;
