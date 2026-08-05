@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T16:46';
+const _PL2526_FACTS_VERSION = '2026-08-05T18:19';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -7733,6 +7733,28 @@ COMPETITIONS.pl2627.players = JOUEURS_PL2627;
 COMPETITIONS.jl2026.players = JOUEURS_JL2026;
 COMPETITIONS.jpl2627.players = JOUEURS_JPL2627;
 COMPETITIONS.bl2627.players = JOUEURS_BL2627;
+
+// ── J1 League 2026-27 ────────────────────────────────────────────────
+// 05/08/2026 — cette compétition était la seule du registre sans base
+// joueurs assignée : à l'ouverture du championnat (07/08), l'encodage
+// n'aurait proposé AUCUNE autocomplétion, obligeant à saisir chaque nom
+// japonais à la main — avec le risque de doublons d'orthographe qu'on
+// vient de corriger sur les arbitres.
+//
+// L'effectif est repris de la J-League 2026 (mêmes 20 clubs). Deux clubs
+// portent un libellé différent dans le calendrier 2026-27 et dans la base
+// joueurs : sans cet alignement, ces deux équipes resteraient muettes à
+// l'encodage. Les recrues du mercato d'été s'ajoutent à la volée via le
+// bouton « + » de l'autocomplete, comme pour les autres championnats.
+const JL2627_CLUB_FIX = {
+  'FC Tokyo'           : 'Tokyo',
+  'Urawa Red Diamonds' : 'Urawa Reds'
+};
+const JOUEURS_JL2627 = JOUEURS_JL2026.map(function(j){
+  const e = JL2627_CLUB_FIX[j.e] || j.e;
+  return { n: j.n, e: e, nom: j.n, equipe: e };
+});
+COMPETITIONS.jl2627.players = JOUEURS_JL2627;
 
 // Liste "vivante" utilisée par l'autocomplete — repeuplée à chaque changement
 // de compétition (loadPlayersForComp), jamais vide au chargement de la page.
