@@ -3699,7 +3699,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T15:01';
+const _PL2526_FACTS_VERSION = '2026-08-05T15:06';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -14195,13 +14195,214 @@ let _spLastRadarData = null; // data for radar zoom modal
 let _rechActiveGoals = new Set();
 let _rechPillsId = 'rech-pills';
 let _rechActivePresets = new Set();
-let _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',mode:'off'};
+// Mode de sortie de la Recherche : 'list' (liste de buts) ou 'cross'
+// (tableau croisé). Les deux axes du croisement sont mémorisés.
+let _rechOutput   = localStorage.getItem('vdj_rech_output')    || 'list';
+let _rechCrossRow = localStorage.getItem('vdj_rech_cross_row') || 'team';
+let _rechCrossCol = localStorage.getItem('vdj_rech_cross_col') || 'tactique1';
+
+let _rechState = {team:'',buteur:'',assist:'',tac1:'',tac2:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',valeur:'',arbitre:'',mode:'off'};
 let _rechCurrentGoals = [];
 let _rechCompareMode = false;
 let _rechStatB = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',mode:'off'};
 let _rechActiveGoalsB = new Set();
 let _rechActivePresetsB = new Set();
 let _rechCurrentGoalsB = [];
+
+
+// ══════════════════════════════════════════════════════════════════════
+// TABLEAU CROISÉ — 05/08/2026
+//
+// Christian : « une page où je peux choisir tous les critères que je veux
+// pour voir une analyse. Par exemple, l'équipe qui a marqué avec tel
+// joueur sur telle tactique, avec quelle origine. »
+//
+// La Recherche filtrait déjà sur 12 critères mais ne savait afficher
+// qu'une liste de buts. Ici on choisit deux axes (lignes × colonnes) et on
+// obtient le comptage croisé, avec totaux. Les filtres de la barre du haut
+// s'appliquent avant le croisement : on croise ce qu'on a filtré.
+// ══════════════════════════════════════════════════════════════════════
+
+// Dimensions croisables. `val` renvoie la clé brute d'un but, `lab` la
+// transforme en libellé lisible. `col` donne la couleur de la catégorie
+// quand le référentiel VDJ en définit une.
+function _rechDims(){
+  const L = function(fr,en,nl){ return _lang==='en'?en:(_lang==='nl'?nl:fr); };
+  const fromTable = function(tbl){
+    return {
+      val: function(v){ return (v===undefined||v===null||v==='')?null:String(v); },
+      lab: function(k){ return (tbl[k] && tbl[k].nom) ? tbl[k].nom : k; },
+      col: function(k){ return (tbl[k] && tbl[k].c1) ? '#'+tbl[k].c1 : null; },
+      fg:  function(k){ return (tbl[k] && tbl[k].c2) ? '#'+tbl[k].c2 : null; }
+    };
+  };
+  const T = {
+    team:     Object.assign({label:L('Équipe','Team','Ploeg'),            get:function(g){return g.team;}},                 fromTable({})),
+    opponent: Object.assign({label:L('Adversaire','Opponent','Tegenstander'), get:function(g){return g.opponent;}},         fromTable({})),
+    buteur:   Object.assign({label:L('Buteur','Scorer','Doelpuntenmaker'),get:function(g){return g.buteur;}},               fromTable({})),
+    assist:   Object.assign({label:L('Passeur','Assist','Assist'),        get:function(g){return g.assist;}},               fromTable({})),
+    tactique1:Object.assign({label:L('Style de jeu','Playing style','Speelstijl'), get:function(g){return g.tactique1;}},   fromTable(VDJ.tactique1)),
+    tactique2:Object.assign({label:L('Schéma','Pattern','Patroon'),       get:function(g){return g.tactique2;}},            fromTable(VDJ.tactique2)),
+    tactique3:Object.assign({label:L('Nature du but','Goal type','Aard'), get:function(g){return g.tactique3;}},            fromTable(VDJ.tactique3)),
+    origine1: Object.assign({label:L('Origine','Origin','Oorsprong'),     get:function(g){return g.origine1;}},             fromTable(VDJ.origine1)),
+    origine2: Object.assign({label:L('Intention','Intention','Intentie'), get:function(g){return g.origine2;}},             fromTable(VDJ.origine2)),
+    origine3: Object.assign({label:L('Zone de départ','Starting zone','Startzone'), get:function(g){return g.origine3;}},   fromTable(VDJ.origine3)),
+    actions:  Object.assign({label:L('Action','Action','Actie'),          get:function(g){return g.actions;}},              fromTable(VDJ.actions)),
+    finitions:Object.assign({label:L('Finition','Finish','Afronding'),    get:function(g){return g.finitions;}},            fromTable(VDJ.finitions)),
+    lieu:     Object.assign({label:L('Lieu de frappe','Shot location','Schotlocatie'), get:function(g){return g.lieu;}},    fromTable(VDJ.lieu)),
+    venue:    Object.assign({label:L('Domicile / Extérieur','Home / Away','Thuis / Uit'),
+                             get:function(g){ return g.team===g.match.dom ? 'dom' : 'ext'; }}, fromTable({})),
+    valeur:   Object.assign({label:L('Valeur du but','Goal rating','Waardering'),  get:function(g){return g.valeur;}},      fromTable({})),
+    saison:   Object.assign({label:L('Saison / Compétition','Season / Competition','Seizoen / Competitie'),
+                             get:function(g){ return (g.match && g.match._comp) ? g.match._comp : ACTIVE_COMP; }}, fromTable({})),
+    periode:  Object.assign({label:L('Période','Period','Periode'),       get:function(g){
+                             const s=String(g.minute||''), i=parseInt(s)||1;
+                             if(s.includes('45+')) return 4;
+                             if(s.includes('90+')) return 8;
+                             if(i===45) return 4; if(i===90) return 8;
+                             let cc=Math.ceil(i/15); return cc<1?1:(cc>6?6:cc);
+                           }}, fromTable(VDJ.minutes))
+  };
+  // Libellés propres pour les dimensions sans table VDJ
+  T.venue.lab  = function(k){ return k==='dom' ? L('Domicile','Home','Thuis') : L('Extérieur','Away','Uit'); };
+  T.valeur.lab = function(k){ const n=parseInt(k); return (n>=1&&n<=5) ? '★'.repeat(n)+'☆'.repeat(5-n) : k; };
+  T.saison.lab = function(k){ const c=COMPETITIONS[k]; return c ? (c.shortLabel||c.label||k) : k; };
+  T.periode.lab= function(k){ return (VDJ.minutes && VDJ.minutes[k] && VDJ.minutes[k].nom) ? VDJ.minutes[k].nom : k; };
+  return T;
+}
+
+// Construit le tableau croisé HTML à partir des buts déjà filtrés.
+function _rechBuildCrossTab(goals){
+  const DIMS = _rechDims();
+  const rowId = _rechCrossRow, colId = _rechCrossCol;
+  const R = DIMS[rowId], C = DIMS[colId];
+  if(!R || !C) return '<div class="no-data" style="padding:24px">Dimensions invalides.</div>';
+
+  const norm = function(v){
+    if(v===undefined || v===null || v==='') return null;
+    return String(v);
+  };
+
+  const cells = {}, rowTot = {}, colTot = {};
+  let grand = 0, ignored = 0;
+  goals.forEach(function(g){
+    const rv = norm(R.get(g)), cv = norm(C.get(g));
+    if(rv===null || cv===null){ ignored++; return; }   // critère non encodé
+    if(!cells[rv]) cells[rv] = {};
+    cells[rv][cv] = (cells[rv][cv]||0) + 1;
+    rowTot[rv] = (rowTot[rv]||0) + 1;
+    colTot[cv] = (colTot[cv]||0) + 1;
+    grand++;
+  });
+
+  const rows = Object.keys(rowTot).sort(function(a,b){ return rowTot[b]-rowTot[a] || String(R.lab(a)).localeCompare(String(R.lab(b)),'fr'); });
+  const cols = Object.keys(colTot).sort(function(a,b){ return colTot[b]-colTot[a] || String(C.lab(a)).localeCompare(String(C.lab(b)),'fr'); });
+
+  if(!rows.length || !cols.length){
+    return '<div class="no-data" style="padding:24px">'
+      + (_lang==='en'?'No goal has both criteria encoded.':_lang==='nl'?'Geen doelpunt heeft beide criteria gecodeerd.':'Aucun but n\'a ces deux critères encodés.')
+      + '</div>';
+  }
+
+  const maxCell = Math.max.apply(null, rows.map(function(r){
+    return Math.max.apply(null, cols.map(function(cc){ return (cells[r]&&cells[r][cc])||0; }));
+  }));
+
+  let h = '<div style="overflow-x:auto;padding-right:24px">'
+    + '<table style="border-collapse:separate;border-spacing:0;font-size:.82em;min-width:100%">'
+    + '<thead><tr>'
+    + '<th style="position:sticky;left:0;background:var(--card);text-align:left;padding:7px 10px;border-bottom:2px solid var(--border);white-space:nowrap;font-size:.9em;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;z-index:2">'
+    + R.label + ' \\\\ ' + C.label + '</th>';
+  cols.forEach(function(cv){
+    const bg = C.col ? C.col(cv) : null;
+    const fg = C.fg ? C.fg(cv) : null;
+    h += '<th style="padding:6px 9px;border-bottom:2px solid var(--border);white-space:nowrap;font-size:.85em;'
+      + (bg ? 'background:'+bg+';color:'+(fg||'#fff')+';' : 'color:var(--accent);')
+      + '">' + C.lab(cv) + '</th>';
+  });
+  h += '<th style="padding:6px 10px;border-bottom:2px solid var(--border);background:var(--bg);color:var(--accent);font-weight:800">'
+    + (_lang==='en'?'Total':'Total') + '</th></tr></thead><tbody>';
+
+  rows.forEach(function(rv, ri){
+    const zebra = ri%2 ? 'background:var(--bg)' : '';
+    h += '<tr>'
+      + '<td style="position:sticky;left:0;padding:6px 10px;font-weight:700;white-space:nowrap;border-bottom:1px solid var(--border);z-index:1;'
+      + (zebra||'background:var(--card)') + '">' + R.lab(rv) + '</td>';
+    cols.forEach(function(cv){
+      const n = (cells[rv] && cells[rv][cv]) || 0;
+      const intens = maxCell>0 ? n/maxCell : 0;
+      const bg = n===0 ? 'transparent' : 'rgba(26,115,232,' + (0.10 + intens*0.72).toFixed(3) + ')';
+      const fgc = intens>0.55 ? '#fff' : 'var(--text)';
+      h += '<td style="padding:6px 9px;text-align:center;border-bottom:1px solid var(--border);'
+        + 'background:' + bg + ';color:' + fgc + ';font-weight:' + (n?'800':'400') + '">'
+        + (n || '<span style="opacity:.25">·</span>') + '</td>';
+    });
+    h += '<td style="padding:6px 10px;text-align:center;font-weight:800;color:var(--accent);border-bottom:1px solid var(--border);background:var(--bg)">'
+      + rowTot[rv] + '</td></tr>';
+  });
+
+  h += '<tr><td style="position:sticky;left:0;padding:7px 10px;font-weight:800;background:var(--bg);border-top:2px solid var(--border);z-index:1">'
+    + (_lang==='en'?'Total':'Total') + '</td>';
+  cols.forEach(function(cv){
+    h += '<td style="padding:7px 9px;text-align:center;font-weight:800;color:var(--accent);background:var(--bg);border-top:2px solid var(--border)">'
+      + colTot[cv] + '</td>';
+  });
+  h += '<td style="padding:7px 10px;text-align:center;font-weight:900;color:var(--accent);background:var(--bg);border-top:2px solid var(--border)">'
+    + grand + '</td></tr></tbody></table></div>';
+
+  if(ignored){
+    h += '<div style="font-size:.72em;color:var(--muted);margin-top:8px;font-style:italic">'
+      + (_lang==='en' ? ignored+' goal(s) excluded: one of the two criteria is not encoded.'
+        : _lang==='nl' ? ignored+' doelpunt(en) uitgesloten: één van beide criteria is niet gecodeerd.'
+        : ignored+' but(s) exclu(s) : l\'un des deux critères n\'est pas encodé.')
+      + '</div>';
+  }
+  return h;
+}
+
+// Barre de choix des deux axes.
+function _rechCrossBar(){
+  const DIMS = _rechDims();
+  const ids = Object.keys(DIMS);
+  const opt = function(cur){
+    return ids.map(function(id){
+      return '<option value="' + id + '"' + (id===cur?' selected':'') + '>' + DIMS[id].label + '</option>';
+    }).join('');
+  };
+  const st = 'font-size:.8em;padding:3px 6px;border-radius:4px;border:1px solid var(--border);background:var(--card)';
+  return '<div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:10px">'
+    + '<span style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">'
+    + (_lang==='en'?'Rows':_lang==='nl'?'Rijen':'Lignes') + '</span>'
+    + '<select onchange="rechSetCross(\'row\',this.value)" style="' + st + '">' + opt(_rechCrossRow) + '</select>'
+    + '<span style="font-size:.72em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">'
+    + (_lang==='en'?'Columns':_lang==='nl'?'Kolommen':'Colonnes') + '</span>'
+    + '<select onchange="rechSetCross(\'col\',this.value)" style="' + st + '">' + opt(_rechCrossCol) + '</select>'
+    + '<button onclick="rechSwapCross()" title="' + (_lang==='en'?'Swap axes':_lang==='nl'?'Assen wisselen':'Inverser les axes')
+    + '" style="font-size:.8em;padding:3px 10px;border-radius:4px;cursor:pointer;background:var(--card);border:1px solid var(--border)">⇄</button>'
+    + '</div>';
+}
+
+function rechSetCross(which, val){
+  if(which==='row') _rechCrossRow = val; else _rechCrossCol = val;
+  try {
+    localStorage.setItem('vdj_rech_cross_row', _rechCrossRow);
+    localStorage.setItem('vdj_rech_cross_col', _rechCrossCol);
+  } catch(e){}
+  renderRecherche();
+}
+function rechSwapCross(){
+  const t = _rechCrossRow; _rechCrossRow = _rechCrossCol; _rechCrossCol = t;
+  try {
+    localStorage.setItem('vdj_rech_cross_row', _rechCrossRow);
+    localStorage.setItem('vdj_rech_cross_col', _rechCrossCol);
+  } catch(e){}
+  renderRecherche();
+}
+function rechSetOutput(mode){
+  _rechOutput = mode;
+  try { localStorage.setItem('vdj_rech_output', mode); } catch(e){}
+  renderRecherche();
+}
 
 function renderRecherche(){
   loadData();
@@ -14220,6 +14421,15 @@ function renderRecherche(){
   const fVenue  = _rechState.venue;
   const fMin    = _rechState.min;
   const fFin    = _rechState.fin;
+  const fAssist = (_rechState.assist||'').toLowerCase();
+  const fTac2   = _rechState.tac2;
+  const fValeur = _rechState.valeur;
+  const fArb    = _rechState.arbitre;
+  // L'arbitre est une donnée du match, pas du but : on la retrouve via data.
+  const _arbOf = function(g){
+    const md = data[g.matchId];
+    return (md && md.arbitre) ? md.arbitre : '';
+  };
 
   // ── Filter goals ────────────────────────────────────────────────────
   const fMode  = _rechState.mode || 'off';
@@ -14240,6 +14450,12 @@ function renderRecherche(){
     if(fAct    && String(g.actions)   !== fAct)  return false;
     if(fLieu   && String(g.lieu)      !== fLieu) return false;
     if(fFin    && String(g.finitions) !== fFin)  return false;
+    if(fAssist && !(g.assist||'').toLowerCase().includes(fAssist)) return false;
+    // tactique2 et tactique2b décrivent deux facettes de la même action :
+    // un but correspond si l'une OU l'autre porte la valeur cherchée.
+    if(fTac2   && String(g.tactique2)!==fTac2 && String(g.tactique2b)!==fTac2) return false;
+    if(fValeur && String(g.valeur)    !== fValeur) return false;
+    if(fArb    && _arbOf(g)           !== fArb)    return false;
     if(fVenue){
       const isHome = g.team === g.match.dom;
       if(fVenue==='dom' && !isHome) return false;
@@ -14268,6 +14484,20 @@ function renderRecherche(){
   const lieuOptsR  = mo(VDJ.lieu,       ORDER.lieu||[1,2,3],     _lang==='en'?'All locations':_lang==='nl'?'Alle locaties':'Tous les lieux');
   const minOptsR   = mo(VDJ.minutes,    ORDER.minutes,           _lang==='en'?'All periods':_lang==='nl'?'Alle periodes':'Toutes les périodes');
   const finOptsR   = mo(VDJ.finitions,  ORDER.finitions||[1,2,3,4,5,6], _lang==='en'?'All finishes':_lang==='nl'?'Alle afrondingen':'Toutes les finitions');
+  const tac2OptsR  = mo(VDJ.tactique2,  ORDER.tactique2||[], _lang==='en'?'All patterns':_lang==='nl'?'Alle patronen':'Tous les schémas');
+  // Valeur du but : échelle en étoiles déjà utilisée dans Top Buts
+  const valeurOptsR = `<option value="">${_lang==='en'?'All ratings':_lang==='nl'?'Alle waarderingen':'Toutes les valeurs'}</option>`
+    + [5,4,3,2,1].map(function(v){ return `<option value="${v}">${'★'.repeat(v)}${'☆'.repeat(5-v)}</option>`; }).join('');
+  // Arbitres réellement présents dans les données chargées
+  const _arbSet = {};
+  allGoals.forEach(function(g){ const a=_arbOf(g); if(a) _arbSet[a]=(_arbSet[a]||0)+1; });
+  const _arbNames = Object.keys(_arbSet).sort(function(a,b){ return a.localeCompare(b,'fr'); });
+  const arbOptsR = `<option value="">${_lang==='en'?'All referees':_lang==='nl'?'Alle scheidsrechters':'Tous les arbitres'}</option>`
+    + _arbNames.map(function(a){
+        const esc=String(a).replace(/"/g,'&quot;');
+        return `<option value="${esc}">${a} (${_arbSet[a]})</option>`;
+      }).join('');
+
   const venueOptsR = `<option value="">${_lang==='en'?'Home/Away':_lang==='nl'?'Thuis/Uit':'Domicile/Extérieur'}</option><option value="dom"${fVenue==='dom'?' selected':''}>🏠 ${_lang==='en'?'Home':_lang==='nl'?'Thuis':'Domicile'}</option><option value="ext"${fVenue==='ext'?' selected':''}>✈️ ${_lang==='en'?'Away':_lang==='nl'?'Uit':'Extérieur'}</option>`;
 
   function sel(id, opts, cur, label){
@@ -14291,12 +14521,16 @@ function renderRecherche(){
       <select id="rech-act"   onchange="rechUpdateFilter('act',this.value)" style="${selStyle}${fAct?' font-weight:bold;border-color:var(--accent)':''}">${actOptsR.replace(`value="${fAct}"`,`value="${fAct}" selected`)}</select>
       <select id="rech-fin"   onchange="rechUpdateFilter('fin',this.value)" style="${selStyle}${fFin?' font-weight:bold;border-color:var(--accent)':''}">${finOptsR.replace(`value="${fFin}"`,`value="${fFin}" selected`)}</select>
       <select id="rech-min"   onchange="rechUpdateFilter('min',this.value)" style="${selStyle}${fMin?' font-weight:bold;border-color:var(--accent)':''}">${minOptsR.replace(`value="${fMin}"`,`value="${fMin}" selected`)}</select>
+      <input  id="rech-assist" type="text" placeholder="🅰️ ${_lang==='en'?'Assist':_lang==='nl'?'Assist':'Passeur'}…" value="${fAssist.replace(/"/g,'&quot;')}" oninput="rechUpdateFilter('assist',this.value)" style="${selStyle};width:110px${fAssist?';font-weight:bold;border-color:var(--accent)':''}">
+      <select id="rech-tac2"  onchange="rechUpdateFilter('tac2',this.value)" style="${selStyle}${fTac2?' font-weight:bold;border-color:var(--accent)':''}">${tac2OptsR.replace(`value="${fTac2}"`,`value="${fTac2}" selected`)}</select>
+      <select id="rech-valeur" onchange="rechUpdateFilter('valeur',this.value)" style="${selStyle}${fValeur?' font-weight:bold;border-color:var(--accent)':''}">${valeurOptsR.replace(`value="${fValeur}"`,`value="${fValeur}" selected`)}</select>
+      ${_arbNames.length ? `<select id="rech-arbitre" onchange="rechUpdateFilter('arbitre',this.value)" style="${selStyle}${fArb?' font-weight:bold;border-color:var(--accent)':''}">${arbOptsR.replace(`value="${fArb.replace(/"/g,'&quot;')}"`,`value="${fArb.replace(/"/g,'&quot;')}" selected`)}</select>` : ''}
       <button onclick="rechReset()" style="font-size:.8em;padding:3px 10px;border-radius:4px;cursor:pointer;background:#eee;border:1px solid #bbb">✕ ${_lang==='en'?'Reset':_lang==='nl'?'Herstellen':'Réinitialiser'}</button>
     </div>
   </div>`;
 
   // ── Result count badge ──────────────────────────────────────────────
-  const hasFilter = fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue;
+  const hasFilter = fTeam||fButeur||fTac1||fNat||fOri1||fOri2||fAct||fLieu||fFin||fMin||fVenue||fAssist||fTac2||fValeur||fArb;
   const countBadge = `<div style="font-size:.82em;color:var(--muted);margin-bottom:8px">
     ${(()=>{
       const modeLabel = fTeam ? (fMode==='def' ? ' 🛡️ '+(_lang==='en'?'(defensive)':_lang==='nl'?'(defensief)':'(buts encaissés)') : ' ⚔️ '+(_lang==='en'?'(offensive)':_lang==='nl'?'(offensief)':'(buts marqués)')) : '';
@@ -14491,6 +14725,23 @@ function renderRecherche(){
       '</div>' +
     '</div>';
   } else {
+    // ── Sélecteur de sortie : liste de buts ou tableau croisé ────────
+    const _outBtn = function(mode, label){
+      const on = (_rechOutput===mode);
+      return '<button onclick="rechSetOutput(\'' + mode + '\')" style="padding:4px 13px;'
+        + 'border:1.5px solid var(--accent);border-radius:14px;cursor:pointer;font-family:inherit;'
+        + 'font-size:.76em;font-weight:' + (on?'800':'600') + ';white-space:nowrap;'
+        + 'background:' + (on?'var(--accent)':'var(--card)') + ';color:' + (on?'#fff':'var(--accent)') + '">'
+        + label + '</button>';
+    };
+    const _outputToggle = '<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap">'
+      + _outBtn('list',  '📋 ' + (_lang==='en'?'Goal list':_lang==='nl'?'Doelpuntenlijst':'Liste des buts'))
+      + _outBtn('cross', '🔀 ' + (_lang==='en'?'Cross table':_lang==='nl'?'Kruistabel':'Tableau croisé'))
+      + '</div>';
+    const _crossHtml = (_rechOutput==='cross')
+      ? (_rechCrossBar() + _rechBuildCrossTab(goals))
+      : '';
+
     // ── Single panel layout (existing) ───────────────────────────────
     html = `
   <div style="padding:1.2em 1.5em">
@@ -14501,6 +14752,8 @@ function renderRecherche(){
     ${presetsBar}
     ${filterBar}
     ${countBadge}
+    ${_outputToggle}
+    ${_rechOutput==='cross' ? _crossHtml : `
     <div style="display:flex;gap:14px;align-items:flex-start">
       <!-- Terrain -->
       <div style="flex-shrink:0">
@@ -14515,7 +14768,7 @@ function renderRecherche(){
       <div style="flex:1;min-width:0;max-height:${TH+30}px;overflow-y:auto;display:flex;flex-direction:column;gap:4px" id="${_rechPillsId}">
         ${pillsHtml}
       </div>
-    </div>
+    </div>`}
     <!-- Panneau détail match -->
     <div id="rech-match-panel" style="display:none;margin-top:10px;padding:10px 14px;background:var(--card);border:1px solid var(--border);border-radius:8px;border-left:3px solid var(--accent)"></div>
   </div>`;
@@ -14577,7 +14830,7 @@ function rechApplyPreset(key){
 }
 
 function rechReset(){
-  _rechState = {team:'',buteur:'',tac1:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',mode:'off'};
+  _rechState = {team:'',buteur:'',assist:'',tac1:'',tac2:'',nat:'',ori1:'',ori2:'',act:'',lieu:'',fin:'',min:'',venue:'',valeur:'',arbitre:'',mode:'off'};
   _rechActivePresets.clear();
   renderRecherche();
 }
