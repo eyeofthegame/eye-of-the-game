@@ -3699,7 +3699,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T15:16';
+const _PL2526_FACTS_VERSION = '2026-08-05T16:46';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -14549,7 +14549,11 @@ function renderRecherche(){
 
   // ── Filter goals ────────────────────────────────────────────────────
   const fMode  = _rechState.mode || 'off';
-  const goals = allGoals.filter(g=>{
+  // Prédicat de filtrage factorisé. `skip` permet d'ignorer un critère
+  // précis — utilisé pour construire la liste des arbitres : elle doit
+  // refléter tous les autres filtres, mais pas le filtre arbitre lui-même,
+  // sinon sélectionner un arbitre réduirait la liste à ce seul nom.
+  const _passesFilters = function(g, skip){
     if(fTeam){
       if(fMode === 'def'){
         if(!(g.match.dom===fTeam || g.match.ext===fTeam)) return false;
@@ -14571,7 +14575,7 @@ function renderRecherche(){
     // un but correspond si l'une OU l'autre porte la valeur cherchée.
     if(fTac2   && String(g.tactique2)!==fTac2 && String(g.tactique2b)!==fTac2) return false;
     if(fValeur && String(g.valeur)    !== fValeur) return false;
-    if(fArb    && _arbOf(g)           !== fArb)    return false;
+    if(skip!=='arbitre' && fArb && _arbOf(g) !== fArb) return false;
     if(fVenue){
       const isHome = g.team === g.match.dom;
       if(fVenue==='dom' && !isHome) return false;
@@ -14583,7 +14587,11 @@ function renderRecherche(){
       if(String(bk)!==fMin) return false;
     }
     return true;
-  });
+  };
+
+  const goals = allGoals.filter(function(g){ return _passesFilters(g, null); });
+  // Buts retenus par tous les filtres SAUF celui de l'arbitre.
+  const _goalsForArb = allGoals.filter(function(g){ return _passesFilters(g, 'arbitre'); });
 
   // ── Build dropdown options ──────────────────────────────────────────
   function mo(tbl, ord, lbl){
@@ -14605,8 +14613,15 @@ function renderRecherche(){
   const valeurOptsR = `<option value="">${_lang==='en'?'All ratings':_lang==='nl'?'Alle waarderingen':'Toutes les valeurs'}</option>`
     + [5,4,3,2,1].map(function(v){ return `<option value="${v}">${'★'.repeat(v)}${'☆'.repeat(5-v)}</option>`; }).join('');
   // Arbitres réellement présents dans les données chargées
+  // Christian (05/08/2026) : « quand je sélectionne pénalty, je voudrais
+  // juste les arbitres qui ont accordé un pénalty à cette équipe-là ». La
+  // liste et les compteurs suivent donc les filtres en cours.
   const _arbSet = {};
-  allGoals.forEach(function(g){ const a=_arbOf(g); if(a) _arbSet[a]=(_arbSet[a]||0)+1; });
+  _goalsForArb.forEach(function(g){ const a=_arbOf(g); if(a) _arbSet[a]=(_arbSet[a]||0)+1; });
+  // Si l'arbitre sélectionné sort du périmètre des autres filtres, on le
+  // garde visible à 0 plutôt que de le faire disparaître du menu alors
+  // qu'il est actif — sinon le filtre resterait appliqué sans être affiché.
+  if(fArb && _arbSet[fArb]===undefined) _arbSet[fArb] = 0;
   const _arbNames = Object.keys(_arbSet).sort(function(a,b){ return a.localeCompare(b,'fr'); });
   const arbOptsR = `<option value="">${_lang==='en'?'All referees':_lang==='nl'?'Alle scheidsrechters':'Tous les arbitres'}</option>`
     + _arbNames.map(function(a){
