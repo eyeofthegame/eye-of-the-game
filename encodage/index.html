@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-04T10:31';
+const _PL2526_FACTS_VERSION = '2026-08-05T13:10';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -8441,8 +8441,14 @@ function applyVDJCascade(g, field, val){
     g.lieu      = 3;  // Lieu : Hors
     g.tactique2 = 42; // Descriptif principal : Droitier Cou de Pied (point de départ)
     g.tactique3 = 1;  // Nature du but : INT
-  } else if(field === 'origine1' && val == 5 && g.tactique1 == 5){
-    // Corner sélectionné — auto-place Récup au coin (position basée sur origine2)
+  } else if(field === 'origine1' && val == 5){
+    // 3 août 2026 — Christian : cliquer Corner dans « Origine du but » doit
+    // remplir d'office le style de jeu et la hauteur de déclenchement, sans
+    // avoir à cocher Phase arrêtée au préalable. La condition g.tactique1==5
+    // qui bloquait ce bloc a donc été retirée.
+    g.tactique1 = 5; // Style de jeu : Phase arrêtée
+    g.origine3  = 2; // Déclenchement principal : Dernier 16m
+    // Auto-place Récup au coin (position basée sur origine2)
     const _cX = g.origine2 === 2 ? 1.0 : g.origine2 === 4 ? 0.0 : -1;
     if(_cX >= 0 && (!g.goalSteps || g.goalSteps.length === 0)){
       g.goalSteps = [{x:_cX, y:0, curve:0, type:1}];
