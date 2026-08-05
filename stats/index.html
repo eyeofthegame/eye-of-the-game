@@ -3533,7 +3533,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T13:10';
+const _PL2526_FACTS_VERSION = '2026-08-05T14:24';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -10575,12 +10575,164 @@ async function flinkUnlink() {
   _flinkUpdateUI();
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// LECTURE CLOUDFLARE — la source de vérité est le Worker (KV), pas le
+// localStorage. 05/08/2026.
+//
+// Pourquoi ce bloc : jusqu'ici TabStats ne lisait que le localStorage du
+// navigateur et le seed figé embarqué dans le HTML. Encodage, lui, écrit
+// déjà en direct dans Cloudflare KV à chaque but. Résultat : les stats
+// pouvaient afficher une photo vieille de plusieurs jours pendant que la
+// vraie base était à jour sur le serveur.
+//
+// Fonctionnement : loadData() reste SYNCHRONE (les ~30 fonctions de rendu
+// l'appellent en direct, on ne les réécrit pas). Au démarrage on va
+// chercher chaque compétition sur le Worker, on écrit le résultat dans
+// localStorage, puis on redessine la vue courante. Si le Worker ne répond
+// pas, rien ne change : on garde exactement le comportement d'avant.
+//
+// Garde-fou anti-écrasement : on n'accepte JAMAIS une réponse distante qui
+// contient moins de matchs encodés que ce qu'on a en local. Sans ça, un
+// Worker vide (ou une compétition jamais migrée) effacerait le travail de
+// Christian d'un seul chargement de page.
+// ══════════════════════════════════════════════════════════════════════
+const _VDJ_WORKER = 'https://spring-smoke-d136.pushkulu-6a2.workers.dev';
+
+let _vdjDataSource = 'local';   // 'local' | 'cloud' | 'partial'
+let _vdjCloudComps = [];        // compétitions effectivement rafraîchies
+
+// Nombre de matchs porteurs de données réelles — sert d'unité de comparaison
+// entre la version distante et la version locale.
+function _vdjCountEncoded(obj){
+  if(!obj || typeof obj !== 'object') return 0;
+  let n = 0;
+  Object.keys(obj).forEach(function(k){
+    const md = obj[k];
+    if(!md || typeof md !== 'object') return;
+    const hasGoals = Array.isArray(md.goals) && md.goals.length > 0;
+    if(hasGoals || md.validated || md.score) n++;
+  });
+  return n;
+}
+
+function _vdjFetchComp(compId){
+  const ctrl = new AbortController();
+  const timer = setTimeout(function(){ ctrl.abort(); }, 8000);
+  return fetch(_VDJ_WORKER + '/api/data?competition=' + encodeURIComponent(compId), {signal: ctrl.signal})
+    .then(function(r){
+      clearTimeout(timer);
+      if(!r.ok) throw new Error('HTTP ' + r.status);
+      return r.json();
+    })
+    .then(function(remote){
+      const storageKey = COMPETITIONS[compId].storageKey;
+      let local = {};
+      try { local = JSON.parse(localStorage.getItem(storageKey) || '{}'); } catch(e){}
+      const nRemote = _vdjCountEncoded(remote);
+      const nLocal  = _vdjCountEncoded(local);
+      if(nRemote === 0 && nLocal > 0){
+        console.warn('[VDJ] ' + compId + ' : Cloudflare est vide, on garde le local (' + nLocal + ' matchs).');
+        return {comp: compId, applied: false};
+      }
+      if(nRemote < nLocal){
+        console.warn('[VDJ] ' + compId + ' : Cloudflare a moins de matchs que le local ('
+          + nRemote + ' < ' + nLocal + ') — local conservé, rien écrasé.');
+        return {comp: compId, applied: false};
+      }
+      localStorage.setItem(storageKey, JSON.stringify(remote));
+      return {comp: compId, applied: true, n: nRemote};
+    })
+    .catch(function(e){
+      clearTimeout(timer);
+      return {comp: compId, applied: false, error: String(e && e.message || e)};
+    });
+}
+
+function _vdjHydrateFromAPI(){
+  const comps = Object.keys(COMPETITIONS);
+  return Promise.all(comps.map(_vdjFetchComp)).then(function(results){
+    const ok = results.filter(function(r){ return r.applied; });
+    _vdjCloudComps = ok.map(function(r){ return r.comp; });
+    const anyError = results.some(function(r){ return r.error; });
+    _vdjDataSource = ok.length === 0 ? 'local' : (anyError ? 'partial' : 'cloud');
+    if(ok.length){
+      loadData();                       // relit le localStorage fraîchement rempli
+      try { _vdjRerenderCurrentView(); } catch(e){ console.warn('[VDJ] re-render:', e); }
+    }
+    _vdjSourceBadge();
+    console.log('[VDJ] Cloudflare — ' + ok.length + '/' + comps.length + ' compétition(s) à jour :',
+      ok.map(function(r){ return r.comp + '(' + r.n + ')'; }).join(', ') || 'aucune');
+    return results;
+  });
+}
+
+// Redessine la vue actuellement affichée après l'arrivée des données.
+function _vdjRerenderCurrentView(){
+  if(typeof currentView === 'undefined') return;
+  const map = {
+    home: 'renderHome', results: 'renderResults', evolution: 'renderEvolution',
+    gpn: 'renderGPN', overunder: 'renderOverUnder', comparateur: 'renderComparateur',
+    scorerprofile: 'renderScorerProfile', topscorers: 'renderTopScorers',
+    assists: 'renderAssists', shotmap: 'renderShotMap', presszones: 'renderPressZones',
+    triggerzones: 'renderTriggerZones', couloirs: 'renderCouloirs',
+    cheminpref: 'renderCheminPref', setpieces: 'renderSetpieces',
+    penalties: 'renderPenalties', papoints: 'renderPaPoints',
+    jeupoints: 'renderJeuPoints', tete: 'renderTete', sankey: 'renderSankey',
+    evolutionphase: 'renderEvolutionPhase', ficheMatch: 'renderFicheMatch',
+    rapport: 'renderRapport', recherche: 'renderRecherche'
+  };
+  const fn = map[currentView];
+  if(fn && typeof window[fn] === 'function'){ window[fn](); return; }
+  if(currentView === 'analysis' && typeof _currentAnalysisKey !== 'undefined' && _currentAnalysisKey){
+    showAnalysis(_currentAnalysisKey);
+  }
+}
+
+// Pastille discrète en bas à gauche : d'où viennent les chiffres affichés.
+function _vdjSourceBadge(){
+  let el = document.getElementById('vdj-source-badge');
+  if(!el){
+    el = document.createElement('div');
+    el.id = 'vdj-source-badge';
+    el.style.cssText = 'position:fixed;left:14px;bottom:14px;z-index:9998;padding:5px 11px;'
+      + 'border-radius:14px;font-size:.72em;font-weight:700;font-family:inherit;'
+      + 'box-shadow:0 2px 8px rgba(0,0,0,.15);cursor:default;transition:opacity .3s';
+    document.body.appendChild(el);
+  }
+  const conf = {
+    cloud:   {t:'☁️ Données à jour', bg:'#e8f7ec', fg:'#1a6a2a',
+              title:'Chiffres lus directement depuis Cloudflare.'},
+    partial: {t:'☁️ Données partielles',  bg:'#fff8e1', fg:'#8a6100',
+              title:'Une partie des compétitions vient de Cloudflare, le reste du cache local.'},
+    local:   {t:'💾 Cache local',              bg:'#fdecea', fg:'#b3261e',
+              title:'Cloudflare injoignable — chiffres possiblement périmés.'}
+  }[_vdjDataSource];
+  if(!conf) return;
+  el.textContent = conf.t;
+  el.style.background = conf.bg;
+  el.style.color = conf.fg;
+  el.style.border = '1.5px solid ' + conf.fg;
+  el.title = conf.title;
+  if(_vdjDataSource === 'cloud'){
+    clearTimeout(el._hide);
+    el._hide = setTimeout(function(){ el.style.opacity = '0'; }, 4000);
+  } else {
+    el.style.opacity = '1';
+  }
+}
+
 // ==============================================
 // INIT
 // ==============================================
 loadData();
 updateCompUI();
 flinkInit();
+
+// Rafraîchissement depuis Cloudflare — non bloquant : la page s'affiche
+// immédiatement avec le cache local, puis se met à jour toute seule dès que
+// le Worker a répondu.
+try { _vdjHydrateFromAPI(); } catch(e){ console.warn('[VDJ] hydratation:', e); }
 
 // ==============================================
 // JEU DE TÊTE
