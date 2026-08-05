@@ -591,6 +591,7 @@ main { background: var(--bg) !important; }
 @media print {
   nav.sidebar, header, .lang-toggle, button, select { display: none !important; }
   main > div { display: none !important; }
+  #vdj-season-bar { display: none !important; }
   #view-ficheMatch { display: block !important; }
   body { background: #fff !important; margin: 0; }
 }
@@ -3698,7 +3699,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T14:47';
+const _PL2526_FACTS_VERSION = '2026-08-05T14:51';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -6654,7 +6655,7 @@ function showView(name){
   currentView = name;
   currentKey = null;
   try{ localStorage.setItem('_vdj_page','view:'+name); }catch(e){}
-  document.querySelectorAll('main > div').forEach(d=>d.style.display='none');
+  document.querySelectorAll('main > div:not(#vdj-season-bar)').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
   const navEl = document.getElementById('nav-'+name);
   if(navEl) navEl.classList.add('active');
@@ -6712,7 +6713,7 @@ function showAnalysis(key, opts={}){
   currentView = 'analysis';
   currentKey = key;
   try{ localStorage.setItem('_vdj_page','analysis:'+key+(opts.filter?':'+opts.filter:'')); }catch(e){}
-  document.querySelectorAll('main > div').forEach(d=>d.style.display='none');
+  document.querySelectorAll('main > div:not(#vdj-season-bar)').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
   const dataKey = opts.filter==='pa' ? 'pa' : key;
   const navEl = document.querySelector(`nav.sidebar a[data-key="${dataKey}"]`);
