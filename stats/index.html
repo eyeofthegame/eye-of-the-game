@@ -3699,7 +3699,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T15:06';
+const _PL2526_FACTS_VERSION = '2026-08-05T15:16';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -14271,6 +14271,104 @@ function _rechDims(){
   return T;
 }
 
+
+// ── Détail d'une cellule du tableau croisé ────────────────────────────
+// Christian (05/08/2026) : « si je clique sur les chiffres je veux voir le
+// détail du but et sa vidéo ». Les buts filtrés sont mémorisés au moment
+// de construire le tableau ; au clic on retrouve ceux de la cellule et on
+// les liste sous le tableau, chacun avec son bouton vidéo.
+let _rechCrossGoals = [];
+
+function rechCrossCell(rowVal, colVal){
+  const box = document.getElementById('rech-cross-detail');
+  if(!box) return;
+  const DIMS = _rechDims();
+  const R = DIMS[_rechCrossRow], C = DIMS[_rechCrossCol];
+  if(!R || !C) return;
+  const norm = function(v){ return (v===undefined||v===null||v==='') ? null : String(v); };
+
+  // rowVal/colVal à null = on prend toute la ligne ou toute la colonne
+  // (clic sur un total).
+  const sel = _rechCrossGoals.filter(function(g){
+    const rv = norm(R.get(g)), cv = norm(C.get(g));
+    if(rv===null || cv===null) return false;
+    if(rowVal!==null && rv!==rowVal) return false;
+    if(colVal!==null && cv!==colVal) return false;
+    return true;
+  });
+  if(!sel.length){ box.style.display='none'; box.innerHTML=''; return; }
+
+  sel.sort(function(a,b){
+    if(a.matchId!==b.matchId) return a.matchId-b.matchId;
+    return (parseInt(a.minute)||0)-(parseInt(b.minute)||0);
+  });
+
+  const titleBits = [];
+  if(rowVal!==null) titleBits.push(R.label + ' : <b>' + R.lab(rowVal) + '</b>');
+  if(colVal!==null) titleBits.push(C.label + ' : <b>' + C.lab(colVal) + '</b>');
+
+  const nVid = sel.filter(function(g){ return !!g.lien; }).length;
+
+  let h = '<div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:8px">'
+    + '<span style="font-size:.8em;color:var(--text)">' + titleBits.join(' &nbsp;·&nbsp; ') + '</span>'
+    + '<span style="font-size:.78em;font-weight:800;color:var(--accent)">' + sel.length + ' '
+    + (_lang==='en' ? ('goal'+(sel.length>1?'s':'')) : ('but'+(sel.length>1?'s':''))) + '</span>'
+    + (nVid ? '<span style="font-size:.7em;color:var(--muted)">· ' + nVid + ' '
+        + (_lang==='en'?'with video':_lang==='nl'?'met video':'avec vidéo') + '</span>' : '')
+    + '<button onclick="rechCrossCloseDetail()" style="margin-left:auto;font-size:.72em;padding:3px 10px;'
+    + 'border-radius:11px;cursor:pointer;background:transparent;border:1.5px solid var(--border);'
+    + 'color:var(--muted);font-family:inherit;font-weight:700">✕ '
+    + (_lang==='en'?'Close':_lang==='nl'?'Sluiten':'Fermer') + '</button></div>';
+
+  h += '<div style="display:flex;flex-direction:column;gap:4px;max-height:340px;overflow-y:auto">';
+  sel.forEach(function(g){
+    const m = g.match || {};
+    const tDef = VDJ.tactique1[g.tactique1];
+    const tacBg = tDef ? '#'+tDef.c1 : '#888';
+    const tacFg = tDef ? '#'+tDef.c2 : '#fff';
+    const tac   = tDef ? tDef.nom : '—';
+    const cscG  = isCsc(g);
+    const who   = cscG ? ('CSC (' + tf(g.team) + ')') : (g.buteur || '—');
+    const venue = (g.team===m.dom) ? '🏠' : '✈️';
+    const season = (m._comp && COMPETITIONS[m._comp])
+      ? '<span style="font-size:.62em;font-weight:800;color:#555;background:#ececec;border:1px solid #d5d5d5;border-radius:3px;padding:1px 5px;white-space:nowrap">'
+        + (COMPETITIONS[m._comp].shortLabel || m._comp) + '</span>'
+      : '';
+    const vid = g.lien
+      ? '<button onclick="openVideoModal(\'' + String(g.lien).replace(/'/g,"\\'") + '\')" '
+        + 'style="background:#cc0000;color:#fff;border:none;border-radius:4px;padding:3px 10px;'
+        + 'font-size:.72em;font-weight:700;cursor:pointer;white-space:nowrap;flex-shrink:0">▶ '
+        + (_lang==='en'?'Video':_lang==='nl'?'Video':'Vidéo') + '</button>'
+      : '<span style="font-size:.66em;color:var(--muted);white-space:nowrap;flex-shrink:0;opacity:.6">'
+        + (_lang==='en'?'no video':_lang==='nl'?'geen video':'pas de vidéo') + '</span>';
+
+    h += '<div style="display:flex;align-items:center;gap:8px;padding:6px 10px;background:var(--card);'
+      + 'border:1px solid var(--border);border-radius:6px">'
+      + '<span style="font-size:.7em;flex-shrink:0">' + venue + '</span>'
+      + '<span style="font-weight:800;font-size:.8em;white-space:nowrap;flex-shrink:0">' + who + '</span>'
+      + '<span style="font-size:.72em;color:var(--muted);flex:1;min-width:0;overflow:hidden;'
+      + 'text-overflow:ellipsis;white-space:nowrap">' + tf(m.dom||'') + ' – ' + tf(m.ext||'')
+      + (m.date ? ' · ' + m.date : '') + '</span>'
+      + season
+      + '<span style="font-size:.66em;background:' + tacBg + ';color:' + tacFg + ';border-radius:3px;'
+      + 'padding:2px 7px;font-weight:700;white-space:nowrap;flex-shrink:0">' + tac + '</span>'
+      + '<span style="font-size:.75em;font-weight:800;color:var(--accent);white-space:nowrap;flex-shrink:0">⏱ '
+      + (g.minute||'?') + "'</span>"
+      + vid
+      + '</div>';
+  });
+  h += '</div>';
+
+  box.innerHTML = h;
+  box.style.display = 'block';
+  try { box.scrollIntoView({behavior:'smooth', block:'nearest'}); } catch(e){}
+}
+
+function rechCrossCloseDetail(){
+  const box = document.getElementById('rech-cross-detail');
+  if(box){ box.style.display='none'; box.innerHTML=''; }
+}
+
 // Construit le tableau croisé HTML à partir des buts déjà filtrés.
 function _rechBuildCrossTab(goals){
   const DIMS = _rechDims();
@@ -14282,6 +14380,13 @@ function _rechBuildCrossTab(goals){
     if(v===undefined || v===null || v==='') return null;
     return String(v);
   };
+
+  _rechCrossGoals = goals;   // mémorisés pour le détail au clic
+
+  // Valeur JS insérée dans un attribut onclick="..." : les guillemets
+  // doubles doivent devenir &quot;, sinon une valeur comme
+  // 'Guillemet " test' referme l'attribut et casse le clic en silence.
+  const _arg = function(v){ return JSON.stringify(v).replace(/"/g, '&quot;'); };
 
   const cells = {}, rowTot = {}, colTot = {};
   let grand = 0, ignored = 0;
@@ -14333,18 +14438,29 @@ function _rechBuildCrossTab(goals){
       const intens = maxCell>0 ? n/maxCell : 0;
       const bg = n===0 ? 'transparent' : 'rgba(26,115,232,' + (0.10 + intens*0.72).toFixed(3) + ')';
       const fgc = intens>0.55 ? '#fff' : 'var(--text)';
-      h += '<td style="padding:6px 9px;text-align:center;border-bottom:1px solid var(--border);'
-        + 'background:' + bg + ';color:' + fgc + ';font-weight:' + (n?'800':'400') + '">'
+      const clickable = n>0
+        ? ' onclick="rechCrossCell(' + _arg(rv) + ',' + _arg(cv) + ')"'
+          + ' title="' + (_lang==='en'?'See these goals and their videos':_lang==='nl'?'Bekijk deze doelpunten en video\'s':'Voir ces buts et leurs vidéos') + '"'
+        : '';
+      h += '<td' + clickable + ' style="padding:6px 9px;text-align:center;border-bottom:1px solid var(--border);'
+        + 'background:' + bg + ';color:' + fgc + ';font-weight:' + (n?'800':'400')
+        + (n?';cursor:pointer':'') + '">'
         + (n || '<span style="opacity:.25">·</span>') + '</td>';
     });
-    h += '<td style="padding:6px 10px;text-align:center;font-weight:800;color:var(--accent);border-bottom:1px solid var(--border);background:var(--bg)">'
+    h += '<td onclick="rechCrossCell(' + _arg(rv) + ',null)" title="'
+      + (_lang==='en'?'See all goals in this row':_lang==='nl'?'Bekijk alle doelpunten van deze rij':'Voir tous les buts de cette ligne')
+      + '" style="padding:6px 10px;text-align:center;font-weight:800;color:var(--accent);cursor:pointer;'
+      + 'border-bottom:1px solid var(--border);background:var(--bg)">'
       + rowTot[rv] + '</td></tr>';
   });
 
   h += '<tr><td style="position:sticky;left:0;padding:7px 10px;font-weight:800;background:var(--bg);border-top:2px solid var(--border);z-index:1">'
     + (_lang==='en'?'Total':'Total') + '</td>';
   cols.forEach(function(cv){
-    h += '<td style="padding:7px 9px;text-align:center;font-weight:800;color:var(--accent);background:var(--bg);border-top:2px solid var(--border)">'
+    h += '<td onclick="rechCrossCell(null,' + _arg(cv) + ')" title="'
+      + (_lang==='en'?'See all goals in this column':_lang==='nl'?'Bekijk alle doelpunten van deze kolom':'Voir tous les buts de cette colonne')
+      + '" style="padding:7px 9px;text-align:center;font-weight:800;color:var(--accent);cursor:pointer;'
+      + 'background:var(--bg);border-top:2px solid var(--border)">'
       + colTot[cv] + '</td>';
   });
   h += '<td style="padding:7px 10px;text-align:center;font-weight:900;color:var(--accent);background:var(--bg);border-top:2px solid var(--border)">'
@@ -14734,12 +14850,71 @@ function renderRecherche(){
         + 'background:' + (on?'var(--accent)':'var(--card)') + ';color:' + (on?'#fff':'var(--accent)') + '">'
         + label + '</button>';
     };
+    // ── Rappel des filtres actifs ────────────────────────────────────
+    // Christian (05/08/2026) : avec 16 contrôles, on perd vite le fil de ce
+    // qui est sélectionné — d'autant que les listes déroulantes tronquent
+    // les libellés. Chaque filtre actif est rappelé ici en clair, et se
+    // retire d'un clic sur sa croix.
+    const _lbl = function(tbl, k){ return (tbl && tbl[k] && tbl[k].nom) ? tbl[k].nom : k; };
+    const _col = function(tbl, k){ return (tbl && tbl[k] && tbl[k].c1) ? '#'+tbl[k].c1 : null; };
+    const _fgc = function(tbl, k){ return (tbl && tbl[k] && tbl[k].c2) ? '#'+tbl[k].c2 : null; };
+    const _chips = [];
+    const _addChip = function(key, cat, val, bg, fg){
+      const _bg = bg || 'var(--accent)';
+      const _fg = fg || '#fff';
+      _chips.push('<span style="display:inline-flex;align-items:center;gap:5px;padding:3px 5px 3px 10px;'
+        + 'border-radius:12px;background:' + _bg + ';color:' + _fg + ';font-size:.72em;font-weight:700;'
+        + 'white-space:nowrap;max-width:260px">'
+        + '<span style="opacity:.75;font-weight:600">' + cat + '</span>'
+        + '<span style="overflow:hidden;text-overflow:ellipsis">' + val + '</span>'
+        + '<span onclick="rechUpdateFilter(\'' + key + '\',\'\')" title="'
+        + (_lang==='en'?'Remove':_lang==='nl'?'Verwijderen':'Retirer') + '" '
+        + 'style="cursor:pointer;font-weight:900;opacity:.8;padding:0 4px;border-radius:8px">✕</span></span>');
+    };
+
+    if(fTeam){
+      const _sens = (fMode==='def')
+        ? (_lang==='en'?'conceded':_lang==='nl'?'tegen':'encaissés')
+        : (_lang==='en'?'scored':_lang==='nl'?'gescoord':'marqués');
+      _addChip('team', (_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe'), tf(fTeam) + ' · ' + _sens);
+    }
+    if(fButeur) _addChip('buteur',  (_lang==='en'?'Scorer':_lang==='nl'?'Doelpuntenmaker':'Buteur'),  _rechState.buteur);
+    if(fAssist) _addChip('assist',  (_lang==='en'?'Assist':_lang==='nl'?'Assist':'Passeur'),          _rechState.assist);
+    if(fTac1)   _addChip('tac1',    (_lang==='en'?'Style':_lang==='nl'?'Stijl':'Style'),              _lbl(VDJ.tactique1,fTac1), _col(VDJ.tactique1,fTac1), _fgc(VDJ.tactique1,fTac1));
+    if(fTac2)   _addChip('tac2',    (_lang==='en'?'Pattern':_lang==='nl'?'Patroon':'Schéma'),         _lbl(VDJ.tactique2,fTac2), _col(VDJ.tactique2,fTac2), _fgc(VDJ.tactique2,fTac2));
+    if(fNat)    _addChip('nat',     (_lang==='en'?'Type':_lang==='nl'?'Aard':'Nature'),               _lbl(VDJ.tactique3,fNat));
+    if(fOri1)   _addChip('ori1',    (_lang==='en'?'Origin':_lang==='nl'?'Oorsprong':'Origine'),       _lbl(VDJ.origine1,fOri1),  _col(VDJ.origine1,fOri1),  _fgc(VDJ.origine1,fOri1));
+    if(fOri2)   _addChip('ori2',    (_lang==='en'?'Intention':_lang==='nl'?'Intentie':'Intention'),   _lbl(VDJ.origine2,fOri2));
+    if(fAct)    _addChip('act',     (_lang==='en'?'Action':_lang==='nl'?'Actie':'Action'),            _lbl(VDJ.actions,fAct));
+    if(fFin)    _addChip('fin',     (_lang==='en'?'Finish':_lang==='nl'?'Afronding':'Finition'),      _lbl(VDJ.finitions,fFin));
+    if(fLieu)   _addChip('lieu',    (_lang==='en'?'Location':_lang==='nl'?'Locatie':'Lieu'),          _lbl(VDJ.lieu,fLieu));
+    if(fMin)    _addChip('min',     (_lang==='en'?'Period':_lang==='nl'?'Periode':'Période'),         _lbl(VDJ.minutes,fMin));
+    if(fVenue)  _addChip('venue',   (_lang==='en'?'Venue':_lang==='nl'?'Locatie':'Lieu'),
+                  fVenue==='dom' ? (_lang==='en'?'🏠 Home':_lang==='nl'?'🏠 Thuis':'🏠 Domicile')
+                                 : (_lang==='en'?'✈️ Away':_lang==='nl'?'✈️ Uit':'✈️ Extérieur'));
+    if(fValeur){ const _n=parseInt(fValeur); _addChip('valeur', (_lang==='en'?'Rating':_lang==='nl'?'Waardering':'Valeur'), (_n>=1&&_n<=5)?('★'.repeat(_n)+'☆'.repeat(5-_n)):fValeur); }
+    if(fArb)    _addChip('arbitre', (_lang==='en'?'Referee':_lang==='nl'?'Scheidsrechter':'Arbitre'), fArb);
+
+    const _activeFiltersHtml = _chips.length
+      ? '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-left:6px">'
+        + '<span style="font-size:.66em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em">'
+        + (_lang==='en'?'Active filters':_lang==='nl'?'Actieve filters':'Filtres actifs') + '</span>'
+        + _chips.join('')
+        + '<button onclick="rechReset()" style="font-size:.68em;padding:3px 9px;border-radius:11px;cursor:pointer;'
+        + 'background:transparent;border:1.5px solid var(--border);color:var(--muted);font-family:inherit;font-weight:700">✕ '
+        + (_lang==='en'?'Clear all':_lang==='nl'?'Alles wissen':'Tout effacer') + '</button></div>'
+      : '';
+
     const _outputToggle = '<div style="display:flex;gap:6px;align-items:center;margin-bottom:10px;flex-wrap:wrap">'
       + _outBtn('list',  '📋 ' + (_lang==='en'?'Goal list':_lang==='nl'?'Doelpuntenlijst':'Liste des buts'))
       + _outBtn('cross', '🔀 ' + (_lang==='en'?'Cross table':_lang==='nl'?'Kruistabel':'Tableau croisé'))
+      + _activeFiltersHtml
       + '</div>';
     const _crossHtml = (_rechOutput==='cross')
-      ? (_rechCrossBar() + _rechBuildCrossTab(goals))
+      ? (_rechCrossBar() + _rechBuildCrossTab(goals)
+         + '<div id="rech-cross-detail" style="display:none;margin-top:14px;padding:12px 14px;'
+         + 'background:var(--bg);border:1px solid var(--border);border-radius:10px;'
+         + 'border-left:3px solid var(--accent)"></div>')
       : '';
 
     // ── Single panel layout (existing) ───────────────────────────────
