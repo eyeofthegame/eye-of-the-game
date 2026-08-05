@@ -3699,7 +3699,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T14:55';
+const _PL2526_FACTS_VERSION = '2026-08-05T15:01';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -15203,7 +15203,55 @@ function _rechApplyOpacity(){
 
 function renderScorerProfile(){
   loadData();
-  const allGoals = getAllGoalsAllComps();
+  const _allGoalsEveryComp = getAllGoalsAllComps();
+
+  // ── Filtre compétition / tournoi ──────────────────────────────────────
+  // Christian (05/08/2026) : le total d'un joueur cumulait championnat et
+  // sélection nationale (Haaland 33 = 26 en Premier League + 7 avec la
+  // Norvège). Ce filtre agit sur TOUTE la vue — la liste de gauche comme la
+  // carte — pour pouvoir isoler « ce qu'il a marqué en Premier League ».
+  // Les compétitions étant déjà découpées par saison (pl2526, pl2627), ces
+  // pastilles donnent aussi la granularité saison sur cette vue.
+  const _compCounts = {};
+  _allGoalsEveryComp.forEach(function(g){
+    if(!g.buteur || isCsc(g)) return;
+    if(!g._comp) return;
+    _compCounts[g._comp] = (_compCounts[g._comp] || 0) + 1;
+  });
+  const _compIds = Object.keys(_compCounts).sort(function(a,b){
+    return _compCounts[b] - _compCounts[a];
+  });
+  // Un filtre pointant vers une compétition sans but devient caduc
+  if(_spCompFilter && !_compCounts[_spCompFilter]) _spCompFilter = null;
+
+  const _totalAllComps = Object.keys(_compCounts).reduce(function(s,k){ return s + _compCounts[k]; }, 0);
+  let _spCompBarHtml = '';
+  if(_compIds.length > 1){
+    _spCompBarHtml = '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-bottom:.9em;padding:7px 10px;background:var(--card);border:1px solid var(--border);border-radius:8px">'
+      + '<span style="font-size:.66em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;margin-right:3px">'
+      + (_lang==='en'?'Competition':_lang==='nl'?'Competitie':'Compétition') + '</span>'
+      + '<button onclick="spSelectComp(null)" style="padding:3px 11px;border-radius:12px;'
+      + 'border:1.5px solid var(--accent);cursor:pointer;font-family:inherit;font-size:.72em;font-weight:800;'
+      + 'background:' + (!_spCompFilter?'var(--accent)':'transparent') + ';'
+      + 'color:' + (!_spCompFilter?'#fff':'var(--accent)') + '">'
+      + (_lang==='en'?'All':_lang==='nl'?'Alle':'Toutes') + ' <span style="opacity:.8">' + _totalAllComps + '</span></button>'
+      + _compIds.map(function(cid){
+          const comp = COMPETITIONS[cid];
+          const label = comp ? (comp.shortLabel || comp.label || cid) : cid;
+          const on = (_spCompFilter === cid);
+          return '<button onclick="spSelectComp(\'' + cid + '\')" style="padding:3px 11px;border-radius:12px;'
+            + 'border:1.5px solid var(--accent);cursor:pointer;font-family:inherit;font-size:.72em;font-weight:800;'
+            + 'white-space:nowrap;background:' + (on?'var(--accent)':'transparent') + ';'
+            + 'color:' + (on?'#fff':'var(--accent)') + '">'
+            + label + ' <span style="opacity:.8">' + _compCounts[cid] + '</span></button>';
+        }).join('')
+      + '</div>';
+  }
+
+  // La liste de gauche suit le filtre ; la carte le réapplique de son côté.
+  const allGoals = _spCompFilter
+    ? _allGoalsEveryComp.filter(function(g){ return g._comp === _spCompFilter; })
+    : _allGoalsEveryComp;
 
   // Build aggregate scorer list — grouped by name, per-club breakdown
   const nameMap = {};
@@ -15257,6 +15305,7 @@ function renderScorerProfile(){
 
   const html = `<div style="padding:1.2em 1.5em">
     <h2 style="margin-bottom:.8em;color:var(--accent)">⚡ ${_lang==='en'?'Scorer Express Profile':_lang==='nl'?'Express doelschuttersprofiel':'Profil buteur express'}</h2>
+    ${_spCompBarHtml}
     <div style="display:flex;gap:16px;align-items:flex-start">
 
       <!-- Liste buteurs -->
