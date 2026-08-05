@@ -3699,7 +3699,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T14:51';
+const _PL2526_FACTS_VERSION = '2026-08-05T14:55';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -6709,9 +6709,18 @@ function showView(name){
   else if(name==='scouting') _safeRender(renderScouting);
 }
 
+// 05/08/2026 — `_currentAnalysisKey` était lu par setLang() et par le
+// re-render saison, mais n'était JAMAIS écrit : la vue Tactique ne se
+// redessinait donc jamais après un changement de langue ou de saison.
+// On mémorise ici la clé et les options réellement utilisées.
+let _currentAnalysisKey = null;
+let _currentAnalysisOpts = {};
+
 function showAnalysis(key, opts={}){
   currentView = 'analysis';
   currentKey = key;
+  _currentAnalysisKey = key;
+  _currentAnalysisOpts = opts || {};
   try{ localStorage.setItem('_vdj_page','analysis:'+key+(opts.filter?':'+opts.filter:'')); }catch(e){}
   document.querySelectorAll('main > div:not(#vdj-season-bar)').forEach(d=>d.style.display='none');
   document.querySelectorAll('nav.sidebar a').forEach(a=>a.classList.remove('active'));
@@ -10833,26 +10842,22 @@ function _vdjHydrateFromAPI(){
   });
 }
 
-// Redessine la vue actuellement affichée après l'arrivée des données.
+// Redessine la vue actuellement affichée après l'arrivée de nouvelles
+// données (Cloudflare) ou d'un changement de saison.
+//
+// 05/08/2026 — on délègue à showView() au lieu de maintenir une table de
+// correspondance vue -> fonction de rendu : une table oublie forcément les
+// vues ajoutées ensuite (8 l'étaient déjà : arbitres, classement,
+// entraîneurs, scouting, topbuts, preview, lesnoms, tempsdejeu), et ces
+// vues restaient alors muettes au changement de saison. showView() connaît
+// déjà toutes les vues et les rend via _safeRender.
 function _vdjRerenderCurrentView(){
-  if(typeof currentView === 'undefined') return;
-  const map = {
-    home: 'renderHome', results: 'renderResults', evolution: 'renderEvolution',
-    gpn: 'renderGPN', overunder: 'renderOverUnder', comparateur: 'renderComparateur',
-    scorerprofile: 'renderScorerProfile', topscorers: 'renderTopScorers',
-    assists: 'renderAssists', shotmap: 'renderShotMap', presszones: 'renderPressZones',
-    triggerzones: 'renderTriggerZones', couloirs: 'renderCouloirs',
-    cheminpref: 'renderCheminPref', setpieces: 'renderSetpieces',
-    penalties: 'renderPenalties', papoints: 'renderPaPoints',
-    jeupoints: 'renderJeuPoints', tete: 'renderTete', sankey: 'renderSankey',
-    evolutionphase: 'renderEvolutionPhase', ficheMatch: 'renderFicheMatch',
-    rapport: 'renderRapport', recherche: 'renderRecherche'
-  };
-  const fn = map[currentView];
-  if(fn && typeof window[fn] === 'function'){ window[fn](); return; }
-  if(currentView === 'analysis' && typeof _currentAnalysisKey !== 'undefined' && _currentAnalysisKey){
-    showAnalysis(_currentAnalysisKey);
+  if(typeof currentView === 'undefined' || !currentView) return;
+  if(currentView === 'analysis'){
+    if(_currentAnalysisKey) showAnalysis(_currentAnalysisKey, _currentAnalysisOpts || {});
+    return;
   }
+  if(typeof showView === 'function') showView(currentView);
 }
 
 // Pastille discrète en bas à gauche : d'où viennent les chiffres affichés.
@@ -18891,7 +18896,7 @@ function setLang(lang){
       else if(currentView==='evolutionphase') renderEvolutionPhase();
       else if(currentView==='ficheMatch') renderFicheMatch();
       else if(currentView==='rapport') renderRapport();
-      else if(typeof _currentAnalysisKey!=='undefined' && _currentAnalysisKey) showAnalysis(_currentAnalysisKey);
+      else if(_currentAnalysisKey) showAnalysis(_currentAnalysisKey, _currentAnalysisOpts || {});
     }
   } catch(e){ console.warn('setLang re-render:', e); }
   try { _vdjUpdateSeasonUI(); } catch(e){}
