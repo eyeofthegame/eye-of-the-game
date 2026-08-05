@@ -1037,6 +1037,7 @@ document.addEventListener('dragstart',function(e){e.preventDefault();return fals
 </nav>
 
 <main>
+<div id="vdj-season-bar" style="display:none;gap:6px;align-items:center;flex-wrap:wrap;margin:0 0 12px 0;padding:8px 12px;background:var(--card);border:1px solid var(--border);border-radius:10px"></div>
 <div id="view-home"></div>
 <div id="view-analysis" style="display:none"></div>
 
@@ -3287,6 +3288,7 @@ function switchComp(id){
   MATCHES = COMPETITIONS[id].matches;
   updateCompUI();
   loadData();
+  try { _vdjUpdateSeasonUI(); } catch(e){}
   showView(currentView === 'analysis' ? 'home' : currentView);
   // 18 juillet 2026 — chaque compétition a son propre fichier lié
   // (voir _flinkKeyForComp) : on relit son handle à chaque changement de
@@ -3385,6 +3387,165 @@ function _migratePlayerNameDuplicatesPL2526(storageKey){
   if(changed){ try { localStorage.setItem(storageKey, JSON.stringify(data)); } catch(e){} }
 }
 
+
+// ══════════════════════════════════════════════════════════════════════
+// DIMENSION SAISON — 05/08/2026
+//
+// Objectif : consulter plusieurs saisons d'un même championnat au même
+// endroit. Pendant un match en direct de PL 2026-27, pouvoir basculer sur
+// 2025-26 pour voir ce que le buteur faisait la saison passée, sans
+// changer de page.
+//
+// Principe retenu : plutôt que de modifier getAllGoals() et les ~30
+// fonctions de rendu qui lisent `data` et `MATCHES`, on change ce que
+// `data` et `MATCHES` CONTIENNENT. En mode « toutes saisons », on y
+// fusionne les saisons du même groupe. Tout le code en aval fonctionne
+// alors sans la moindre modification.
+//
+// C'est possible sans risque parce que les identifiants de match ne se
+// chevauchent pas d'une saison à l'autre (PL 25-26 = 6001-6380,
+// PL 26-27 = 2001-2380) : aucune collision de clés lors de la fusion.
+//
+// ⚠️ Règle de sûreté absolue : en mode fusionné, on n'écrit JAMAIS dans
+// localStorage. Les migrations de loadData() (corrections de noms, seed,
+// etc.) réécrivent `data` dans la clé de la compétition active — si elles
+// tournaient sur un `data` fusionné, elles écriraient deux saisons dans
+// la clé d'une seule et corrompraient la base. La fusion a donc lieu
+// APRÈS les migrations, et _vdjMergedMode sert de garde-fou.
+// ══════════════════════════════════════════════════════════════════════
+
+// Championnats déclinés en plusieurs saisons. Une compétition absente
+// d'ici n'a qu'une saison : le sélecteur ne s'affiche pas pour elle.
+const SEASON_GROUPS = {
+  pl: { label: 'Premier League', comps: ['pl2526', 'pl2627'] }
+};
+
+// compId -> groupe. Construit une fois au chargement.
+const _COMP_TO_GROUP = (function(){
+  const m = {};
+  Object.keys(SEASON_GROUPS).forEach(function(gid){
+    SEASON_GROUPS[gid].comps.forEach(function(cid){ m[cid] = gid; });
+  });
+  return m;
+})();
+
+// 'all' = toutes les saisons du groupe · sinon un compId précis.
+let _vdjSeasonSel = localStorage.getItem('vdj_season_sel') || 'all';
+let _vdjMergedMode = false;   // true = `data` contient plusieurs saisons
+
+function _vdjGroupOf(compId){ return _COMP_TO_GROUP[compId] || null; }
+
+// Le groupe de saisons a-t-il un sens pour la compétition active ?
+function _vdjHasSeasons(){
+  const g = _vdjGroupOf(ACTIVE_COMP);
+  if(!g) return false;
+  return (SEASON_GROUPS[g].comps || []).length > 1;
+}
+
+// Compétitions à charger, compte tenu de la compétition active et du
+// sélecteur de saison. Retourne toujours au moins [ACTIVE_COMP].
+function _vdjSeasonScope(){
+  const g = _vdjGroupOf(ACTIVE_COMP);
+  if(!g) return [ACTIVE_COMP];
+  const comps = SEASON_GROUPS[g].comps.filter(function(c){ return !!COMPETITIONS[c]; });
+  if(_vdjSeasonSel === 'all') return comps;
+  return comps.indexOf(_vdjSeasonSel) >= 0 ? [_vdjSeasonSel] : comps;
+}
+
+// Libellé court d'une saison, pour les pastilles.
+function _vdjSeasonLabel(compId){
+  const c = COMPETITIONS[compId];
+  if(!c) return compId;
+  const m = String(c.label || '').match(/(\d{4})\s*[-–/]\s*(\d{2,4})/);
+  if(m) return m[1].slice(2) + '-' + m[2].slice(-2);   // "2025-26" -> "25-26"
+  return c.shortLabel || c.label || compId;
+}
+
+// Fusionne dans `data`/`MATCHES` les saisons du scope autres que la
+// compétition active. Lecture seule : rien n'est réécrit en localStorage.
+function _vdjApplySeasonScope(){
+  _vdjMergedMode = false;
+  const scope = _vdjSeasonScope();
+  const activeInScope = scope.indexOf(ACTIVE_COMP) >= 0;
+
+  const mergedMatches = [];
+  const seenIds = {};
+
+  if(activeInScope){
+    // Marque la saison d'origine sur les matchs de la compétition active,
+    // pour que les vues puissent étiqueter chaque but même hors fusion.
+    (COMPETITIONS[ACTIVE_COMP].matches || []).forEach(function(m){
+      mergedMatches.push(Object.assign({}, m, {_comp: ACTIVE_COMP, _season: _vdjSeasonLabel(ACTIVE_COMP)}));
+      seenIds[m.id] = true;
+    });
+  } else {
+    // La compétition active est hors du scope choisi (ex. on est sur
+    // PL 25-26 et on ne veut voir QUE 26-27) : ses données ne doivent pas
+    // rester affichées. `data` a été rempli par loadData() juste avant,
+    // on le vide — la ou les saisons du scope sont rechargées ci-dessous.
+    data = {};
+  }
+
+  const others = scope.filter(function(c){ return c !== ACTIVE_COMP; });
+  if(!others.length){ MATCHES = mergedMatches; return; }
+
+  others.forEach(function(compId){
+    const comp = COMPETITIONS[compId];
+    if(!comp) return;
+
+    let compData = {};
+    try { compData = JSON.parse(localStorage.getItem(comp.storageKey) || '{}'); } catch(e){ return; }
+
+    (comp.matches || []).forEach(function(m){
+      if(seenIds[m.id]){
+        console.warn('[VDJ] Fusion saisons : identifiant de match en double (' + m.id + '), ignoré.');
+        return;
+      }
+      seenIds[m.id] = true;
+      mergedMatches.push(Object.assign({}, m, {_comp: compId, _season: _vdjSeasonLabel(compId)}));
+    });
+
+    Object.keys(compData).forEach(function(mid){
+      if(data[mid] !== undefined) return;   // ne jamais écraser la saison active
+      data[mid] = compData[mid];
+    });
+  });
+
+  MATCHES = mergedMatches;
+  _vdjMergedMode = scope.length > 1;
+}
+
+// Change de saison et redessine.
+function setSeasonSel(v){
+  _vdjSeasonSel = v;
+  try { localStorage.setItem('vdj_season_sel', v); } catch(e){}
+  loadData();
+  try { _vdjRerenderCurrentView(); } catch(e){ console.warn('[VDJ] saison re-render:', e); }
+  _vdjUpdateSeasonUI();
+}
+
+function _vdjUpdateSeasonUI(){
+  const box = document.getElementById('vdj-season-bar');
+  if(!box) return;
+  if(!_vdjHasSeasons()){ box.style.display = 'none'; box.innerHTML = ''; return; }
+  box.style.display = 'flex';
+  const g = _vdjGroupOf(ACTIVE_COMP);
+  const comps = SEASON_GROUPS[g].comps.filter(function(c){ return !!COMPETITIONS[c]; });
+  const opts = [{v:'all', l: _lang==='en'?'All seasons':_lang==='nl'?'Alle seizoenen':'Toutes saisons'}]
+    .concat(comps.map(function(c){ return {v:c, l:_vdjSeasonLabel(c)}; }));
+  box.innerHTML = '<span style="font-size:.72em;font-weight:700;color:var(--muted);'
+    + 'text-transform:uppercase;letter-spacing:.06em;margin-right:2px">'
+    + (_lang==='en'?'Season':_lang==='nl'?'Seizoen':'Saison') + '</span>'
+    + opts.map(function(o){
+        const on = (_vdjSeasonSel === o.v);
+        return '<button onclick="setSeasonSel(\'' + o.v + '\')" style="padding:3px 12px;'
+          + 'border:1.5px solid ' + (on?'var(--accent)':'var(--border)') + ';border-radius:14px;'
+          + 'background:' + (on?'var(--accent)':'var(--card)') + ';color:' + (on?'#fff':'var(--accent)') + ';'
+          + 'font-size:.76em;font-weight:' + (on?'800':'600') + ';cursor:pointer;font-family:inherit;'
+          + 'white-space:nowrap">' + o.l + '</button>';
+      }).join('');
+}
+
 function loadData(){
   const key = activeDataKey();
   const useSeed = COMPETITIONS[ACTIVE_COMP].hasSeed; // seules certaines compétitions ont un seed embarqué (voir SEED_BY_COMP)
@@ -3419,6 +3580,10 @@ function loadData(){
   try { _fixResearchBatchJ3138Validated(); } catch(e){}
   try { _fixResearchBatchJ3138Goals(); } catch(e){}
   try { _indexGoalDatesPL2526(); } catch(e){}
+  // Fusion multi-saisons — TOUJOURS en dernier : les migrations ci-dessus
+  // réécrivent `data` dans localStorage, elles doivent donc travailler sur
+  // la seule compétition active. Voir le bloc DIMENSION SAISON.
+  try { _vdjApplySeasonScope(); } catch(e){ console.warn('[VDJ] scope saison:', e); }
 }
 
 // 19 juillet 2026 (suite) — Christian a signalé des matchs toujours
@@ -3533,7 +3698,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T14:24';
+const _PL2526_FACTS_VERSION = '2026-08-05T14:36';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -10732,6 +10897,7 @@ flinkInit();
 // Rafraîchissement depuis Cloudflare — non bloquant : la page s'affiche
 // immédiatement avec le cache local, puis se met à jour toute seule dès que
 // le Worker a répondu.
+try { _vdjUpdateSeasonUI(); } catch(e){ console.warn('[VDJ] barre saison:', e); }
 try { _vdjHydrateFromAPI(); } catch(e){ console.warn('[VDJ] hydratation:', e); }
 
 // ==============================================
@@ -18681,6 +18847,7 @@ function setLang(lang){
       else if(typeof _currentAnalysisKey!=='undefined' && _currentAnalysisKey) showAnalysis(_currentAnalysisKey);
     }
   } catch(e){ console.warn('setLang re-render:', e); }
+  try { _vdjUpdateSeasonUI(); } catch(e){}
 }
 function toggleLang(){ setLang(_lang==='fr'?'en':_lang==='en'?'nl':_lang==='nl'?'nl':'fr'); }
 
