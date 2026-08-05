@@ -1358,7 +1358,21 @@ const COACHES = {
 };
 function getCoach(team){ return COACHES[team] || '—'; }
 // ── Transfermarkt quick-link ─────────────────────────────────────────────────
+// Identifiants Transfermarkt des joueurs de J1 League 2026-27, relevés le
+// 05/08/2026. Ils permettent d'ouvrir la fiche du joueur directement au
+// lieu de passer par un écran de recherche — utile pour les noms japonais
+// translittérés, où plusieurs joueurs partagent souvent le même romaji.
+// Les 3 homonymes du championnat (Eduardo, Kento Hashimoto, Ryoya Ogawa)
+// sont volontairement absents : mieux vaut une recherche qu'un lien qui
+// mène avec assurance au mauvais joueur.
+var TM_IDS = {"Tomoki Hayakawa":"683271","Taiki Yamada":"501742","Yuji Kajikawa":"308651","Haruto Fujii":"1494158","Tae-hyeon Kim":"645847","Naomichi Ueda":"188915","Ikuma Sekigawa":"656565","Kaito Chida":"480168","Keisuke Tsukui":"1063620","Yugo Okawa":"1023983","Anthony Motosuna":"1233867","Ryuta Koike":"315666","Rikuto Hirose":"309473","Kento Misao":"295059","Matheus Bueno":"631112","Yuta Matsumura":"679113","Haruki Hayashi":"1416379","Élber":"201792","Yan Matheus":"323945","Aleksandar Cavric":"189839","Léo Ceará":"422027","Yuma Suzuki":"345323","Kyosuke Tagawa":"469952","Homare Tokuda":"909998","Minato Yoshida":"1135984","Svend Brodersen":"183292","Louis Thébault-Yamaguchi":"496655","Yuki Hayasaka":"683554","Keun-hyeong Lee":"844537","Filip Uremovic":"325887","Pedro Romano":"1063246","Yuichi Maruyama":"212275","Shunsuke Hayashi":"1125506","Sota Miura":"957519","Asahi Sasaki":"683324","Reon Yamahara":"814178","Noriharu Kan":"1125507","Yuto Matsunagane":"908662","Hiroto Noda":"1126458","Kento Tachibanada":"681947","So Kawahara":"733101","Kota Yui":"909991","Yuki Yamamoto":"588478","Ryota Oshima":"164264","Shuto Yamaichi":"1393261","Ryuki Osa":"1125381","Yuto Ozeki":"908661","Tatsuya Ito":"381248","Marcinho":"520081","Ten Miyagi":"501748","Kazuya Konno":"654348","Kyosuke Mochiyama":"1426239","Derik Lacerda":"700933","Kayke Queiroz":"1219248","Lazar Romanić":"478601","Keisuke Osako":"415521","Issei Ouchi":"405381","Yudai Tanaka":"561078","Hikaru Ogawa":"1126231","Hayato Araki":"602314","Ju-sung Kim":"568633","Taichi Yamasaki":"432397","Tsukasa Shiotani":"177521","Takaaki Shichi":"374561","Shuto Nakano":"754608","Naoto Arai":"651218","Taishi Matsumoto":"489078","Rento Noguchi":"1146136","Hayao Kawabe":"262489","Takumu Kawamura":"515650","Yotaro Nakajima":"1024077","Sota Koshimichi":"908521","Shunki Higashi":"577216","Daiki Suga":"353876","Shimon Kobayashi":"1126223","Naoki Maeda":"246197","Shun Ayukawa":"694949","Akito Suzuki":"914004","Sébastien Haller":"181375","Mutsuki Kato":"407833","Kosei Tani":"405382","Aki Koch":"829243","Tatsuya Morita":"115765","Nicholas Guimarães":"1080725","Yuta Nakayama":"346647","Ibrahim Dresevic":"321135","Daihachi Okamura":"639722","Min-tae Kim":"353565","Takahiro Akimoto":"733309","Henry Heroki Mochizuki":"1137518","Hotaka Nakamura":"683270","Hiroyuki Mae":"308781","Neta Lavi":"470811","Hokuto Shimoda":"308262","Je-hoon Cha":"899120","Keiya Sento":"489415","Asahi Masuyama":"353792","Tenshiro Takasaki":"1132027","Yusuke Matsuo":"675754","Futa Tokumura":"1193233","Ryohei Shirasaki":"213488","Yuki Soma":"594069","Erik":"262016","Takuma Nishimura":"353567","Shota Fujio":"501741","Tete Yengi":"849429","Mitchell Duke":"177775","Ryosuke Kojima":"286504","Kenta Matsumoto":"732990","Tomoya Wakahara":"415524","Kengo Nagai":"257176","Haruki Saruta":"486639","Taiyo Koga":"489072","Seiya Baba":"532053","Shogo Asada":"505639","Hiroki Noda":"347435","Daiki Sugioka":"489408","Hiromu Mitsumaru":"421561","Yusei Yamanouchi":"1277229","Wataru Harada":"641929","Kanade Tsuneto":"1517172","Koki Kumasaka":"1156272","Rei Shimano":"1418570","Nobuteru Nakagawa":"1277230","Yudai Konishi":"433922","Sachiro Toshima":"515925","Riki Harakawa":"212115","Tojiro Kubo":"589813","Kenshin Yuba":"1104695","Kaiji Chonan":"1265616","Hinata Yamauchi":"1022398","Hayato Nakama":"177131","Yoshio Koizumi":"640044","Makoto Mitsuta":"683327","Keita Endo":"421726","Koya Yuruki":"296471","Yusuke Segawa":"422518","Shusuke Furuya":"1411562","Mao Hosoya":"663514","Yuki Kakita":"415033","Nabel Yoshitaka Furusawa":"1304159","Hayate Tanaka":"957480","Seung-gyu Kim":"92076","Wataru Goto":"948201","Alexander Scholz":"153582","Hayato Inamura":"1143410","Rio Omori":"661677","Shuto Nagano":"1024946","Masato Morishige":"81786","Yuto Nagatomo":"79522","Hirokazu Ishihara":"444314","Takahiro Ko":"457830","Kyota Tokiwa":"678076","Kaede Suzuki":"1125489","Soma Anzai":"1129488","Yuta Sugawara":"1125490","Shion Homma":"509802","Kio Tanaka":"1183509","Nicolai Vallys":"524081","Kota Tawaratsumida":"925357","Kein Sato":"948548","Fuki Yamada":"432400","Teruhito Nakagawa":"345326","Marcelo Ryan":"724702","Motoki Nagakura":"492728","Tsuyoshi Ogashiwa":"679904","Divine Chinedu Otani":"1125493","Tsuna Kominato":"1024122","Daiya Maekawa":"489081","Shuichi Gonda":"79517","Shioki Takayama":"432297","Richard Monday Ubong":"1352760","Matheus Thuler":"549815","Caetano":"625345","Boniface Nduka":"554495","Kaito Yamada":"1057613","Katsuya Nagato":"489364","Diego":"376155","Ryosuke Irie":"1412713","Issei Takahashi":"489404","Nanasei Iino":"641208","Gotoku Sakai":"103310","Justin Homma":"925762","Yuya Kuwasaki":"843877","Kota Watanabe":"353969","Yosuke Ideguchi":"318219","Kento Hamasaki":"1126316","Mitsuki Hidaka":"1000777","Tafuku Satomi":"1135987","Juzo Ura":"910181","Sota Onishi":"1126312","Rikuto Hashimoto":"867174","Taiga Seguchi":"1126314","Yuta Goke":"486185","Haruya Ide":"209808","Jean Patric":"537296","Sota Ito":"1465398","Yuta Miyahara":"1178769","Anderson Lopes":"347291","Yoshinori Muto":"230541","Ren Komatsu":"431003","Yuya Osako":"108650","Hayato Watanabe":"1126306","Rui Araki":"1052339","Masaaki Higashiguchi":"113712","Aolin Zhang":"915094","Genta Miura":"261931","Haruki Ozawa":"936316","Ryo Hatsuse":"414926","Shinya Nakano":"565999","Takeru Kishimoto":"351566","Ginjiro Ikegaya":"671106","Tokuma Suzuki":"295086","Rin Mito":"895616","Yuki Yoshihara":"915097","Shuto Abe":"678075","Shu Kurata":"79415","Welton":"858213","Kanji Okunuki":"515654","Ryotaro Meshino":"426666","Taiki Tono":"1024063","Ryoya Yamashita":"744917","Eli Adams":"899856","Takashi Usami":"111881","Gaku Nawata":"1126257","Deniz Hümmet":"271787","Daichi Hayashi":"690993","Issam Jebali":"122635","Naru Nakatsumi":"1131907","Masaaki Murakami":"362779","Gakuji Ota":"255908","Kentaro Kakoi":"308118","Akira Fantini":"395867","Henrique Trevisan":"374090","Weverton":"668262","Yoshinori Suzuki":"344090","Hisashi Appiah Tawiah":"533680","Kodai Nagata":"800697","Kyo Sato":"683331","Ren Kato":"936234","Ryosuke Yamanaka":"171418","Shinnosuke Fukuda":"576454","Yusuke Ishida":"854038","João Pedro":"862924","Sung-jun Yoon":"1308893","Mitsuki Saito":"353878","Thiago":"1227252","Ryuma Nakano":"686441","Taiki Hirato":"415034","Haruki Arai":"854668","Taiyo Hiraoka":"780297","Temma Matsuda":"524743","Fuchi Honda":"672620","Masaya Okugawa":"307052","Sora Hiraga":"915228","Everton Maceió":"1097174","Rafael Elias":"587328","Marco Túlio":"551275","Alex Souza":"910903","Takumi Kato":"610793","David Silva":"1363690","Shun Nagasawa":"79640","Rubén Blanco":"199321","Il-gyu Park":"224587","Yuya Tsuboi":"936238","Hiroki Iikura":"79404","Jeison Quiñónes":"607811","Taisei Inoue":"1229830","Ryotaro Tsunoda":"662493","Thomas Deng":"366543","Kosei Suwama":"629853","Taiki Watanabe":"521122","Kanta Sekitomi":"1024926","Ken Matsubara":"129686","Kei Chinen":"354106","Takuto Kimura":"1035880","Yuta Tanaka":"1443006","Riku Yamane":"836775","Aruto Higuchi":"1467255","Tomoki Kondo":"903166","George Onaiwu":"829343","Jun Amano":"308214","Kosuke Matsumura":"910309","Shin Miidera":"1407162","Tevis":"1220061","Jordy Croux":"129581","Yuri Araújo":"391887","Hiroto Asada":"1149614","Ryo Miyaichi":"129688","Kaina Tanimura":"732576","Dean David":"314129","Rio Nitta":"903366","Hikaru Takahashi":"936342","José Aurelio Suárez":"223720","Ryota Suzuki":"197500","Haruto Usui":"683321","Michiya Okamoto":"558508","Shunji Saito":"1527143","Daniel Hall":"833592","Koji Toriumi":"246840","Takashi Kawano":"639457","Takayuki Mae":"198135","Ryota Kuboniwa":"1109901","Rikuto Ishio":"1112013","Masaru Hidaka":"500137","Takahiro Iida":"486196","Koki Yonekura":"49362","Matheus Índio":"842384","Manato Shinada":"464741","Taiki Amagasa":"796610","Yusuke Kobayashi":"221969","Haru Ito":"1528266","Takuya Yasui":"489084","Kazuki Tanaka":"509452","Makoto Himeno":"1199832","Naoki Tsubaki":"491198","Zain Issaka":"681948","Naohiro Sugiyama":"840362","Takumi Tsukui":"786986","Erison":"787238","Leonardo Rocha":"479675","Daichi Ishikawa":"391529","Ken Yamura":"505470","Hiroto Goya":"417609","Takumi Matsumura":"1492440","Koki Fukui":"505640","Shusaku Nishikawa":"81787","Yoshiaki Arai":"519056","Danilo Boza":"606136","Yuta Miyamoto":"683328","Kota Kudo":"869280","Kenta Nemoto":"899093","Yoshitaka Tanaka":"1402676","Luka Didulica":"1373942","Kotaro Hayashi":"1035012","Eiichi Katayama":"310201","Samuel Gustafson":"255473","Kaito Yasui":"615296","Shuta Sasa":"1328401","Hayate Ueki":"1426251","Yota Horiuchi":"909946","Takeshi Wada":"1265619","Yoichi Naganuma":"351563","Matheus Savio":"312666","Jumpei Hayakawa":"909961","Takuro Kaneko":"657625","Kota Mizunuma":"79419","Hiiro Komori":"829174","Ado Onaiwu":"308133","Harumi Minamino":"729051","Renji Hidano":"1121048","Yuya Oki":"538050","Togo Umeda":"509800","Kei Ishikawa":"164251","Tomotaro Sasaki":"1125371","Seung-wook Park":"658776","Jelani Reshaun Sumiyoshi":"503236","Mateus Brunetti":"642983","Sen Takagi":"1126413","Sodai Hasukawa":"440021","Yuji Takahashi":"212120","Joo-young Eom":"1480905","Yuki Honda":"255637","Yutaka Yoshida":"116223","Hidehiro Sugai":"679907","Haruto Hidaka":"1380108","Kengo Kitazume":"355709","Dieguinho":"548846","Kei Koizumi":"313137","Masaki Yumiba":"781906","Rinsei Ohata":"1377296","Yuji Doi":"1387495","Keigo Suzuki":"916558","Yudai Shimamoto":"1025001","Kai Matsuzaki":"733642","Tomoya Fujii":"680697","Kenta Inoue":"744698","Ryota Hariu":"1233873","Kazuki Kozuka":"250984","Capixaba":"435253","Se-hun Oh":"402167","Koya Kitagawa":"290705","Ryo Germain":"511448","Kosuke Kinoshita":"221968","Kanta Chiba":"786991","Masaaki Goto":"489409","Go Hatano":"387502","Luka Radotic":"595519","Kaito Ioka":"685064","Takuma Ominami":"423112","Kanta Doi":"925371","Ryosuke Shindo":"288210","Yusei Egawa":"640322","Ikki Arai":"396744","Hijiri Onaga":"489440","Shunya Yoneda":"557101","Keita Takahata":"624900","Hyeung-jun Noh":"1205375","Masahiro Sekiguchi":"685011","Kenshin Yasuda":"915610","Riku Yamada":"489077","Harumu Nabeshima":"914605","Diego Pituca":"546000","Temmu Matsumoto":"1021017","Takashi Sawada":"309464","Matheus Jesus":"435331","Motoki Hasegawa":"685036","Keita Nakamura":"422594","Yuto Iwasaki":"353880","Norman Campbell":"809880","Thiago Santana":"376175","Ryogo Yamasaki":"288611","Reijin Ko":"1412597","Kosuke Nakamura":"165794","Koto Abe":"295022","Ken Isibor":"1240079","Shinnosuke Hatanaka":"310916","Rikito Inoue":"362694","Niko Takahashi":"834465","Ayumu Ohata":"693037","Kyohei Noborizato":"114205","Chimezie Kai Ezemuokwe":"1265607","Dion Cools":"316422","Takumi Nakamura":"590651","Kosei Okazawa":"792816","Hinata Kida":"405391","Jackson Irvine":"192557","Eiji Kubo":"1348743","Yota Komi":"786987","Satoki Uejo":"415209","Yumeki Yokoyama":"1122580","Shinji Kagawa":"81785","Thiago Andrade":"694606","Solomon Sakuragawa":"590654","Teppei Shiojiri":"1574617","Koki Nagasoe":"1265624","Daniel Schmidt":"158799","Alexandre Pisano":"916599","Yohei Takeda":"79647","Hiroaki Hagi":"1126217","Ryuki Oiso":"1291255","Haruya Fujii":"570385","Yota Sato":"683268","Yuki Nogami":"222276","Harumu Kubo":"1193263","Yuzo Takeuchi":"1372126","Shuhei Tokumoto":"555392","Teruki Hara":"470130","Tomoki Takamine":"504852","Sho Inagaki":"290660","Sakuto Fukaya":"1407164","Katsuhiro Nakayama":"635021","Masahito Ono":"639411","Tsukasa Morishima":"351564","Yuya Asano":"633480","Hidemasa Koda":"746410","Takuya Uchida":"432592","Taichi Kikuchi":"683325","Shungo Sugiura":"1024050","Mateus Castro":"334828","Yudai Kimura":"895578","Yuya Yamagishi":"391632","Kensuke Nagai":"103305","Yves Avelete":"1308633","Yuma Obata":"653097","Takumi Nagaishi":"508266","Kazuki Fujita":"639354","Powell Obinna Obi":"358216","Takumi Kamijima":"599023","Teppei Oka":"661678","Kennedy Egbus Mikuni":"590648","Yuma Tsujioka":"1018205","Masaya Tashiro":"420752","Daiki Miya":"509575","Yuhi Sakai":"1495310","Takezo Fujikawa":"1398536","Yota Maejima":"421426","Daiki Fukazawa":"746415","Yu Hashimoto":"1228234","Masato Yuzawa":"418402","Kaoru Yamawaki":"1021132","Keiya Shiihashi":"417506","Kohei Okuno":"532055","Oriol Romeu":"66100","Hiroki Akino":"165778","Kokoro Maeda":"1456731","Masato Shigemi":"1122577","Shu Morooka":"814089","Yuji Kitajima":"571709","Shohei Takemoto":"1147625","Tomoya Miki":"684058","Shintaro Nago":"391547","Kazuki Fujimoto":"681679","Hikaru Maeda":"1398532","Shosei Usui":"1017813","Werik Popó":"902507","Reiju Tsuruno":"932021","Sonosuke Sato":"1376508","Abdul Hanan Sani Brown":"1306860","Ichika Maeda":"1115426","Hisashi Jogo":"117013","Ryusei Kitahama":"1569683","Konosuke Nishikawa":"843027","Jakub Slowik":"154530","Shuhei Matsubara":"221495","Sho Omori":"946093","Kenta Itakura":"1311363","Rei Ieizumi":"654455","Akinari Kawazura":"489073","Yasuki Kimoto":"383310","Takumi Mase":"749070","Yuto Yamashita":"675742","Shota Yamashita":"1446982","Kotatsu Kawakami":"1288575","Yu Funabashi":"821190","Motoki Nishihara":"946837","Yoshiki Torikai":"683549","Chihiro Kato":"537863","Taishi Semba":"345901","Kiichi Yamazaki":"1151843","Hayata Yamamoto":"1266095","Mizuki Arai":"419615","Matheus Leiria":"534438","Arata Watanabe":"391631","Kaito Taniguchi":"505466","Keisuke Tada":"1018782","Ryo Nemoto":"683517","Kotaro Uchino":"910311","Kishin Gokita":"908653","Patryck":"973566","Lennart Moser":"392717","Taro Hamada":"972552","Goro Kawanami":"121801","Shun Matsuda":"1250753","Ryo Senda":"1252026","Yugo Tatsuta":"486197","Yoshitake Suzuki":"426662","Hiroshi Omori":"829681","Daichi Tagami":"422593","Yota Fujii":"1121269","Kosuke Shirai":"260918","Soichiro Mori":"1131911","Eiji Miyamoto":"848267","Ryo Tabei":"695671","Kosei Ogura":"909977","Haruka Motoyama":"895615","Ibuki Fujita":"247907","Masaya Matsumoto":"188908","Towa Yamane":"489047","Rui Sueyoshi":"617407","Ataru Esaka":"356145","Yuta Kamiya":"275479","Sang-ho Na":"508381","Jun Nishikawa":"432407","Kota Kawano":"723084","Kazunari Ichimi":"417610","Léo Gaúcho":"745349","Lucão":"490840","Noah Kenshin Browne":"432404","Kanshiro Suemune":"1252008","Matheus":"218119","Yuya Nagasawa":"644726","Hiroki Mawatari":"489428","Keisuke Nakamura":"1025089","Ryota Inoue":"1018755","Kaito Suzuki":"712473","Naoki Hayashi":"789059","Maaya Sako":"632372","Shuhei Mizoguchi":"913994","Kazuya Miyahara":"264142","Yosuke Uchida":"1280388","Riku Matsuda":"553818","Kai Shibato":"577217","Joi Yamamoto":"943834","Kento Imai":"1382160","Soma Meshino":"432399","Yuan Matsuhashi":"668673","Yuya Fukuda":"550581","Yuta Arai":"1143563","Kosuke Saito":"421427","Rei Hirakawa":"471154","Issei Kumatoriya":"1061515","Shion Nakayama":"1131908","Gakuto Kawamura":"1145176","Itsuki Someno":"683014","Hyun-woo Kim":"1201722","Shimon Teranuma":"681954","Goki Yamada":"680075","Soma Kanda":"1025096","Ryosuke Shirai":"936271","Hayato Hirao":"1433420","Sota Ofuji":"1251507"};
+
 function openTM(name){
+  var id = TM_IDS[name];
+  if(id){
+    window.open('https://www.transfermarkt.com/x/profil/spieler/' + id, '_blank');
+    return;
+  }
   var q = encodeURIComponent(name);
   window.open('https://www.transfermarkt.com/schnellsuche/ergebnis/schnellsuche?query='+q, '_blank');
 }
@@ -3699,7 +3713,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T20:07';
+const _PL2526_FACTS_VERSION = '2026-08-05T20:23';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -14255,11 +14269,17 @@ function _rechDims(){
     valeur:   Object.assign({label:L('Valeur du but','Goal rating','Waardering'),  get:function(g){return g.valeur;}},      fromTable({})),
     saison:   Object.assign({label:L('Saison / Compétition','Season / Competition','Seizoen / Competitie'),
                              get:function(g){ return (g.match && g.match._comp) ? g.match._comp : ACTIVE_COMP; }}, fromTable({})),
+    // Attention aux clés de VDJ.minutes : « 45+ » porte le numéro 7 et
+    // « 46-60 » le numéro 4 — pas l'ordre qu'on croit. Renvoyer 4 pour un
+    // but à la 45e le rangeait donc dans « 46-60 », qui gonflait d'autant,
+    // et la colonne « 45+ » n'apparaissait jamais.
     periode:  Object.assign({label:L('Période','Period','Periode'),       get:function(g){
                              const s=String(g.minute||''), i=parseInt(s)||1;
-                             if(s.includes('45+')) return 4;
+                             if(s.includes('45+')) return 7;
                              if(s.includes('90+')) return 8;
-                             if(i===45) return 4; if(i===90) return 8;
+                             if(i===45) return 7;
+                             if(i===90) return 8;
+                             if(i>90) return (g.match && g.match.aet) ? (i<=105?9:10) : 8;
                              let cc=Math.ceil(i/15); return cc<1?1:(cc>6?6:cc);
                            }}, fromTable(VDJ.minutes))
   };
@@ -14268,6 +14288,24 @@ function _rechDims(){
   T.valeur.lab = function(k){ const n=parseInt(k); return (n>=1&&n<=5) ? '★'.repeat(n)+'☆'.repeat(5-n) : k; };
   T.saison.lab = function(k){ const c=COMPETITIONS[k]; return c ? (c.shortLabel||c.label||k) : k; };
   T.periode.lab= function(k){ return (VDJ.minutes && VDJ.minutes[k] && VDJ.minutes[k].nom) ? VDJ.minutes[k].nom : k; };
+
+  // Ordre d'affichage. Une période, une origine ou une valeur ont un ordre
+  // naturel : les classer par effectif décroissant, comme on le fait pour
+  // les équipes, rend le tableau illisible — on lisait 46-60, 61-75, 31-44,
+  // 76-89, 1-15… Les dimensions sans ordre intrinsèque (équipe, buteur,
+  // passeur) restent triées par effectif, ce qui met en avant l'essentiel.
+  T.periode.order   = ORDER.minutes;
+  T.tactique1.order = ORDER.tactique1;
+  T.tactique2.order = ORDER.tactique2;
+  T.tactique3.order = ORDER.tactique3;
+  T.origine1.order  = ORDER.origine1;
+  T.origine2.order  = ORDER.origine2;
+  T.origine3.order  = ORDER.origine3;
+  T.actions.order   = ORDER.actions;
+  T.finitions.order = ORDER.finitions;
+  T.lieu.order      = ORDER.lieu;
+  T.valeur.order    = [5,4,3,2,1];
+  T.venue.order     = ['dom','ext'];
   return T;
 }
 
@@ -14400,8 +14438,24 @@ function _rechBuildCrossTab(goals){
     grand++;
   });
 
-  const rows = Object.keys(rowTot).sort(function(a,b){ return rowTot[b]-rowTot[a] || String(R.lab(a)).localeCompare(String(R.lab(b)),'fr'); });
-  const cols = Object.keys(colTot).sort(function(a,b){ return colTot[b]-colTot[a] || String(C.lab(a)).localeCompare(String(C.lab(b)),'fr'); });
+  // Tri : ordre naturel si la dimension en a un (période, origine, valeur…),
+  // sinon effectif décroissant (équipe, buteur, passeur…).
+  function _sorter(D, tot){
+    if(D.order && D.order.length){
+      const rank = {};
+      D.order.forEach(function(k, idx){ rank[String(k)] = idx; });
+      return function(a, b){
+        const ra = (rank[a] === undefined) ? 9999 : rank[a];
+        const rb = (rank[b] === undefined) ? 9999 : rank[b];
+        return ra - rb || String(D.lab(a)).localeCompare(String(D.lab(b)), 'fr');
+      };
+    }
+    return function(a, b){
+      return tot[b] - tot[a] || String(D.lab(a)).localeCompare(String(D.lab(b)), 'fr');
+    };
+  }
+  const rows = Object.keys(rowTot).sort(_sorter(R, rowTot));
+  const cols = Object.keys(colTot).sort(_sorter(C, colTot));
 
   if(!rows.length || !cols.length){
     return '<div class="no-data" style="padding:24px">'

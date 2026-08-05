@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T20:07';
+const _PL2526_FACTS_VERSION = '2026-08-05T20:23';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -9425,6 +9425,16 @@ var LS_LEAGUES = {
   // et non depuis "aujourd'hui" (indispensable pour une saison passée).
   pl2526:  { label:'🏴 Premier League 25-26',    search:'Premier League',      country:'England', seasonMode:'euro' },
   jl2026: { label:'🇯🇵 J1 League (Japon)',       search:'J1 League',           country:'Japan',   seasonMode:'calendar' },
+  // 05/08/2026 — ajoutée (manquait) : sans cette entrée, le Live Sync était
+  // muet sur toute la saison 2026-27, qui démarre le 07/08.
+  //
+  // seasonMode 'euro' et non 'calendar' comme jl2026 : le Japon est passé
+  // au calendrier automne-printemps. En août 2026 les deux modes donnent
+  // la même saison (2026) et l'erreur passerait inaperçue — mais dès
+  // janvier 2027, 'calendar' demanderait la saison 2027 à API-Football
+  // alors que les matchs appartiennent à la saison 2026. Le Live Sync
+  // s'arrêterait de fonctionner en pleine saison, sans raison apparente.
+  jl2627:  { label:'🇯🇵 J1 League 26-27',         search:'J1 League',           country:'Japan',   seasonMode:'euro' },
   jpl2627: { label:'🇧🇪 Jupiler Pro League',      search:'Jupiler Pro League',  country:'Belgium', seasonMode:'euro' },
   bl2627:  { label:'🇩🇪 Bundesliga',              search:'Bundesliga',          country:'Germany', seasonMode:'euro' }
 };
