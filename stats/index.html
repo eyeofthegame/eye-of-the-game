@@ -3698,7 +3698,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-05T14:36';
+const _PL2526_FACTS_VERSION = '2026-08-05T14:47';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -15493,6 +15493,11 @@ function buildScorerCard(name, team, allGoals){
 
   // Store goals globally for match panel access
   _spCurrentGoals = goals;
+  // Nombre de saisons réellement présentes dans la liste affichée — sert à
+  // n'afficher la pastille de saison que quand elle est utile.
+  const _spSeasonsShown = new Set(goals.map(function(g){
+    return (g._comp && _COMP_TO_GROUP[g._comp]) ? g._comp : null;
+  }).filter(Boolean)).size;
   // Build pills for each goal
   const _spPillsId = `sp-pills-${name.replace(/\s/g,'_')}`;
   let pillsHtml = goals.map((g,gi)=>{
@@ -15500,6 +15505,11 @@ function buildScorerCard(name, team, allGoals){
     const matchStr=`${tf(g.match.dom)} – ${tf(g.match.ext)}`;
     const score=_runningScore(g,allGoals);
     const hasSteps=(g.goalSteps||[]).length>0;
+    // Pastille de saison — uniquement quand plusieurs saisons cohabitent dans
+    // la liste, sinon elle n'apprend rien et encombre.
+    const _seasonTag = (_spSeasonsShown > 1 && g._comp && _COMP_TO_GROUP[g._comp])
+      ? `<span style="font-size:.6em;font-weight:800;color:#555;background:#ececec;border:1px solid #d5d5d5;border-radius:3px;padding:1px 4px;white-space:nowrap;flex-shrink:0">${_vdjSeasonLabel(g._comp)}</span>`
+      : '';
     return `<div class="sp-pill" data-gi="${gi}" data-ori="${g.origine1||''}" data-tac="${g.tactique1||''}" data-act="${g.actions||''}" data-venue="${g.team===g.match.dom?'dom':'ext'}" onclick="spToggleGoal(this,${gi},'${_spPillsId}')"
       onmouseenter="const s=this.children[1];s.style.whiteSpace='normal';s.style.overflow='visible';s.style.textOverflow='clip'"
       onmouseleave="const s=this.children[1];s.style.whiteSpace='nowrap';s.style.overflow='hidden';s.style.textOverflow='ellipsis'"
@@ -15507,6 +15517,7 @@ function buildScorerCard(name, team, allGoals){
       border:2px solid ${col};background:#fff;transition:all .1s;opacity:${hasSteps?1:0.6}">
       <span style="width:10px;height:10px;border-radius:50%;background:${col};flex-shrink:0;margin-top:3px"></span>
       <span style="flex:1;font-size:.73em;font-weight:600;color:#222;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${matchStr}</span>
+      ${_seasonTag}
       <span style="font-size:.72em;font-weight:800;color:${col};white-space:nowrap">${score}</span>
       <span style="font-size:.7em;color:#888;white-space:nowrap">${g.minute}'</span>
     </div>`;
@@ -15822,6 +15833,40 @@ function buildScorerCard(name, team, allGoals){
       `</div>`
     : `<span style="font-size:.82em;color:var(--muted)">${tf(_allScoredClubs[0]||team||'')}</span>`;
 
+  // ── Ventilation par saison ───────────────────────────────────────────────
+  // Christian (05/08/2026) : « je voudrais avoir le cumul, mais tu me mets une
+  // séparation par saison ». Le total reste le chiffre principal ; la
+  // ventilation s'affiche juste en dessous, toujours visible, sans avoir à
+  // cliquer sur un filtre. Elle n'apparaît que si le joueur a effectivement
+  // marqué sur plusieurs saisons d'un même championnat.
+  function _spSeasonBreakdown(goalsArr){
+    const bySeason = {};
+    goalsArr.forEach(function(g){
+      const cid = g._comp;
+      if(!cid || !_COMP_TO_GROUP[cid]) return;   // hors championnat multi-saisons
+      bySeason[cid] = (bySeason[cid] || 0) + 1;
+    });
+    const cids = Object.keys(bySeason);
+    if(cids.length < 2) return '';               // une seule saison : rien à séparer
+    // Ordre chronologique par libellé de saison (25-26 avant 26-27)
+    cids.sort(function(a,b){ return _vdjSeasonLabel(a).localeCompare(_vdjSeasonLabel(b)); });
+    const parts = cids.map(function(cid){
+      const isActive = (_spCompFilter === cid);
+      return '<button onclick="spSelectComp(\'' + cid + '\')" title="'
+        + (_lang==='en'?'Show only this season':_lang==='nl'?'Toon enkel dit seizoen':'Afficher seulement cette saison')
+        + '" style="padding:2px 9px;border-radius:10px;border:1.5px solid var(--accent);'
+        + 'background:' + (isActive?'var(--accent)':'transparent') + ';'
+        + 'color:' + (isActive?'#fff':'var(--accent)') + ';font-size:.68em;font-weight:800;'
+        + 'cursor:pointer;font-family:inherit;white-space:nowrap">'
+        + bySeason[cid] + ' <span style="font-weight:600;opacity:.85">' + _vdjSeasonLabel(cid) + '</span></button>';
+    });
+    return '<div style="display:flex;gap:5px;align-items:center;flex-wrap:wrap;margin-top:4px">'
+      + '<span style="font-size:.62em;color:var(--muted);font-weight:700;text-transform:uppercase;letter-spacing:.04em">'
+      + (_lang==='en'?'By season':_lang==='nl'?'Per seizoen':'Par saison') + '</span>'
+      + parts.join('') + '</div>';
+  }
+  const _seasonBreakdownHtml = _spSeasonBreakdown(_playerGoalsAll);
+
   // ── Competition filter ───────────────────────────────────────────────────
   const _playerComps = [...new Set(_playerGoalsAll.map(g=>g._comp).filter(Boolean))];
   let _compFilterHtml = '';
@@ -15854,6 +15899,7 @@ function buildScorerCard(name, team, allGoals){
           </span>
         </div>
         ${(_ageBadge||_clubBadge)?`<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:5px">${_ageBadge}${_clubBadge}</div>`:''}
+        ${_seasonBreakdownHtml}
       </div>
     </div>
 
