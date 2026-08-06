@@ -3715,7 +3715,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-06T19:17';
+const _PL2526_FACTS_VERSION = '2026-08-06T20:12';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -4352,6 +4352,7 @@ function buildCrossTab(key, opts={}){
   catKeys.forEach(k=>{ scored[k]={}; conceded[k]={}; totalScored[k]=0; totalConceded[k]=0; });
   const teamScored={}, teamConceded={};
   teams.forEach(t=>{ teamScored[t]=0; teamConceded[t]=0; });
+  const unclassifiedScored=[], unclassifiedConceded=[];
 
   filtered.forEach(g=>{
     let catVal = g[key];
@@ -4375,8 +4376,15 @@ function buildCrossTab(key, opts={}){
     if(scoringOk && teams.includes(scoringTeam)) teamScored[scoringTeam]++;
     if(concedingOk && teams.includes(concedingTeam)) teamConceded[concedingTeam]++;
 
-    if(catVal===undefined || catVal==='' || catVal===null) return;
-    if(!scored[catVal]) return;
+    // Un but dont le critère n'est pas encodé n'entre dans aucune colonne.
+    // Il reste pourtant compté dans le total de sa ligne (ci-dessus) : la
+    // somme des lignes dépasse alors le total général, sans que rien ne
+    // l'explique. On les collecte pour pouvoir le signaler.
+    if(catVal===undefined || catVal==='' || catVal===null || !scored[catVal]){
+      if(scoringOk && teams.includes(scoringTeam)) unclassifiedScored.push(g);
+      if(concedingOk && teams.includes(concedingTeam)) unclassifiedConceded.push(g);
+      return;
+    }
 
     if(scoringOk && teams.includes(scoringTeam)){
       scored[catVal][scoringTeam] = (scored[catVal][scoringTeam]||0)+1;
@@ -4388,7 +4396,7 @@ function buildCrossTab(key, opts={}){
     }
   });
 
-  return {catKeys, table, teams, scored, conceded, totalScored, totalConceded, teamScored, teamConceded};
+  return {catKeys, table, teams, scored, conceded, totalScored, totalConceded, teamScored, teamConceded, unclassifiedScored, unclassifiedConceded};
 }
 
 // ══════════════════════════════════════════════════════════════════════
@@ -8905,6 +8913,26 @@ if(ct.teams.length===0){
     });
     h += `<td class="total">${gt}</td></tr></table>`;
 
+    // Christian (06/08/2026) : « pourquoi 1044 buts alors qu'il y en a
+    // 1045 ? ». Un but dont le critère n'est pas encodé n'entre dans
+    // aucune colonne : il manque au total général, alors qu'il compte
+    // dans le total de sa ligne. L'écart était donc invisible et
+    // inexplicable. On l'affiche, et on rend les buts consultables pour
+    // pouvoir les compléter.
+    const _unclass = isSc ? (ct.unclassifiedScored||[]) : (ct.unclassifiedConceded||[]);
+    if(_unclass.length){
+      const _n = _unclass.length;
+      h += `<div style="margin-top:8px;padding:7px 11px;background:#fff8e1;border:1px solid #f0d98a;`
+        + `border-radius:7px;font-size:.78em;color:#7a5c00;display:flex;align-items:center;gap:9px;flex-wrap:wrap">`
+        + `<span>⚠️ <b>${_n}</b> ${_n>1?'buts n\'ont pas':'but n\'a pas'} de <b>${(VDJ_LABELS[key]||key).toLowerCase()}</b> `
+        + `${_n>1?'encodée':'encodé'} — ${_n>1?'ils ne sont comptés':'il n\'est pas compté'} dans aucune colonne, `
+        + `d'où l'écart avec le total des buts.</span>`
+        + `<button onclick="showGoalDetailUnclassified('${key}','${isSc?'scored':'conceded'}')" `
+        + `style="padding:3px 11px;border-radius:11px;border:1.5px solid #7a5c00;background:#fff;color:#7a5c00;`
+        + `font-size:.92em;font-weight:700;cursor:pointer;font-family:inherit;white-space:nowrap">`
+        + `${_lang==='en'?'See them':_lang==='nl'?'Bekijken':'Les voir'}</button></div>`;
+    }
+
     // ── Gauge panel (right of table) ──────────────────────────────────────
     let gaugeHtml = `<div style="
       display:flex; flex-direction:column; justify-content:flex-start;
@@ -9391,6 +9419,18 @@ function _classAnalysisVenueOk(g, team){
   if(_venueFilter==='away') return g.match && g.match.ext===team;
   return true;
 }
+// Ouvre le détail des buts dont le critère n'est pas encodé — permet de
+// les retrouver dans Encodage pour compléter l'analyse.
+function showGoalDetailUnclassified(key, side){
+  const ct = buildCrossTab(key, {..._curAOpts, goalFilter:_analysisGoalFilterSnapshot, venueFilter:_venueFilter});
+  const goals = (side==='conceded') ? (ct.unclassifiedConceded||[]) : (ct.unclassifiedScored||[]);
+  const lbl = VDJ_LABELS[key] || key;
+  document.getElementById('detail-title').innerHTML =
+    `⚠️ ${_lang==='en'?'Not encoded':_lang==='nl'?'Niet gecodeerd':'Non encodé'} — ${lbl} (${goals.length})`;
+  renderDetailGoals(goals);
+  document.getElementById('detail-panel').classList.add('open');
+}
+
 function showGoalDetailFiltered(key, catVal, team){
   let goals = getAllGoals().filter(g=>{
     let v = g[key];
@@ -9870,12 +9910,37 @@ function renderDetailList(goals){
     const secondaryLine = _detailIsAssist
       ? `<div style="font-size:.8em;color:#666;margin-top:1px">⚽ ${buteurLine}</div>`
       : (hasAssist ? `<div style="font-size:.8em;color:#666;margin-top:1px">→ ${g.assist}</div>` : '');
+
+    // Christian (06/08/2026) : « on avait mis les piles tactiques en dessous
+    // de chaque but, partout » — elles existaient dans Recherche, Top Buts
+    // et Profil Buteur, mais pas dans ce panneau de détail, qui est pourtant
+    // celui qu'on ouvre en cliquant une case des tableaux d'analyse.
+    // Les badges reprennent les couleurs du référentiel VDJ, comme ailleurs.
+    const _vdjTag = (tbl, val) => {
+      if(val===undefined || val===null || val==='' ) return '';
+      const d = tbl && tbl[val];
+      if(!d) return '';
+      const bg = '#'+(d.c1||'888'), fg = '#'+(d.c2||'ffffff');
+      return `<span style="display:inline-block;background:${bg};color:${fg};border-radius:3px;`
+        + `padding:1px 6px;font-size:.68em;font-weight:700;white-space:nowrap">${d.nom}</span>`;
+    };
+    const _tags = [
+      _vdjTag(VDJ.tactique1, g.tactique1),
+      _vdjTag(VDJ.origine1,  g.origine1),
+      _vdjTag(VDJ.actions,   g.actions),
+      _vdjTag(VDJ.finitions, g.finitions),
+      _vdjTag(VDJ.lieu,      g.lieu)
+    ].filter(Boolean);
+    const tagsLine = _tags.length
+      ? `<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:4px">${_tags.join('')}</div>`
+      : '';
     html += `<div onclick="renderSingleGoal(${i})" style="cursor:pointer;padding:7px 10px;border-radius:6px;margin-bottom:5px;background:#f5f2ec;border:1px solid #e0d8cc;display:grid;grid-template-columns:32px 1fr auto auto;align-items:center;gap:8px">
       <span style="font-weight:800;color:var(--accent);font-size:.95em">${g.minute||'?'}'</span>
       <div>
         <div style="font-weight:700;font-size:.9em">${primaryLine}</div>
         ${secondaryLine}
         <div style="font-size:.78em;color:#888;margin-top:2px">${FLAG[g.match.dom]||''} ${g.match.dom} — ${FLAG[g.match.ext]||''} ${g.match.ext} <span style="color:#aaa;margin-left:4px">(${fs})</span> ${xgBadge(g,'.72em')}</div>
+        ${tagsLine}
       </div>
       <span style="background:#003399;color:#fff;padding:2px 7px;border-radius:4px;font-size:.82em;font-weight:bold;white-space:nowrap">${sc}</span>
       ${videoBtn||'<span></span>'}
