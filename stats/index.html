@@ -3715,7 +3715,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-06T20:12';
+const _PL2526_FACTS_VERSION = '2026-08-06T20:37';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -11344,7 +11344,7 @@ function renderTete(){
 
 // ZONES DE RÉCUPÉRATION
 // ==============================================
-let pzTeam = '', pzTacFilter = new Set(), pzCoachPeriod = null;
+let pzTeam = '', pzDir = 'scored', pzTacFilter = new Set(), pzCoachPeriod = null;
 let _pzCellsCache = [];
 // 21/07/2026 : Christian veut voir le club (logo+nom) et l'entraîneur en
 // poste sous le terrain, avec la possibilité de filtrer par période quand
@@ -11514,7 +11514,7 @@ function renderPressZones(){
   }).join('');
 
   let goals = allGoals.filter(_hasRecup);
-  if(pzTeam) goals = goals.filter(g => g.team === pzTeam);
+  if(pzTeam) goals = goals.filter(g => pzDir==='conceded' ? g.opponent===pzTeam : g.team===pzTeam);
   if(pzTacFilter.size>0) goals = goals.filter(g => pzTacFilter.has(g.tactique1));
   if(ACTIVE_COMP==='pl2526' && pzTeam && pzCoachPeriod!=null){
     const _periods = _entraineursByClubPL2526[pzTeam] || [];
@@ -11755,11 +11755,19 @@ function renderPressZones(){
   // ── Team ranking ──
   const allRecupGoals = allGoals.filter(_hasRecup);
   const byTeam = {};
-  allRecupGoals.forEach(g=>{ if(!byTeam[g.team]) byTeam[g.team]=[]; byTeam[g.team].push(g); });
+  // Le classement suit le sens choisi : en « encaissés », on compte les buts
+  // reçus par l'équipe, sinon il resterait figé sur les buts marqués et
+  // contredirait le terrain affiché juste à côté.
+  allRecupGoals.forEach(g=>{
+    const t = (pzDir==='conceded') ? g.opponent : g.team;
+    if(!t) return;
+    if(!byTeam[t]) byTeam[t]=[];
+    byTeam[t].push(g);
+  });
   const teamRanking = Object.entries(byTeam).sort((a,b)=>b[1].length-a[1].length);
   let rankHtml = `<div style="font-size:.75em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.6px;margin-bottom:6px">🏆 ${_lang==='en'?'By team':_lang==='nl'?'Per ploeg':'Par équipe'}</div>
 <table class="tableau" style="width:100%;font-size:.82em">
-  <thead><tr><th>#</th><th style="text-align:left">${_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe'}</th><th>🟠</th></tr></thead><tbody>`;
+  <thead><tr><th>#</th><th style="text-align:left">${_lang==='en'?'Team':_lang==='nl'?'Ploeg':'Équipe'}</th><th title="${pzDir==='conceded'?(_lang==='en'?'Goals conceded after an opponent recovery':'Buts encaissés après récupération adverse'):(_lang==='en'?'Goals scored after a recovery':'Buts marqués après récupération')}">${pzDir==='conceded'?'🥅':'🟠'}</th></tr></thead><tbody>`;
   teamRanking.forEach(([team, tgoals], i)=>{
     const active = team===pzTeam;
     const safeT = team.replace(/'/g,"\\'");
@@ -11781,14 +11789,38 @@ function renderPressZones(){
     ? `<div class="no-data" style="margin:20px 0">${_lang==='en'?'No goals with recovery zone encoded for this selection.<br><small>Encode zones via the orange pitch 🟠 in the encoding page.':_lang==='nl'?'Geen doelpunten met recuperatiezone voor deze selectie.<br><small>Codeer zones via het oranje terrein 🟠':'Aucun but avec zone de récupération encodée pour cette sélection.<br><small>Encode les zones dans la page d\'encodage via le terrain orange 🟠'}</div>`
     : '';
 
+  // Sélecteur marqués / encaissés — même mécanisme que Zones de
+  // déclenchement. En « encaissés », on montre où les ADVERSAIRES ont
+  // récupéré le ballon avant de marquer contre l'équipe choisie : c'est
+  // là que cette équipe perd le ballon dangereusement.
+  // Christian (06/08) : même forme que les pastilles tactiques voisines,
+  // pour qu'on comprenne du premier coup d'œil qu'elles se cliquent.
+  const _pzDirPill = (val, label, col) => {
+    const on = (val==='conceded') ? (pzDir==='conceded') : (pzDir!=='conceded');
+    return `<button onclick="pzDir='${val}';renderPressZones()" style="padding:4px 12px;border-radius:16px;`
+      + `border:1.5px solid ${col};background:${on?col:'transparent'};color:${on?'#fff':col};`
+      + `font-size:.78em;font-weight:${on?800:600};cursor:pointer;white-space:nowrap;font-family:inherit">${label}</button>`;
+  };
+  const dirBar = _pzDirPill('scored',   (_lang==='en'?'⚽ Scored':_lang==='nl'?'⚽ Gescoord':'⚽ Buts marqués'),   '#1a6e2e')
+               + _pzDirPill('conceded', (_lang==='en'?'🥅 Conceded':_lang==='nl'?'🥅 Gecasseerd':'🥅 Buts encaissés'), '#8b2020');
+
+  // Le point de récupération est enregistré dans le repère de l'équipe qui
+  // récupère. En « encaissés », c'est donc l'adversaire : sans cette note,
+  // on lirait le terrain à l'envers.
+  const pzDirNote = (pzTeam && pzDir==='conceded')
+    ? `<div style="font-size:.78em;color:var(--muted);margin-bottom:8px">${_lang==='en'?'Conceded goals: the pitch shows where opponents won the ball back before scoring (opponent attack direction →).':_lang==='nl'?'Tegendoelpunten: het terrein toont waar tegenstanders de bal heroverden vóór hun doelpunt (aanvalsrichting tegenstander →).':'Buts encaissés : le terrain montre où les adversaires ont récupéré le ballon avant de marquer (sens d\'attaque adverse →).'}</div>`
+    : '';
+
   const html = `<h1>🟠 Zones de récupération</h1>
   <div style="display:flex;flex-wrap:wrap;gap:8px;margin-bottom:12px;align-items:center">
     <select onchange="pzTeam=this.value;pzCoachPeriod=null;renderPressZones()" style="font-size:.82em;padding:3px 8px;border-radius:4px">${teamOpts}</select>
+    ${dirBar}
     <span style="display:inline-flex;gap:6px;flex-wrap:wrap">${tacPillsHtml}</span>
     <span style="font-size:.8em;color:var(--muted)">${totalPoints} ${_lang==='en'?'point'+(totalPoints>1?'s':'')+' encoded':'point'+(totalPoints>1?'s':'')+' encodé'+(totalPoints>1?'s':'')}</span>
     <button onclick="openPitchExport('view-presszones','zones-recuperation')" title="${_lang==='en'?'Export as PNG':_lang==='nl'?'Exporteren als PNG':'Exporter en PNG'}" style="margin-left:auto;padding:4px 14px;border:1.5px solid #3a7a3a;border-radius:16px;background:#f0fff0;color:#2a6a2a;font-size:.78em;font-weight:700;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:5px">📷 ${_lang==='en'?'Export PNG':_lang==='nl'?'PNG exporteren':'Exporter PNG'}</button>
   </div>
   ${_teamCoachBlockHtml(pzTeam, pzCoachPeriod, 'setPzCoachPeriod')}
+  ${pzDirNote}
   <div style="display:flex;gap:24px;align-items:flex-start;flex-wrap:wrap">
     <div style="flex:1 1 auto;min-width:0">
       ${noData}
@@ -11882,8 +11914,8 @@ function renderTriggerZones(){
 
   const dirPills = tzTeam ? `
     <span style="display:inline-flex;border:1px solid var(--border);border-radius:6px;overflow:hidden;font-size:.82em">
-      <button onclick="tzDir='scored';renderTriggerZones()" style="padding:4px 12px;border:none;cursor:pointer;font-weight:600;background:${tzDir!=='conceded'?'#9933cc':'#eee'};color:${tzDir!=='conceded'?'#fff':'#444'}">${_lang==='en'?'⚽ Scored':_lang==='nl'?'⚽ Gescoord':'⚽ Marqués'}</button>
-      <button onclick="tzDir='conceded';renderTriggerZones()" style="padding:4px 12px;border:none;cursor:pointer;font-weight:600;background:${tzDir==='conceded'?'#9933cc':'#eee'};color:${tzDir==='conceded'?'#fff':'#444'}">${_lang==='en'?'🥅 Conceded':_lang==='nl'?'🥅 Gecasseerd':'🥅 Encaissés'}</button>
+      <button onclick="tzDir='scored';renderTriggerZones()" style="padding:4px 12px;border-radius:16px;border:1.5px solid #1a6e2e;background:${tzDir!=='conceded'?'#1a6e2e':'transparent'};color:${tzDir!=='conceded'?'#fff':'#1a6e2e'};font-size:.78em;font-weight:${tzDir!=='conceded'?800:600};cursor:pointer;white-space:nowrap;font-family:inherit">${_lang==='en'?'⚽ Scored':_lang==='nl'?'⚽ Gescoord':'⚽ Buts marqués'}</button>
+      <button onclick="tzDir='conceded';renderTriggerZones()" style="padding:4px 12px;border-radius:16px;border:1.5px solid #8b2020;background:${tzDir==='conceded'?'#8b2020':'transparent'};color:${tzDir==='conceded'?'#fff':'#8b2020'};font-size:.78em;font-weight:${tzDir==='conceded'?800:600};cursor:pointer;white-space:nowrap;font-family:inherit">${_lang==='en'?'🥅 Conceded':_lang==='nl'?'🥅 Gecasseerd':'🥅 Buts encaissés'}</button>
     </span>` : '';
 
   let goals = allGoals.filter(_hasTrigger);
