@@ -3715,7 +3715,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-06T20:37';
+const _PL2526_FACTS_VERSION = '2026-08-06T20:42';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -7514,9 +7514,10 @@ function renderRadar(team){
     if(_radarVenueMode !== 'compare'){
       // ── Mode 'all' — comportement d'origine, inchangé ──
       const data = [];
+      // Toutes les catégories sont conservées, y compris à 0 : retirer un axe
+      // déforme le radar et empêche toute comparaison entre équipes.
       sortedKeys.forEach(k=>{
         const {v, pct} = valFor(ct, k, isScored);
-        if(v===0) return;
         data.push({nom:catName(k,isScored), pct, count:v, col:catColor(k)});
       });
       if(data.length < 1) return `<div style="color:#aab;font-size:.85em;padding:20px 0">${_lang==='en'?'No data':_lang==='nl'?'Geen data':'Aucune donnée'}</div>`;
@@ -7621,13 +7622,11 @@ function renderRadar(team){
       if(!_radarCtHome||!_radarCtAway) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
       sortedKeys.forEach(k=>{
         const h=valFor(_radarCtHome,k,isScored), aw=valFor(_radarCtAway,k,isScored);
-        if(h.v===0&&aw.v===0) return;
         data.push({nom:catName(k,isScored),col:catColor(k),home:h,away:aw});
       });
     } else {
       sortedKeys.forEach(k=>{
         const {v,pct}=valFor(ct,k,isScored);
-        if(v===0) return;
         data.push({nom:catName(k,isScored),pct,count:v,col:catColor(k)});
       });
     }
@@ -7697,13 +7696,11 @@ function renderRadar(team){
       if(!_radarCtHome||!_radarCtAway) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
       sortedKeys.forEach(k=>{
         const h=valFor(_radarCtHome,k,isScored), aw=valFor(_radarCtAway,k,isScored);
-        if(h.v===0&&aw.v===0) return;
         data.push({nom:catName(k,isScored),col:catColor(k),home:h,away:aw});
       });
     } else {
       sortedKeys.forEach(k=>{
         const {v,pct}=valFor(ct,k,isScored);
-        if(v===0) return;
         data.push({nom:catName(k,isScored),pct,count:v,col:catColor(k)});
       });
     }
@@ -7762,6 +7759,9 @@ function renderRadar(team){
       if(!_radarCtHome||!_radarCtAway) return '<div style="color:#aab;padding:20px">Aucune donnée</div>';
       sortedKeys.forEach(k=>{
         const h=valFor(_radarCtHome,k,isScored), aw=valFor(_radarCtAway,k,isScored);
+        // Un treemap représente des AIRES : une catégorie à 0 donnerait un
+        // rectangle de largeur nulle, invisible mais avec son libellé posé
+        // dessus. Contrairement au radar, l'exclure est ici la bonne lecture.
         if(h.v===0&&aw.v===0) return;
         data.push({nom:catName(k,isScored),col:catColor(k),pct:h.pct,count:h.v,pct2:aw.pct,count2:aw.v});
       });
