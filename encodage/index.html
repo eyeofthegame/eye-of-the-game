@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T09:30';
+const _PL2526_FACTS_VERSION = '2026-08-07T12:54';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -2839,7 +2839,23 @@ function _mergeNewSeedMatches(){
 // URL du Worker Cloudflare (proxy CORS + API données KV)
 var _VDJ_WORKER = 'https://spring-smoke-d136.pushkulu-6a2.workers.dev';
 
+// 07/08/2026 — VOLET 1. saveData() renvoyait TOUTE la base a chaque
+// sauvegarde : le dernier qui ecrivait ecrasait les autres, meme avec des
+// donnees plus anciennes (le but de Ruben Dias corrige le 6 aout a ete annule
+// le lendemain par un onglet reste ouvert). Desormais on n'envoie que le match
+// en cours, et le Worker le fusionne dans la base existante.
+// saveDataFull() reste disponible pour les operations qui touchent
+// plusieurs matchs a la fois.
 function saveData(){
+  localStorage.setItem(activeDataKey(), JSON.stringify(data));
+  if(currentMatchId != null && data[currentMatchId] !== undefined){
+    _vdjPushMatch(currentMatchId);
+  } else {
+    _vdjPushToAPI();   // aucun match ouvert : repli sur l'envoi complet
+  }
+}
+
+function saveDataFull(){
   localStorage.setItem(activeDataKey(), JSON.stringify(data));
   _vdjPushToAPI();
 }
@@ -2892,7 +2908,8 @@ function _vdjScheduleRetry(){
   var delay = Math.min(60000, 4000 * Math.pow(2, _vdjSyncAttempt++));
   _vdjSyncTimer = setTimeout(function(){
     _vdjSyncTimer = null;
-    _vdjPushToAPI();
+    if(_vdjPendingMatch != null) _vdjPushMatch(_vdjPendingMatch);
+    else _vdjPushToAPI();
   }, delay);
 }
 
@@ -2945,11 +2962,39 @@ function _vdjSendToAPI(key){
   });
 }
 
+// ── Envoi d'UN match ─────────────────────────────────────────────────────
+// Ne touche que ce match cote serveur. Aucun garde-fou de comptage n'est
+// necessaire ici : il est impossible d'effacer le travail d'un autre poste.
+var _vdjPendingMatch = null;   // match a renvoyer si l'envoi a echoue
+
+function _vdjPushMatch(matchId){
+  var key = localStorage.getItem('vdj_write_key') || '';
+  if(!key) return; // cle non configuree -> mode local uniquement
+  _vdjSyncSetState('pending');
+  fetch(_VDJ_WORKER + '/api/match?competition=' + ACTIVE_COMP + '&id=' + encodeURIComponent(matchId), {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json', 'x-vdj-key': key},
+    body: JSON.stringify(data[matchId] === undefined ? null : data[matchId])
+  })
+  .then(function(r){
+    if(!r.ok) throw new Error(r.status === 401 || r.status === 403 ? 'cle refusee' : 'HTTP ' + r.status);
+    _vdjSyncAttempt = 0;
+    _vdjPendingMatch = null;
+    _vdjSyncSetState('ok');
+  })
+  .catch(function(e){
+    _vdjPendingMatch = matchId;
+    _vdjSyncSetState('error', (e && e.message) || 'reseau');
+    _vdjScheduleRetry();
+  });
+}
+
 // Retour du reseau : on retente tout de suite au lieu d'attendre le delai.
 window.addEventListener('online', function(){
   if(_vdjSyncState === 'error'){
     clearTimeout(_vdjSyncTimer); _vdjSyncTimer = null; _vdjSyncAttempt = 0;
-    _vdjPushToAPI();
+    if(_vdjPendingMatch != null) _vdjPushMatch(_vdjPendingMatch);
+    else _vdjPushToAPI();
   }
 });
 
