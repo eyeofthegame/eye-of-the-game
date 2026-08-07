@@ -1286,6 +1286,13 @@ const FLAG = {
   'Portugal':'🇵🇹','RD Congo':'🇨🇩','Ouzbékistan':'🇺🇿','Colombie':'🇨🇴',
   'Angleterre':'🇬🇧','Croatie':'🇭🇷','Ghana':'🇬🇭','Panama':'🇵🇦'
 };
+// 07/08/2026 — utilisé au-dessus des graphiques quand aucune équipe n'est
+// sélectionnée : on annonce alors la compétition plutôt que rien.
+function compLabelCourt(){
+  const c = COMPETITIONS[ACTIVE_COMP];
+  return c ? (c.shortLabel || c.label || '') : '';
+}
+
 function tf(t){ const f=FLAG[t]; const n=_lang==='en'?(TEAM_NAME_EN[t]||t):t; return f?`${f} ${n}`:n; }
 const TEAM_NAME_EN = {
   'Mexique':'Mexico','Afrique du Sud':'South Africa','Corée du Sud':'South Korea',
@@ -3715,7 +3722,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T21:56';
+const _PL2526_FACTS_VERSION = '2026-08-07T22:22';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -7430,13 +7437,34 @@ function doExportRadar(){
   var totalW=PAD, maxH=0;
   resolved.forEach(function(p,i){ if(i>0)totalW+=GAP; totalW+=p.w; maxH=Math.max(maxH,p.h); });
   totalW+=PAD;
-  var totalH=maxH+PAD*2;
+
+  // 07/08/2026 — bandeau de titre dans l'image exportée. Sans lui, une
+  // infographie sortie de la page ne dit pas de quelle équipe elle parle :
+  // l'export ne reprend que les SVG, pas le HTML autour.
+  var TITRE_H = 0, titreSvg = '';
+  var nomEquipe = _radarTeam || '';
+  if(nomEquipe){
+    TITRE_H = 40;
+    var logo = (typeof CLUB_LOGO_B64 !== 'undefined' && CLUB_LOGO_B64[nomEquipe]) || '';
+    var xTexte = PAD;
+    if(logo){
+      titreSvg += '<image x="'+PAD+'" y="'+(PAD-2)+'" width="26" height="26"'
+                + ' xlink:href="data:image/png;base64,'+logo+'"/>';
+      xTexte = PAD + 34;
+    }
+    titreSvg += '<text x="'+xTexte+'" y="'+(PAD+18)+'" font-family="-apple-system,system-ui,'
+             + 'Helvetica,Arial,sans-serif" font-size="19" font-weight="700" fill="#1a2340">'
+             + nomEquipe.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</text>';
+  }
+
+  var totalH=maxH+PAD*2+TITRE_H;
 
   var body='';
   if(bgColor) body+='<rect width="'+totalW+'" height="'+totalH+'" fill="'+bgColor+'" rx="8"/>';
+  body += titreSvg;
   var cx=PAD;
   resolved.forEach(function(p,i){
-    var cy=PAD+(maxH-p.h)/2;
+    var cy=PAD+TITRE_H+(maxH-p.h)/2;
     body+='<g transform="translate('+cx.toFixed(1)+','+cy.toFixed(1)+')">'
       +'<svg viewBox="'+p.vb.join(' ')+'" width="'+p.w+'" height="'+p.h+'" xmlns="http://www.w3.org/2000/svg">'+p.inner+'</svg>'
       +'</g>';
@@ -9097,10 +9125,12 @@ if(ct.teams.length===0){
       : _lang==='nl' ? '« Vergelijken » toont 2 polygonen per radar: volle lijn/volle marker = thuis, stippellijn/holle marker = uit.' : '« Comparer » superpose 2 polygones par radar : trait plein/marqueur plein = domicile, pointillé/marqueur creux = extérieur.'}</div>
     <div style="display:flex;flex-direction:row;gap:32px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start">
       <div>
+        <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:1.02em;margin-bottom:1px;color:var(--text)">${_radarTeam ? tf(_radarTeam) : compLabelCourt()}</div>
         <div style="font-size:.72em;font-weight:700;color:#2255ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'}</div>
         <div id="radar-scored-svg" style="min-width:0"></div>
       </div>
       <div>
+        <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:1.02em;margin-bottom:1px;color:var(--text)">${_radarTeam ? tf(_radarTeam) : compLabelCourt()}</div>
         <div style="font-size:.72em;font-weight:700;color:#dd2222;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés'}</div>
         <div id="radar-conceded-svg" style="min-width:0"></div>
       </div>
