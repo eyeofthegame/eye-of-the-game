@@ -3715,7 +3715,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T09:22';
+const _PL2526_FACTS_VERSION = '2026-08-07T09:30';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -9928,7 +9928,13 @@ function renderDetailList(goals){
       _vdjTag(VDJ.tactique1, g.tactique1),
       _vdjTag(VDJ.origine1,  g.origine1),
       _vdjTag(VDJ.actions,   g.actions),
-      _vdjTag(VDJ.finitions, g.finitions),
+      // Christian (07/08/2026) : dans une liste de BUTS, la finition vaut
+      // toujours « But » (1) ou « But marqué » (2) — la pastille n'apprend
+      // rien et encombre. On masque ces deux valeurs. Les autres (arrêt du
+      // gardien, tir non ciblé…) décrivent des occasions manquées : si
+      // l'une apparaît ici, c'est une erreur d'encodage, et il vaut mieux
+      // la voir que la cacher.
+      (g.finitions===1 || g.finitions===2) ? '' : _vdjTag(VDJ.finitions, g.finitions),
       _vdjTag(VDJ.lieu,      g.lieu)
     ].filter(Boolean);
     const tagsLine = _tags.length
