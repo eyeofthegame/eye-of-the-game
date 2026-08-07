@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T20:54';
+const _PL2526_FACTS_VERSION = '2026-08-07T21:56';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -10131,7 +10131,17 @@ async function lsSearchFixtures(){
         allFixtures = d.response || [];
         lsLog('📅 '+allFixtures.length+' matchs trouvés pour '+LS_LEAGUES[compId].label);
       } else {
-        lsLog('⚠️ Championnat introuvable via l\'API — recherche générale à la place.');
+        // 07/08/2026 — avant, on retombait ici sur « tous les matchs du jour »,
+        // ce qui affichait des rencontres islandaises ou paraguayennes sous le
+        // libellé « Premier League », et en ignorant la date saisie. Un
+        // résultat sans rapport ne doit pas ressembler à un résultat valide :
+        // on s'arrête et on explique.
+        lsLog('❌ Championnat « ' + LS_LEAGUES[compId].label + ' » non résolu par l\'API.');
+        lsLog('   Cause la plus fréquente : quota de requêtes épuisé (100 par jour'
+              + ' en abonnement gratuit) ou saison non couverte par ton abonnement.');
+        lsLog('   Aucun match affiché — plutôt que d\'en afficher d\'autres qui'
+              + ' n\'auraient rien à voir.');
+        allFixtures = [];
       }
     }
 
