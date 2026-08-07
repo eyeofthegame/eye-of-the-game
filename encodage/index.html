@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T16:42';
+const _PL2526_FACTS_VERSION = '2026-08-07T19:01';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -9645,6 +9645,70 @@ function duplicatePreviousGoal(idx){
   showPage('matches');
   flinkInit();
 })();
+// ── VOLET 2 (07/08/2026) — resynchronisation automatique ──────────────────
+// Encodage ne lisait Cloudflare qu'au démarrage. En passant du portable au
+// bureau, il fallait fermer et rouvrir l'onglet pour voir le travail fait
+// ailleurs — et un onglet resté ouvert renvoyait une base périmée.
+//
+// Trois garde-fous, parce qu'ici on peut détruire du travail en cours :
+//   1. jamais pendant qu'un envoi est en attente ou en échec ;
+//   2. jamais si le distant contient MOINS de matchs encodés que le local ;
+//   3. le match ouvert à l'écran n'est jamais remplacé.
+var _vdjDerniereSyncEnc = Date.now();
+var _VDJ_DELAI_SYNC_ENC = 20000;
+
+function _vdjCompterEncodes(o){
+  if(!o || typeof o !== 'object') return 0;
+  var n = 0;
+  Object.keys(o).forEach(function(k){
+    var md = o[k];
+    if(!md || typeof md !== 'object') return;
+    if((Array.isArray(md.goals) && md.goals.length) || md.validated || md.score) n++;
+  });
+  return n;
+}
+
+function _vdjResyncEncodage(forcer){
+  if(document.hidden) return;
+  if(!forcer && Date.now() - _vdjDerniereSyncEnc < _VDJ_DELAI_SYNC_ENC) return;
+  if(_vdjSyncState === 'pending' || _vdjSyncState === 'error') return;  // travail non parti
+  _vdjDerniereSyncEnc = Date.now();
+
+  var ctrl = new AbortController();
+  var tid = setTimeout(function(){ ctrl.abort(); }, 8000);
+  fetch(_VDJ_WORKER + '/api/data?competition=' + ACTIVE_COMP, {signal: ctrl.signal})
+    .then(function(r){ clearTimeout(tid); return r.ok ? r.json() : null; })
+    .then(function(distant){
+      if(!distant) return;
+      var nD = _vdjCompterEncodes(distant), nL = _vdjCompterEncodes(data);
+      if(nD < nL){
+        console.warn('[VDJ] resync ignorée : Cloudflare a ' + nD + ' matchs encodés contre '
+          + nL + ' en local — rien écrasé.');
+        return;
+      }
+      // Le match ouvert reste celui de l'écran : on n'écrase jamais une saisie
+      // en cours, même si le distant a une version plus ancienne.
+      if(currentMatchId != null && data[currentMatchId] !== undefined){
+        distant[currentMatchId] = data[currentMatchId];
+      }
+      if(JSON.stringify(distant) === JSON.stringify(data)) return;   // rien de neuf
+
+      localStorage.setItem(activeDataKey(), JSON.stringify(distant));
+      data = distant;
+      try {
+        if(currentMatchId != null) renderGoalForms();
+        else renderMatchesList();
+        refreshToEncodeCount();
+      } catch(e){ console.warn('[VDJ] resync — rendu :', e); }
+      toast('🔄 Données rafraîchies depuis Cloudflare');
+    })
+    .catch(function(){ clearTimeout(tid); });
+}
+
+document.addEventListener('visibilitychange', function(){ _vdjResyncEncodage(); });
+window.addEventListener('focus',  function(){ _vdjResyncEncodage(); });
+window.addEventListener('online', function(){ _vdjResyncEncodage(true); });
+
 // ── LIVE SYNC — API-Football ───────────────────────────────────────────────
 var LS_APIKEY_STORE = 'vdj_apisports_key';
 

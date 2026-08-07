@@ -3715,7 +3715,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T16:42';
+const _PL2526_FACTS_VERSION = '2026-08-07T19:01';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -11021,6 +11021,26 @@ function _vdjHydrateFromAPI(){
     return results;
   });
 }
+
+// ── VOLET 2 (07/08/2026) — resynchronisation automatique ──────────────────
+// Jusqu'ici une page ne lisait Cloudflare qu'au chargement : ce qui était
+// encodé sur l'autre ordinateur restait invisible tant qu'on ne rechargeait
+// pas. Désormais, chaque retour sur l'onglet redemande les données.
+// _vdjHydrateFromAPI() refuse déjà d'écraser du local plus riche que le
+// distant : la resynchronisation ne peut donc pas faire disparaître de match.
+var _vdjDerniereSync = Date.now();
+var _VDJ_DELAI_SYNC = 20000;   // au plus une interrogation toutes les 20 s
+
+function _vdjResyncSiBesoin(forcer){
+  if(document.hidden) return;
+  if(!forcer && Date.now() - _vdjDerniereSync < _VDJ_DELAI_SYNC) return;
+  _vdjDerniereSync = Date.now();
+  _vdjHydrateFromAPI();
+}
+
+document.addEventListener('visibilitychange', function(){ _vdjResyncSiBesoin(); });
+window.addEventListener('focus',  function(){ _vdjResyncSiBesoin(); });
+window.addEventListener('online', function(){ _vdjResyncSiBesoin(true); });
 
 // Redessine la vue actuellement affichée après l'arrivée de nouvelles
 // données (Cloudflare) ou d'un changement de saison.
