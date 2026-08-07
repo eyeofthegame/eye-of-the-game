@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T20:03';
+const _PL2526_FACTS_VERSION = '2026-08-07T20:18';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -9971,8 +9971,43 @@ async function lsFetchLineupsForMatch(matchId, opts){
     }
 
     md.lineup = lineup;
+
+    // 07/08/2026 — l'arbitre et les entraîneurs sont DÉJÀ dans les réponses
+    // téléchargées : l'arbitre dans la fiche du match, les entraîneurs dans
+    // celle des compositions. On les lisait pas. Aucun appel supplémentaire,
+    // donc aucun quota consommé en plus.
+    const infos = [];
+
+    // Arbitre — « Anthony Taylor, England » → on ne garde que le nom.
+    const arb = (fixture.fixture && fixture.fixture.referee || '').split(',')[0].trim();
+    if(arb && !md.arbitre){          // jamais écraser une saisie manuelle
+      md.arbitre = arb;
+      infos.push('arbitre : ' + arb);
+    }
+
+    // Entraîneurs — appariement par identifiant d'équipe, pas par nom :
+    // les libellés de l'API diffèrent parfois des tiens (« Urawa Reds » /
+    // « Urawa Red Diamonds »).
+    try {
+      const idDom = fixture.teams && fixture.teams.home && fixture.teams.home.id;
+      const idExt = fixture.teams && fixture.teams.away && fixture.teams.away.id;
+      const ents = md.entraineurs || {};
+      (lData.response || []).forEach(function(bloc){
+        const nom = bloc.coach && bloc.coach.name;
+        if(!nom) return;
+        const tid = bloc.team && bloc.team.id;
+        if(tid === idDom && !ents.dom) ents.dom = nom;
+        else if(tid === idExt && !ents.ext) ents.ext = nom;
+      });
+      if(ents.dom || ents.ext){
+        md.entraineurs = ents;
+        infos.push('entraîneurs : ' + (ents.dom||'?') + ' / ' + (ents.ext||'?'));
+      }
+    } catch(e){ /* absence d'entraîneur : sans conséquence */ }
+
     saveData();
-    lsLog('✅ Compositions récupérées : '+m.dom+' vs '+m.ext);
+    lsLog('✅ Compositions récupérées : '+m.dom+' vs '+m.ext
+          + (infos.length ? ' — ' + infos.join(' · ') : ''));
     return true;
   } catch(err){
     lsLog('❌ Erreur compositions '+m.dom+' vs '+m.ext+' : '+err.message);
