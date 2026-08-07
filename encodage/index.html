@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T14:28';
+const _PL2526_FACTS_VERSION = '2026-08-07T16:42';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -4494,6 +4494,10 @@ function renderGoalForms(scrollToIdx){
         <span style="display:flex;align-items:center;gap:8px">
           <span style="font-weight:bold;font-size:1.05em">But ${i+1} — <button onclick="toggleGoalTeam(${i})" class="team-badge" style="background:#${getTeamColor(g.team)};color:${getContrastColor(getTeamColor(g.team))};border:1px solid rgba(0,0,0,.2);cursor:pointer;border-radius:3px" title="Cliquer pour changer d'équipe">⇄ ${g.team}</button></span>
           <button onclick="deleteGoal(${i})" style="font-size:.72em;padding:2px 8px;border:1px solid #c00;background:#fff0f0;color:#c00;border-radius:4px;cursor:pointer" title="Supprimer ce but">🗑 Suppr.</button>
+          <span style="display:inline-flex;gap:2px">
+            <button onclick="deplacerBut(${i},-1)" ${i===0?'disabled':''} style="font-size:.72em;padding:2px 7px;border:1px solid #999;background:${i===0?'#f4f4f4':'#fff'};color:${i===0?'#bbb':'#333'};border-radius:4px;cursor:${i===0?'default':'pointer'}" title="Ce but a été marqué AVANT le précédent">↑</button>
+            <button onclick="deplacerBut(${i},1)" ${i===md.goals.length-1?'disabled':''} style="font-size:.72em;padding:2px 7px;border:1px solid #999;background:${i===md.goals.length-1?'#f4f4f4':'#fff'};color:${i===md.goals.length-1?'#bbb':'#333'};border-radius:4px;cursor:${i===md.goals.length-1?'default':'pointer'}" title="Ce but a été marqué APRÈS le suivant">↓</button>
+          </span>
           ${i>0 ? `<button onclick="duplicatePreviousGoal(${i})" style="font-size:.72em;padding:2px 8px;border:1px solid var(--accent);background:#eef5ff;color:var(--accent);border-radius:4px;cursor:pointer" title="Copier toutes les rubriques (Tactique, Origine, Action, Lieu, Descriptif, Nature, Finition, Valeur) du but précédent">📋 Copier but précédent</button>` : ''}
         </span>
         <label style="font-size:.85em;display:flex;align-items:center;gap:6px">
@@ -5427,6 +5431,33 @@ function toggleGoalTeam(idx){
   g.opponent = (g.team === m.dom) ? m.ext : m.dom; // opponent = l'autre équipe
   saveData();
   renderGoalForms(idx);
+}
+
+// 07/08/2026 — Christian : deux buts inscrits dans le temps additionnel
+// portent tous les deux la minute 90 (convention d'encodage). Seul leur ORDRE
+// dans la liste porte alors la chronologie — et cet ordre compte pour « qui
+// mène », l'évolution du score et la base de données. Il manquait le moyen de
+// le corriger sans tout ré-encoder.
+function deplacerBut(idx, sens){
+  const md = getMatchData(currentMatchId);
+  const cible = idx + sens;
+  if(cible < 0 || cible >= md.goals.length) return;
+  const tmp = md.goals[idx];
+  md.goals[idx] = md.goals[cible];
+  md.goals[cible] = tmp;
+  // Les numéros par équipe se recalculent : le 1er but du Brésil reste le 1er
+  // but du Brésil, quel que soit son rang dans le match.
+  const compteur = {};
+  md.goals.forEach(g => {
+    compteur[g.team] = (compteur[g.team] || 0) + 1;
+    g.num = compteur[g.team];
+  });
+  saveData();
+  renderGoalForms();
+  setTimeout(function(){
+    const el = document.getElementById('goal-' + cible);
+    if(el) el.scrollIntoView({block:'center', behavior:'smooth'});
+  }, 60);
 }
 
 function deleteGoal(idx){
