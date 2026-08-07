@@ -2783,7 +2783,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T20:18';
+const _PL2526_FACTS_VERSION = '2026-08-07T20:50';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -9737,7 +9737,8 @@ var LS_LEAGUES = {
   // janvier 2027, 'calendar' demanderait la saison 2027 à API-Football
   // alors que les matchs appartiennent à la saison 2026. Le Live Sync
   // s'arrêterait de fonctionner en pleine saison, sans raison apparente.
-  jl2627:  { label:'🇯🇵 J1 League 26-27',         search:'J1 League',           country:'Japan',   seasonMode:'euro' },
+  // Saison désignée « 2027 » par API-Football (identifiant de ligue : 98).
+  jl2627:  { label:'🇯🇵 J1 League 26-27',         search:'J1 League',           country:'Japan',   seasonMode:'euroFin' },
   jpl2627: { label:'🇧🇪 Jupiler Pro League',      search:'Jupiler Pro League',  country:'Belgium', seasonMode:'euro' },
   bl2627:  { label:'🇩🇪 Bundesliga',              search:'Bundesliga',          country:'Germany', seasonMode:'euro' }
 };
@@ -9823,12 +9824,19 @@ var _lsSeasonFixturesCache = {}; // compId -> [{id, date:'YYYY-MM-DD', home, awa
 // Comme lsSeasonForDate, mais à partir de la date d'UN MATCH (format VDJ
 // "DD/MM/YYYY") plutôt que d'"aujourd'hui" — indispensable pour une
 // saison déjà terminée (ex: PL 2025-26 vue depuis juillet 2026).
+// 07/08/2026 — API-Football ne désigne pas toutes les saisons à cheval de la
+// même façon. La Premier League 2026-27 y est « 2026 » (année de début), mais
+// la J1 League 2026-27 y est « 2027 » (année de fin) — vérifié sur leur page
+// de couverture : J1 League, saison 2027, du 07/08/2026 au 06/06/2027.
+// D'où trois modes plutôt que deux. Sans « euroFin », la J1 League ne
+// renverrait jamais aucun match, même avec un abonnement payant.
 function lsSeasonForMatchDate(dateStr, mode){
   const parts = (dateStr||'').split('/');
   const year = parseInt(parts[2]) || new Date().getFullYear();
-  if(mode !== 'euro') return year;
   const month = parseInt(parts[1]) || 1;
-  return month >= 7 ? year : year - 1;
+  if(mode === 'euro')    return month >= 7 ? year : year - 1;   // désignée par l'année de début
+  if(mode === 'euroFin') return month >= 7 ? year + 1 : year;   // désignée par l'année de fin
+  return year;                                                  // année civile
 }
 
 function _lsDateVDJToISO(dateStr){
