@@ -3722,7 +3722,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T22:22';
+const _PL2526_FACTS_VERSION = '2026-08-07T22:51';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -7509,6 +7509,18 @@ function doExportRadar(){
 function renderRadar(team){
   if(!_radarCt) return;
   _radarTeam = team||'';
+
+  // 07/08/2026 — le titre au-dessus des graphiques était écrit à la
+  // construction de la page et jamais réactualisé : changer d'équipe
+  // redessine les SVG mais pas l'en-tête, qui restait sur le nom de la
+  // compétition. On le remet à jour ici, seul endroit qui connaît l'équipe.
+  try {
+    const _titre = _radarTeam ? tf(_radarTeam) : compLabelCourt();
+    ['radar-title-scored', 'radar-title-conceded'].forEach(function(id){
+      const el = document.getElementById(id);
+      if(el) el.innerHTML = _titre;
+    });
+  } catch(e){ /* en-tête absent : sans conséquence */ }
   const ct = _radarCt;
   // Pour origine2/origine3 : Axe en haut, Droite en bas-droite, Gauche en bas-gauche
   const _RADAR_ORDER_O2 = [3,2,4]; // Axe, Droite, Gauche
@@ -9125,12 +9137,12 @@ if(ct.teams.length===0){
       : _lang==='nl' ? '« Vergelijken » toont 2 polygonen per radar: volle lijn/volle marker = thuis, stippellijn/holle marker = uit.' : '« Comparer » superpose 2 polygones par radar : trait plein/marqueur plein = domicile, pointillé/marqueur creux = extérieur.'}</div>
     <div style="display:flex;flex-direction:row;gap:32px;flex-wrap:nowrap;overflow-x:auto;align-items:flex-start">
       <div>
-        <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:1.02em;margin-bottom:1px;color:var(--text)">${_radarTeam ? tf(_radarTeam) : compLabelCourt()}</div>
+        <div id="radar-title-scored" style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:1.02em;margin-bottom:1px;color:var(--text)">${_radarTeam ? tf(_radarTeam) : compLabelCourt()}</div>
         <div style="font-size:.72em;font-weight:700;color:#2255ff;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Scored':_lang==='nl'?'Doelpunten gescoord':'Buts marqués'}</div>
         <div id="radar-scored-svg" style="min-width:0"></div>
       </div>
       <div>
-        <div style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:1.02em;margin-bottom:1px;color:var(--text)">${_radarTeam ? tf(_radarTeam) : compLabelCourt()}</div>
+        <div id="radar-title-conceded" style="display:flex;align-items:center;gap:6px;font-weight:800;font-size:1.02em;margin-bottom:1px;color:var(--text)">${_radarTeam ? tf(_radarTeam) : compLabelCourt()}</div>
         <div style="font-size:.72em;font-weight:700;color:#dd2222;margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em">${_lang==='en'?'Goals Conceded':_lang==='nl'?'Doelpunten tegen':'Buts encaissés'}</div>
         <div id="radar-conceded-svg" style="min-width:0"></div>
       </div>
