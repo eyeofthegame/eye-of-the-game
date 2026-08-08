@@ -3722,7 +3722,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-07T22:56';
+const _PL2526_FACTS_VERSION = '2026-08-08T12:03';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -8446,11 +8446,16 @@ function _refereeOrigine(ref){
 // 25/07/2026 — étendu pour séparer domicile/extérieur (Christian veut voir
 // combien de points un club a pris SOUS CET ARBITRE à domicile, et
 // séparément en déplacement), au lieu d'une seule ligne combinée.
-function _refereeTeamStatsPL2526(){
-  const comp = COMPETITIONS['pl2526'];
+// 07/08/2026 — le calcul ne dépendait de la Premier League que par ces trois
+// lignes : il ne lit que le champ « arbitre » de chaque match, ce qui existe
+// dans toutes les compétitions. Compétition en paramètre désormais, pour que
+// la Belgique et le Japon en profitent dès que Christian saisit les arbitres.
+function _refereeTeamStatsPL2526(compId){
+  compId = compId || 'pl2526';
+  const comp = COMPETITIONS[compId];
   if(!comp) return {};
-  const seed = (SEED_BY_COMP && SEED_BY_COMP.pl2526) || {};
-  const src = (ACTIVE_COMP === 'pl2526') ? data : seed;
+  const seed = (SEED_BY_COMP && SEED_BY_COMP[compId]) || {};
+  const src = (ACTIVE_COMP === compId) ? data : seed;
   const out = {};
   (comp.matches || []).forEach(f=>{
     const md = src[String(f.id)];
@@ -8475,11 +8480,64 @@ function _refereeTeamStatsPL2526(){
   return out;
 }
 
+
+// Tableau des arbitres d'une compétition : matchs dirigés, buts, cartons.
+function _vueArbitresGenerique(compId){
+  const stats = _refereeTeamStatsPL2526(compId);
+  const comp = COMPETITIONS[compId] || {};
+  const t = (fr,en,nl)=> _lang==='en'?en : _lang==='nl'?nl : fr;
+
+  const lignes = Object.keys(stats).map(function(ref){
+    let matchs = 0, bp = 0, jaunes = 0, rouges = 0;
+    const equipes = stats[ref];
+    Object.keys(equipes).forEach(function(eq){
+      const e = equipes[eq];
+      matchs += (e.matches || e.j || 0);
+      bp     += (e.gf || e.bp || 0);
+      jaunes += (e.yellow || e.jaunes || 0);
+      rouges += (e.red || e.rouges || 0);
+    });
+    return {ref, matchs: Math.round(matchs/2), equipes: Object.keys(equipes).length,
+            buts: bp, jaunes, rouges};
+  }).sort(function(a,b){ return b.matchs - a.matchs || a.ref.localeCompare(b.ref); });
+
+  let h = '<div style="max-width:1000px">'
+    + '<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;'
+    + 'letter-spacing:.12em;margin-bottom:4px">🟨 ' + t('Arbitres','Referees','Scheidsrechters') + '</div>'
+    + '<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 6px">'
+    + (comp.label || compId) + '</h2>'
+    + '<div style="font-size:.82em;color:var(--muted);margin-bottom:16px">'
+    + lignes.length + ' ' + t('arbitres','referees','scheidsrechters') + '</div>'
+    + '<table class="tableau"><tr>'
+    + [t('Arbitre','Referee','Scheidsrechter'), t('Matchs','Matches','Wedstrijden'),
+       t('Buts','Goals','Doelpunten'), t('Buts/match','Goals/match','Doelpunten/wedstrijd'),
+       '🟨', '🟥']
+      .map(function(x,i){ return '<th style="text-align:' + (i?'center':'left') + '">' + x + '</th>'; }).join('')
+    + '</tr>';
+
+  lignes.forEach(function(r){
+    h += '<tr><td style="font-weight:700">' + r.ref + '</td>'
+      + '<td style="text-align:center">' + r.matchs + '</td>'
+      + '<td style="text-align:center">' + r.buts + '</td>'
+      + '<td style="text-align:center;font-weight:700">'
+      + (r.matchs ? (r.buts / r.matchs).toFixed(2) : '—') + '</td>'
+      + '<td style="text-align:center">' + (r.jaunes || '—') + '</td>'
+      + '<td style="text-align:center;color:#b3261e">' + (r.rouges || '—') + '</td></tr>';
+  });
+
+  return h + '</table></div>';
+}
+
 function renderArbitres(){
   try{
     loadData();
     var el = document.getElementById('view-arbitres');
     if(!el) return;
+    // Toute compétition où des arbitres ont été saisis est affichable.
+    if(ACTIVE_COMP !== 'pl2526' && Object.keys(_refereeTeamStatsPL2526(ACTIVE_COMP)).length){
+      el.innerHTML = _vueArbitresGenerique(ACTIVE_COMP);
+      return;
+    }
     if(ACTIVE_COMP !== 'pl2526'){
       el.innerHTML = '<div style="max-width:900px"><div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">🟨 '+(_lang==='en'?'Referees':_lang==='nl'?'Scheidsrechters':'Arbitres')+'</div>'
         +'<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 18px">'+(_lang==='en'?'Referees':_lang==='nl'?'Scheidsrechters':'Arbitres')+'</h2>'
@@ -8630,11 +8688,127 @@ function comp0Matches(){
   }catch(e){ return 0; }
 }
 
+
+// ═══════════════════════════════════════════════════════════════════
+// 👔 ENTRAÎNEURS — Jupiler Pro League et J1 League 2026-27
+// ═══════════════════════════════════════════════════════════════════
+// 07/08/2026 — la page Entraîneurs ne servait que la Premier League
+// 2025-26. Christian voulait la Belgique et le Japon. Source : listes
+// officielles qu'il a fournies. Les dates de nomination existent pour le
+// Japon (elles permettent le « avant / après l'arrivée »), pas pour la
+// Belgique — sa source ne les donnait pas.
+// Alimenté par FICHIERS_JSON/entraineurs_2627.json, ne pas éditer ici.
+const _ENTRAINEURS_AUTRES = {"jl2627": {"Avispa Fukuoka": {"entraineur": "Shinya Tsukahara", "nationalite": "Japon", "depuis": "05/01/2026"}, "Cerezo Osaka": {"entraineur": "Pablo Machín", "nationalite": "Espagne", "depuis": "03/07/2026"}, "Fagiano Okayama": {"entraineur": "Takashi Kiyama", "nationalite": "Japon", "depuis": "14/12/2021"}, "Gamba Osaka": {"entraineur": "Tomokazu Myojin", "nationalite": "Japon", "depuis": "18/07/2026"}, "JEF United Chiba": {"entraineur": "Yoshiyuki Kobayashi", "nationalite": "Japon", "depuis": "01/11/2022"}, "Kashima Antlers": {"entraineur": "Toru Oniki", "nationalite": "Japon", "depuis": "12/12/2024"}, "Kashiwa Reysol": {"entraineur": "Ricardo Rodríguez", "nationalite": "Espagne", "depuis": "11/12/2024"}, "Kawasaki Frontale": {"entraineur": "Shigetoshi Hasebe", "nationalite": "Japon", "depuis": "12/12/2024"}, "Kyoto Sanga": {"entraineur": "Ranko Popović", "nationalite": "Serbie", "depuis": "08/06/2026"}, "Machida Zelvia": {"entraineur": "Go Kuroda", "nationalite": "Japon", "depuis": "24/10/2022"}, "Mito HollyHock": {"entraineur": "Daisuke Kimori", "nationalite": "Japon", "depuis": "08/12/2025"}, "Nagoya Grampus": {"entraineur": "Mihailo Petrović", "nationalite": "Serbie", "depuis": "18/12/2025"}, "Sanfrecce Hiroshima": {"entraineur": "Bartosch Gaul", "nationalite": "Pologne", "depuis": "16/12/2025"}, "Shimizu S-Pulse": {"entraineur": "Takayuki Yoshida", "nationalite": "Japon", "depuis": "08/12/2025"}, "Tokyo": {"entraineur": "Rikizo Matsuhashi", "nationalite": "Japon", "depuis": "21/12/2024"}, "Tokyo Verdy": {"entraineur": "Hiroshi Jofuku", "nationalite": "Japon", "depuis": "15/06/2022"}, "Urawa Reds": {"entraineur": "Cho Kwi-jae", "nationalite": "Corée du Sud", "depuis": "16/06/2026"}, "V-Varen Nagasaki": {"entraineur": "Takuya Takagi", "nationalite": "Japon", "depuis": "20/06/2025"}, "Vissel Kobe": {"entraineur": "Michael Skibbe", "nationalite": "Allemagne", "depuis": "14/12/2025"}, "Yokohama F. Marinos": {"entraineur": "Steve Corica", "nationalite": "Australie", "depuis": "21/06/2026"}}, "jpl2627": {"Cercle Brugge": {"entraineur": "Lars Friis", "nationalite": "Danemark", "depuis": null}, "Club Brugge": {"entraineur": "Ivan Leko", "nationalite": "Croatie", "depuis": null}, "KAA Gent": {"entraineur": "Rik De Mil", "nationalite": "Belgique", "depuis": null}, "KRC Genk": {"entraineur": "Jess Thorup", "nationalite": "Danemark", "depuis": null}, "KV Kortrijk": {"entraineur": "Michiel Jonckheere", "nationalite": "Belgique", "depuis": null}, "KV Mechelen": {"entraineur": "Frederik Vanderbiest", "nationalite": "Belgique", "depuis": null}, "KVC Westerlo": {"entraineur": "Issame Charaï", "nationalite": "Belgique", "depuis": null}, "Lommel SK": {"entraineur": "Lee Johnson", "nationalite": "Royaume-Uni", "depuis": null}, "OH Leuven": {"entraineur": "Timmy Simons", "nationalite": "Belgique", "depuis": null}, "RAAL La Louvière": {"entraineur": "Edward Still", "nationalite": "Royaume-Uni", "depuis": null}, "RSC Anderlecht": {"entraineur": "Vítor Bruno", "nationalite": "Portugal", "depuis": null}, "Royal Antwerp FC": {"entraineur": "Marvin Compper", "nationalite": "Allemagne", "depuis": null}, "Royale Union Saint-Gilloise": {"entraineur": "David Hubert", "nationalite": "Belgique", "depuis": null}, "SK Beveren": {"entraineur": "Tim Bakens", "nationalite": "Pays-Bas", "depuis": null}, "STVV": {"entraineur": "Frédéric De Meyer", "nationalite": "Belgique", "depuis": null}, "SV Zulte Waregem": {"entraineur": "Michael Beale", "nationalite": "Royaume-Uni", "depuis": null}, "Sporting Charleroi": {"entraineur": "Mario Kohnen", "nationalite": "Belgique", "depuis": null}, "Standard de Liège": {"entraineur": "Vincent Euvrard", "nationalite": "Belgique", "depuis": null}}};
+
+// Matchs joués par un club, dans la compétition demandée.
+function _matchsClub(compId, club){
+  const comp = COMPETITIONS[compId];
+  if(!comp) return [];
+  const seed = (SEED_BY_COMP && SEED_BY_COMP[compId]) || {};
+  const src = (ACTIVE_COMP === compId) ? data : seed;
+  const out = [];
+  (comp.matches || []).forEach(f=>{
+    if(f.dom !== club && f.ext !== club) return;
+    const md = src[String(f.id)];
+    if(!md || !md.score || md.score.dom == null || md.score.ext == null) return;
+    const dom = f.dom === club;
+    out.push({date:f.date, adversaire: dom ? f.ext : f.dom, domicile: dom,
+              pour: dom ? md.score.dom : md.score.ext,
+              contre: dom ? md.score.ext : md.score.dom});
+  });
+  return out;
+}
+
+// Bilan d'un entraîneur depuis sa nomination (ou sur toute la saison si
+// la date est inconnue).
+function _bilanEntraineur(compId, club, depuis){
+  const debut = depuis ? _dateKeyPL2526(depuis) : -Infinity;
+  let j=0, v=0, n=0, d=0, bp=0, bc=0;
+  _matchsClub(compId, club).forEach(m=>{
+    if(_dateKeyPL2526(m.date) < debut) return;
+    j++; bp += m.pour; bc += m.contre;
+    if(m.pour > m.contre) v++; else if(m.pour === m.contre) n++; else d++;
+  });
+  const pts = v*3 + n;
+  return {j, v, n, d, bp, bc, pts, moy: j ? +(pts/j).toFixed(2) : 0};
+}
+
+
+// Tableau des entraîneurs pour une compétition du registre dédié.
+function _vueEntraineursAutres(compId){
+  const reg = _ENTRAINEURS_AUTRES[compId] || {};
+  const comp = COMPETITIONS[compId] || {};
+  const t = (fr,en,nl)=> _lang==='en'?en : _lang==='nl'?nl : fr;
+
+  const lignes = Object.keys(reg).map(function(club){
+    const e = reg[club];
+    const b = _bilanEntraineur(compId, club, e.depuis);
+    return Object.assign({club:club}, e, b);
+  }).sort(function(a,b){
+    if(b.pts !== a.pts) return b.pts - a.pts;
+    if(b.j !== a.j) return a.j - b.j;
+    return a.club.localeCompare(b.club);
+  });
+
+  const joues = lignes.reduce(function(s,x){ return s + x.j; }, 0);
+  const avecDate = lignes.filter(function(x){ return x.depuis; }).length;
+
+  let h = '<div style="max-width:1100px">'
+    + '<div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;'
+    + 'letter-spacing:.12em;margin-bottom:4px">👔 ' + t('Entraîneurs','Coaches','Trainers') + '</div>'
+    + '<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 6px">'
+    + (comp.label || compId) + '</h2>'
+    + '<div style="font-size:.82em;color:var(--muted);margin-bottom:16px">'
+    + lignes.length + ' ' + t('entraîneurs','coaches','trainers')
+    + (joues ? ' · ' + joues + ' ' + t('matchs joués','matches played','gespeelde wedstrijden')
+             : ' · ' + t('saison pas encore commencée','season not started yet','seizoen nog niet begonnen'))
+    + '</div>';
+
+  h += '<table class="tableau"><tr>'
+    + ['', t('Entraîneur','Coach','Trainer'), t('Nationalité','Nationality','Nationaliteit'),
+       t('En poste depuis','In charge since','In functie sinds'),
+       'J','V','N','D','BP','BC','Pts',t('Moy.','Avg','Gem.')]
+      .map(function(x,i){ return '<th style="text-align:' + (i<4?'left':'center') + '">' + x + '</th>'; }).join('')
+    + '</tr>';
+
+  lignes.forEach(function(r){
+    h += '<tr>'
+      + '<td class="team">' + tf(r.club) + '</td>'
+      + '<td style="font-weight:700">' + r.entraineur + '</td>'
+      + '<td style="color:var(--muted);font-size:.86em">' + (r.nationalite || '—') + '</td>'
+      + '<td style="color:var(--muted);font-size:.86em">' + (r.depuis || '—') + '</td>'
+      + '<td style="text-align:center">' + r.j + '</td>'
+      + '<td style="text-align:center;color:#1a7a3a;font-weight:700">' + r.v + '</td>'
+      + '<td style="text-align:center">' + r.n + '</td>'
+      + '<td style="text-align:center;color:#b3261e">' + r.d + '</td>'
+      + '<td style="text-align:center">' + r.bp + '</td>'
+      + '<td style="text-align:center">' + r.bc + '</td>'
+      + '<td class="total">' + r.pts + '</td>'
+      + '<td style="text-align:center;font-weight:700">' + (r.j ? r.moy.toFixed(2) : '—') + '</td>'
+      + '</tr>';
+  });
+  h += '</table>';
+
+  if(avecDate < lignes.length){
+    h += '<div style="font-size:.78em;color:var(--muted);margin-top:12px">'
+      + t('Sans date de nomination, le bilan porte sur toute la saison.',
+          'Without an appointment date, the record covers the whole season.',
+          'Zonder aanstellingsdatum betreft het overzicht het hele seizoen.')
+      + ' (' + (lignes.length - avecDate) + '/' + lignes.length + ')</div>';
+  }
+  return h + '</div>';
+}
+
 function renderEntraineurs(){
   try{
     loadData();
     var el = document.getElementById('view-entraineurs');
     if(!el) return;
+    // 07/08/2026 — Belgique et Japon : registre dédié.
+    if(_ENTRAINEURS_AUTRES[ACTIVE_COMP]){
+      el.innerHTML = _vueEntraineursAutres(ACTIVE_COMP);
+      return;
+    }
     if(ACTIVE_COMP !== 'pl2526'){
       el.innerHTML = '<div style="max-width:900px"><div style="font-size:.7em;font-weight:800;color:var(--muted);text-transform:uppercase;letter-spacing:.12em;margin-bottom:4px">👔 '+(_lang==='en'?'Coaches':_lang==='nl'?'Trainers':'Entraîneurs')+'</div>'
         +'<h2 style="font-size:1.35em;font-weight:900;color:var(--text);margin:0 0 18px">'+(_lang==='en'?'Coaches':_lang==='nl'?'Trainers':'Entraîneurs')+'</h2>'
