@@ -304,6 +304,22 @@ Eye of the Game<br>ゲームの目<br>© Christian Schaekels
 <div id="encode-match-info" class="step-box"></div>
 <div id="lineup-container" class="step-box"></div>
 <datalist id="lineup-players-datalist"></datalist>
+
+<!-- 07/08/2026 — saisie manuelle de l'arbitre. Le Live Sync le remplit tout
+     seul quand l'abonnement API le permet ; ce champ est la sortie de secours,
+     avec une liste déroulante des arbitres officiels de la compétition. -->
+<div id="encode-arbitre" class="step-box hidden">
+  <h3 style="display:flex;align-items:center;gap:10px;flex-wrap:wrap">
+    🟨 Arbitre
+    <input id="arbitre-input" list="arbitres-datalist" type="text"
+           placeholder="Nom de l'arbitre…" autocomplete="off"
+           oninput="majArbitre(this.value)"
+           style="font-size:.62em;font-weight:400;padding:5px 10px;border:1px solid #ccd;
+                  border-radius:5px;min-width:280px">
+    <span id="arbitre-etat" style="font-size:.55em;font-weight:400;color:var(--muted)"></span>
+  </h3>
+  <datalist id="arbitres-datalist"></datalist>
+</div>
 <div id="encode-score" class="step-box hidden">
 <h3>Score du match <button id="btn-modify-score" onclick="toggleModifyScore()" class="btn" style="font-size:.8em;margin-left:12px;display:none">✏️ Modifier</button></h3>
 <div class="row" style="margin-top:8px">
@@ -2783,7 +2799,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-08T12:03';
+const _PL2526_FACTS_VERSION = '2026-08-08T12:36';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -2927,6 +2943,52 @@ var _VDJ_WORKER = 'https://spring-smoke-d136.pushkulu-6a2.workers.dev';
 // en cours, et le Worker le fusionne dans la base existante.
 // saveDataFull() reste disponible pour les operations qui touchent
 // plusieurs matchs a la fois.
+// ── Arbitres (07/08/2026) ────────────────────────────────────────────────
+// Deux sources pour la liste déroulante : les arbitres officiels connus de
+// la compétition, et ceux que Christian a déjà saisis lui-même. La seconde
+// fait que la liste s'enrichit toute seule : le premier match saisi à la
+// main profite à tous les suivants.
+var ARBITRES_OFFICIELS = {"jpl2627": ["Anthony Letellier", "Bert Put", "Erik Lambrechts", "Jasper Vergoote", "Kevin Van Damme", "Lawrence Visser", "Lothar D'Hondt", "Michiel Allaerts", "Wesli De Cremer"]};   // source : FICHIERS_JSON/arbitres_officiels.json
+
+function arbitresConnus(){
+  var noms = {};
+  (ARBITRES_OFFICIELS[ACTIVE_COMP] || []).forEach(function(n){ noms[n] = true; });
+  Object.keys(data || {}).forEach(function(k){
+    var md = data[k];
+    if(md && md.arbitre) noms[md.arbitre] = true;
+  });
+  return Object.keys(noms).sort(function(a,b){ return a.localeCompare(b); });
+}
+
+function majArbitre(valeur){
+  if(currentMatchId == null) return;
+  var md = getMatchData(currentMatchId);
+  var v = (valeur || '').trim();
+  if(v) md.arbitre = v; else delete md.arbitre;
+  saveData();
+  var etat = document.getElementById('arbitre-etat');
+  if(etat) etat.textContent = v ? '✓ enregistré' : '';
+}
+
+// Remplit le champ et sa liste à l'ouverture d'un match.
+function majBlocArbitre(){
+  var bloc = document.getElementById('encode-arbitre');
+  if(!bloc || currentMatchId == null) return;
+  bloc.classList.remove('hidden');
+  var md = getMatchData(currentMatchId);
+  var champ = document.getElementById('arbitre-input');
+  if(champ) champ.value = md.arbitre || '';
+  var etat = document.getElementById('arbitre-etat');
+  if(etat) etat.textContent = md.arbitre ? '✓ enregistré' : '';
+  var liste = document.getElementById('arbitres-datalist');
+  if(liste){
+    var noms = arbitresConnus();
+    liste.innerHTML = noms.map(function(n){
+      return '<option value="' + n.replace(/"/g, '&quot;') + '">';
+    }).join('');
+  }
+}
+
 function saveData(){
   localStorage.setItem(activeDataKey(), JSON.stringify(data));
   if(currentMatchId != null && data[currentMatchId] !== undefined){
@@ -3418,6 +3480,7 @@ function _isEmptyGoal(g){
 
 function openMatch(id){
   currentMatchId = id;
+  setTimeout(function(){ try{ majBlocArbitre(); }catch(e){} }, 0);
   const m = MATCHES.find(x=>x.id===id);
   const md = getMatchData(id);
 
