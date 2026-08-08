@@ -3722,7 +3722,7 @@ function _fixResearchBatchJ3138Goals(){
 // constante ci-dessous est reecrite par publier_vdj.command a chaque envoi.
 // Entre deux publications, les retouches factuelles faites a la main dans
 // Encodage sont donc conservees.
-const _PL2526_FACTS_VERSION = '2026-08-08T12:36';
+const _PL2526_FACTS_VERSION = '2026-08-08T12:53';
 function _syncFactsFromSeedPL2526(){
   if(ACTIVE_COMP !== 'pl2526') return;
   const seed = SEED_BY_COMP[ACTIVE_COMP];
@@ -8487,18 +8487,25 @@ function _vueArbitresGenerique(compId){
   const comp = COMPETITIONS[compId] || {};
   const t = (fr,en,nl)=> _lang==='en'?en : _lang==='nl'?nl : fr;
 
+  // Les compteurs sont rangés par équipe PUIS par lieu : stats[arbitre][équipe]
+  // vaut {dom:{matches,gf,…}, ext:{…}}. Chaque match est donc compté deux fois,
+  // une par équipe — d'où la division. Les buts, eux, ne le sont pas : le « gf »
+  // de l'équipe à domicile et celui de l'extérieur sont deux buts différents.
   const lignes = Object.keys(stats).map(function(ref){
-    let matchs = 0, bp = 0, jaunes = 0, rouges = 0;
+    let cotes = 0, buts = 0, jaunes = 0, rouges = 0;
     const equipes = stats[ref];
     Object.keys(equipes).forEach(function(eq){
-      const e = equipes[eq];
-      matchs += (e.matches || e.j || 0);
-      bp     += (e.gf || e.bp || 0);
-      jaunes += (e.yellow || e.jaunes || 0);
-      rouges += (e.red || e.rouges || 0);
+      ['dom', 'ext'].forEach(function(lieu){
+        const r = equipes[eq][lieu];
+        if(!r) return;
+        cotes  += r.matches || 0;
+        buts   += r.gf || 0;
+        jaunes += r.jaune || 0;
+        rouges += r.rouge || 0;
+      });
     });
-    return {ref, matchs: Math.round(matchs/2), equipes: Object.keys(equipes).length,
-            buts: bp, jaunes, rouges};
+    return {ref, matchs: Math.round(cotes / 2), equipes: Object.keys(equipes).length,
+            buts, jaunes, rouges};
   }).sort(function(a,b){ return b.matchs - a.matchs || a.ref.localeCompare(b.ref); });
 
   let h = '<div style="max-width:1000px">'
